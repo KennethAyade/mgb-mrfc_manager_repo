@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Modern Professional Color Scheme -->
+    <!-- Primary Colors -->
+    <color name="primary">#1B5E20</color>
+    <color name="primary_dark">#0D3818</color>
+    <color name="primary_light">#2E7D32</color>
+    <color name="accent">#4CAF50</color>
+    <color name="accent_light">#66BB6A</color>
+
+    <!-- Background Colors -->
+    <color name="background">#F5F7FA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="drawer_background">#FAFAFA</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#1A1A1A</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="text_hint">#9CA3AF</color>
+    <color name="text_on_primary">#FFFFFF</color>
+
+    <!-- Status Colors -->
+    <color name="status_success">#10B981</color>
+    <color name="status_warning">#F59E0B</color>
+    <color name="status_error">#EF4444</color>
+    <color name="status_info">#3B82F6</color>
+
+    <!-- Status Colors (Legacy compatibility) -->
+    <color name="status_compliant">#10B981</color>
+    <color name="status_partial">#F59E0B</color>
+    <color name="status_non_compliant">#EF4444</color>
+    <color name="status_pending">#9CA3AF</color>
+
+    <!-- UI Elements -->
+    <color name="divider">#E5E7EB</color>
+    <color name="border">#D1D5DB</color>
+    <color name="overlay">#80000000</color>
+    <color name="ripple">#20000000</color>
+
+    <!-- Legacy DENR colors (for compatibility) -->
+    <color name="denr_green">#1B5E20</color>
+    <color name="denr_green_dark">#0D3818</color>
+    <color name="denr_green_light">#2E7D32</color>
+    <color name="background_light">#F5F7FA</color>
+
+    <!-- Base Colors -->
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+</resources>

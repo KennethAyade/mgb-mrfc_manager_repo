@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <!-- Main Section -->
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_dashboard"
+            android:icon="@drawable/ic_dashboard"
+            android:title="Dashboard" />
+    </group>
+
+    <!-- Meeting Management Section -->
+    <item android:title="Meeting Management">
+        <menu>
+            <item
+                android:id="@+id/nav_mrfc"
+                android:icon="@drawable/ic_folder"
+                android:title="MRFCs" />
+            <item
+                android:id="@+id/nav_proponents"
+                android:icon="@drawable/ic_people"
+                android:title="Proponents" />
+            <item
+                android:id="@+id/nav_agenda"
+                android:icon="@drawable/ic_calendar"
+                android:title="Agenda" />
+            <item
+                android:id="@+id/nav_attendance"
+                android:icon="@drawable/ic_people"
+                android:title="Attendance" />
+            <item
+                android:id="@+id/nav_minutes"
+                android:icon="@drawable/ic_document"
+                android:title="Minutes" />
+        </menu>
+    </item>
+
+    <!-- Documents Section -->
+    <item android:title="Documents &amp; Files">
+        <menu>
+            <item
+                android:id="@+id/nav_documents"
+                android:icon="@drawable/ic_document"
+                android:title="All Documents" />
+            <item
+                android:id="@+id/nav_file_upload"
+                android:icon="@drawable/ic_upload"
+                android:title="Upload Files" />
+        </menu>
+    </item>
+
+    <!-- Monitoring Section -->
+    <item android:title="Monitoring &amp; Reports">
+        <menu>
+            <item
+                android:id="@+id/nav_compliance"
+                android:icon="@drawable/ic_chart"
+                android:title="Compliance Dashboard" />
+            <item
+                android:id="@+id/nav_reports"
+                android:icon="@drawable/ic_document"
+                android:title="Generate Reports" />
+        </menu>
+    </item>
+
+    <!-- Bottom Section -->
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_notifications"
+            android:icon="@drawable/ic_notifications"
+            android:title="Notifications" />
+        <item
+            android:id="@+id/nav_settings"
+            android:icon="@drawable/ic_settings"
+            android:title="Settings" />
+        <item
+            android:id="@+id/nav_logout"
+            android:icon="@drawable/ic_logout"
+            android:title="Logout" />
+    </group>
+
+</menu>
