@@ -82,13 +82,13 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
                 Toast.makeText(this, "Proponents - Coming Soon", Toast.LENGTH_SHORT).show()
             }
             R.id.nav_agenda -> {
-                Toast.makeText(this, "Agenda - Coming Soon", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, QuarterSelectionActivity::class.java))
             }
             R.id.nav_attendance -> {
                 Toast.makeText(this, "Attendance - Coming Soon", Toast.LENGTH_SHORT).show()
             }
             R.id.nav_minutes -> {
-                Toast.makeText(this, "Minutes - Coming Soon", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, QuarterSelectionActivity::class.java))
             }
             R.id.nav_documents -> {
                 Toast.makeText(this, "Documents - Coming Soon", Toast.LENGTH_SHORT).show()

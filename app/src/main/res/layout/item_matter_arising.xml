@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="@dimen/spacing_small"
+    android:background="?attr/selectableItemBackground">
+
+    <!-- Item Number -->
+    <TextView
+        android:id="@+id/tvMatterItem"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="1"
+        android:textSize="@dimen/text_size_small"
+        android:textColor="@color/text_primary" />
+
+    <!-- Details -->
+    <TextView
+        android:id="@+id/tvMatterDetails"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.5"
+        android:text="Follow up on pending compliance"
+        android:textSize="@dimen/text_size_small"
+        android:textColor="@color/text_primary" />
+
+    <!-- Status -->
+    <TextView
+        android:id="@+id/tvMatterStatus"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Pending"
+        android:textSize="@dimen/text_size_small"
+        android:textColor="@color/status_pending" />
+
+</LinearLayout>

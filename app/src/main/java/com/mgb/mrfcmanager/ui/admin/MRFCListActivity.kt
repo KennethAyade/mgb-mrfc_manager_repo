@@ -1,5 +1,6 @@
 package com.mgb.mrfcmanager.ui.admin
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -55,8 +56,10 @@ class MRFCListActivity : AppCompatActivity() {
     }
 
     private fun onMRFCClicked(mrfc: MRFC) {
-        // TODO: Navigate to Proponent List or MRFC Detail
-        Toast.makeText(this, "Selected: ${mrfc.name}", Toast.LENGTH_SHORT).show()
+        // Navigate to MRFC Detail
+        val intent = Intent(this, MRFCDetailActivity::class.java)
+        intent.putExtra("MRFC_ID", mrfc.id)
+        startActivity(intent)
     }
 }
 

@@ -46,6 +46,31 @@
             android:exported="false"
             android:parentActivityName=".ui.admin.AdminDashboardActivity" />
 
+        <activity
+            android:name=".ui.admin.MRFCDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.MRFCListActivity" />
+
+        <activity
+            android:name=".ui.admin.ProponentListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.MRFCDetailActivity" />
+
+        <activity
+            android:name=".ui.admin.ProponentDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.ProponentListActivity" />
+
+        <activity
+            android:name=".ui.admin.QuarterSelectionActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
+        <activity
+            android:name=".ui.admin.AgendaManagementActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.QuarterSelectionActivity" />
+
         <!-- User Activities -->
         <activity
             android:name=".ui.user.UserDashboardActivity"
