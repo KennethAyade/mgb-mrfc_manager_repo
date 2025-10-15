@@ -71,10 +71,55 @@
             android:exported="false"
             android:parentActivityName=".ui.admin.QuarterSelectionActivity" />
 
+        <activity
+            android:name=".ui.admin.FileUploadActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
+        <activity
+            android:name=".ui.admin.AttendanceActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
+        <activity
+            android:name=".ui.admin.ComplianceDashboardActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
+        <activity
+            android:name=".ui.admin.NotificationActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
         <!-- User Activities -->
         <activity
             android:name=".ui.user.UserDashboardActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".ui.user.MRFCSelectionActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.UserDashboardActivity" />
+
+        <activity
+            android:name=".ui.user.ProponentViewActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.MRFCSelectionActivity" />
+
+        <activity
+            android:name=".ui.user.AgendaViewActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.ProponentViewActivity" />
+
+        <activity
+            android:name=".ui.user.NotesActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.UserDashboardActivity" />
+
+        <activity
+            android:name=".ui.user.DocumentListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.UserDashboardActivity" />
 
         <!-- Original MainActivity (kept for reference, can be removed) -->
         <activity

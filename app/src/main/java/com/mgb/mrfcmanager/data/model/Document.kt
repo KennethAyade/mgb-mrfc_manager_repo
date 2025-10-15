@@ -10,5 +10,6 @@ data class Document(
     val fileName: String,
     val fileType: String,
     val category: String,
-    val uploadDate: String
+    val uploadDate: String,
+    val quarter: String = "" // e.g., "1st Quarter 2025"
 )

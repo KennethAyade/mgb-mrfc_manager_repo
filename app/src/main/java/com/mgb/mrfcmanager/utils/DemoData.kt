@@ -61,11 +61,42 @@ object DemoData {
 
     // Sample Documents
     val documentList = listOf(
-        Document(1, "MTF_Report_Q1_2025.pdf", "PDF", "MTF Disbursement", "2025-01-15"),
-        Document(2, "AEPEP_Physical_Q1.xlsx", "Excel", "AEPEP Physical", "2025-01-20"),
-        Document(3, "Research_Accomplishments.docx", "Word", "Research", "2025-02-01"),
-        Document(4, "CMVR_Report.pdf", "PDF", "CMVR", "2025-02-10"),
-        Document(5, "Minutes_Q4_2024.pdf", "PDF", "Minutes", "2024-12-15")
+        Document(1, "MTF_Report_Q1_2025.pdf", "PDF", "MTF Disbursement", "2025-01-15", "1st Quarter 2025"),
+        Document(2, "AEPEP_Physical_Q1.xlsx", "Excel", "AEPEP Physical", "2025-01-20", "1st Quarter 2025"),
+        Document(3, "Research_Accomplishments.docx", "Word", "Research", "2025-02-01", "1st Quarter 2025"),
+        Document(4, "CMVR_Report.pdf", "PDF", "CMVR", "2025-02-10", "1st Quarter 2025"),
+        Document(5, "Minutes_Q4_2024.pdf", "PDF", "Minutes", "2024-12-15", "4th Quarter 2024"),
+        Document(6, "MTF_Report_Q2_2025.pdf", "PDF", "MTF Disbursement", "2025-04-15", "2nd Quarter 2025"),
+        Document(7, "AEPEP_Financial_Q2.xlsx", "Excel", "AEPEP Financial", "2025-05-10", "2nd Quarter 2025"),
+        Document(8, "Compliance_Report_Q2.pdf", "PDF", "Compliance", "2025-06-01", "2nd Quarter 2025")
+    )
+
+    // Matters Arising
+    val mattersArisingList = listOf(
+        MatterArising(
+            1, 1,
+            "Review of Environmental Compliance Certificate (ECC) renewal process",
+            "In Progress",
+            "Environmental Team",
+            "2024-12-15",
+            "Awaiting DENR approval"
+        ),
+        MatterArising(
+            2, 1,
+            "Submission of updated Social Development Management Plan (SDMP)",
+            "Pending",
+            "Community Relations Officer",
+            "2024-12-15",
+            "Due by end of quarter"
+        ),
+        MatterArising(
+            3, 1,
+            "Follow-up on MTF fund utilization report from previous quarter",
+            "Resolved",
+            "Finance Department",
+            "2024-09-20",
+            "Report submitted and approved"
+        )
     )
 
     // Quarters

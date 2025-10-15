@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(../gradlew compileDebugKotlin:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(../gradlew compileDebugSources:*)",
+      "Read(//d/FREELANCE/**)",
+      "Bash(./gradlew:*)"
     ],
     "deny": [],
     "ask": []

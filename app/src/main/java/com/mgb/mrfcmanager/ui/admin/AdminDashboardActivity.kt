@@ -58,15 +58,15 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
         }
 
         findViewById<MaterialCardView>(R.id.cardAttendance).setOnClickListener {
-            Toast.makeText(this, "Attendance - Coming Soon", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, AttendanceActivity::class.java))
         }
 
         findViewById<MaterialCardView>(R.id.cardFileUpload).setOnClickListener {
-            Toast.makeText(this, "File Upload - Coming Soon", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, FileUploadActivity::class.java))
         }
 
         findViewById<MaterialCardView>(R.id.cardCompliance).setOnClickListener {
-            Toast.makeText(this, "Compliance Dashboard - Coming Soon", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, ComplianceDashboardActivity::class.java))
         }
     }
 
@@ -79,31 +79,31 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
                 startActivity(Intent(this, MRFCListActivity::class.java))
             }
             R.id.nav_proponents -> {
-                Toast.makeText(this, "Proponents - Coming Soon", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, MRFCListActivity::class.java))
             }
             R.id.nav_agenda -> {
                 startActivity(Intent(this, QuarterSelectionActivity::class.java))
             }
             R.id.nav_attendance -> {
-                Toast.makeText(this, "Attendance - Coming Soon", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, AttendanceActivity::class.java))
             }
             R.id.nav_minutes -> {
                 startActivity(Intent(this, QuarterSelectionActivity::class.java))
             }
             R.id.nav_documents -> {
-                Toast.makeText(this, "Documents - Coming Soon", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, FileUploadActivity::class.java))
             }
             R.id.nav_file_upload -> {
-                Toast.makeText(this, "File Upload - Coming Soon", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, FileUploadActivity::class.java))
             }
             R.id.nav_compliance -> {
-                Toast.makeText(this, "Compliance Dashboard - Coming Soon", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, ComplianceDashboardActivity::class.java))
             }
             R.id.nav_reports -> {
-                Toast.makeText(this, "Reports - Coming Soon", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, ComplianceDashboardActivity::class.java))
             }
             R.id.nav_notifications -> {
-                Toast.makeText(this, "Notifications - Coming Soon", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, NotificationActivity::class.java))
             }
             R.id.nav_settings -> {
                 Toast.makeText(this, "Settings - Coming Soon", Toast.LENGTH_SHORT).show()

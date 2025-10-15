@@ -196,7 +196,7 @@ class MattersArisingAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_matter_arising, parent, false)
+            .inflate(R.layout.item_matter_arising_simple, parent, false)
         return ViewHolder(view)
     }
 
