@@ -6,7 +6,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -39,7 +39,10 @@ class MRFCListActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         recyclerView = findViewById(R.id.rvMRFCList)
-        recyclerView.layoutManager = LinearLayoutManager(this)
+
+        // Use GridLayoutManager with column count from resources (1 for phone, 2 for tablet)
+        val columnCount = resources.getInteger(R.integer.list_grid_columns)
+        recyclerView.layoutManager = GridLayoutManager(this, columnCount)
 
         // TODO: BACKEND - Replace with data from ViewModel
         adapter = MRFCAdapter(DemoData.mrfcList) { mrfc ->

@@ -8,7 +8,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -56,7 +56,10 @@ class ProponentListActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         recyclerView = findViewById(R.id.rvProponentList)
-        recyclerView.layoutManager = LinearLayoutManager(this)
+
+        // Use GridLayoutManager with column count from resources (1 for phone, 2 for tablet)
+        val columnCount = resources.getInteger(R.integer.list_grid_columns)
+        recyclerView.layoutManager = GridLayoutManager(this, columnCount)
 
         // TODO: BACKEND - Filter proponents by MRFC ID from database
         // For now: Load all demo proponents

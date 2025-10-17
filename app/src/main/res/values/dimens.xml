@@ -22,4 +22,16 @@
     <dimen name="icon_size_large">72dp</dimen>
     <dimen name="card_corner_radius">12dp</dimen>
     <dimen name="card_elevation">4dp</dimen>
+
+    <!-- Phone-specific dimensions for layouts -->
+    <dimen name="dashboard_card_width">160dp</dimen>
+    <dimen name="dashboard_card_height">120dp</dimen>
+    <dimen name="form_max_width">600dp</dimen>
+    <dimen name="list_item_height">72dp</dimen>
+    <dimen name="toolbar_height">56dp</dimen>
+
+    <!-- Grid column counts for phones -->
+    <integer name="dashboard_grid_columns">2</integer>
+    <integer name="list_grid_columns">1</integer>
+    <integer name="agenda_grid_columns">1</integer>
 </resources>

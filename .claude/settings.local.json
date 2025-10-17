@@ -6,7 +6,8 @@
       "mcp__ide__getDiagnostics",
       "Bash(../gradlew compileDebugSources:*)",
       "Read(//d/FREELANCE/**)",
-      "Bash(./gradlew:*)"
+      "Bash(./gradlew:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

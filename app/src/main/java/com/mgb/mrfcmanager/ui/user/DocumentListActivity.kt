@@ -12,7 +12,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
@@ -109,7 +109,10 @@ class DocumentListActivity : AppCompatActivity() {
             onDocumentClick = { document -> openDocument(document) },
             onDownloadClick = { document -> downloadDocument(document) }
         )
-        rvDocuments.layoutManager = LinearLayoutManager(this)
+
+        // Use GridLayoutManager with column count from resources (1 for phone, 2 for tablet)
+        val columnCount = resources.getInteger(R.integer.list_grid_columns)
+        rvDocuments.layoutManager = GridLayoutManager(this, columnCount)
         rvDocuments.adapter = documentsAdapter
     }
 
