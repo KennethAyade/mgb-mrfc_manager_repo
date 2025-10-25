@@ -147,7 +147,7 @@ router.get('/', authenticate, adminOnly, userController.listUsers);
  * - Default role is USER if not specified
  * - New accounts are active by default (is_active: true)
  */
-router.post('/', authenticate, userController.createUser);
+router.post('/', authenticate, adminOnly, userController.createUser);
 
 /**
  * ================================================
@@ -272,7 +272,7 @@ router.get('/:id', authenticate, userController.getUserById);
  * - Cannot change own role to prevent privilege escalation
  * - Cannot deactivate own account
  */
-router.put('/:id', authenticate, userController.updateUser);
+router.put('/:id', authenticate, adminOnly, userController.updateUser);
 
 /**
  * ================================================
@@ -328,6 +328,32 @@ router.delete('/:id', authenticate, adminOnly, userController.deleteUser);
  * URL PARAMETERS:
  * - id: number (user ID)
  *
+ * EXAMPLE REQUEST:
+ * PUT /api/v1/users/5/toggle-status
+ *
+ * RESPONSE (200):
+ * {
+ *   "success": true,
+ *   "message": "User activated successfully",
+ *   "data": {
+ *     "id": 5,
+ *     "username": "johndoe",
+ *     "is_active": true
+ *   }
+ * }
+ */
+router.put('/:id/toggle-status', authenticate, adminOnly, userController.toggleUserStatus);
+
+/**
+ * ================================================
+ * PUT /users/:id/toggle-status
+ * ================================================
+ * Activate or deactivate user account
+ * ADMIN only - cannot toggle own status
+ *
+ * URL PARAMETERS:
+ * - id: number (user ID)
+ *
  * REQUEST BODY:
  * {
  *   "is_active": false
@@ -366,6 +392,15 @@ router.delete('/:id', authenticate, adminOnly, userController.deleteUser);
  * - Existing sessions may remain valid until token expiry
  * - Reactivating user restores all previous permissions and MRFC access
  */
-router.put('/:id/toggle-status', authenticate, adminOnly, userController.toggleUserStatus);
+// Toggle status can be done via PUT /users/:id with {"is_active": true/false}
+
+/**
+ * ================================================
+ * POST /users/:id/grant-mrfc-access
+ * ================================================
+ * Grant MRFC access to a user
+ * ADMIN only
+ */
+router.post('/:id/grant-mrfc-access', authenticate, adminOnly, userController.grantMrfcAccess);
 
 export default router;

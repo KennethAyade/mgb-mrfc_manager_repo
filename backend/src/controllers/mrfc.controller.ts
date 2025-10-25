@@ -2,12 +2,13 @@
  * ================================================
  * MRFC MANAGEMENT CONTROLLER
  * ================================================
- * Handles MRFC (Mineral Resources and Foreign Capital) operations
+ * Handles MRFC (Municipal Resource and Finance Committee) operations
  */
 
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { Mrfc, Proponent, UserMrfcAccess, User, Document, Agenda, Quarter, AuditLog } from '../models';
+import { Mrfc, Proponent, UserMrfcAccess, User, AuditLog } from '../models';
+import { AuditAction } from '../models/AuditLog';
 import sequelize from '../config/database';
 
 /**
@@ -19,153 +20,169 @@ export const listMrfcs = async (req: Request, res: Response): Promise<void> => {
     const {
       page = '1',
       limit = '20',
-      search,
-      status,
-      proponent_id,
-      date_from,
-      date_to,
-      sort_by = 'date_received',
-      sort_order = 'DESC'
+      search = '',
+      municipality = '',
+      province = '',
+      is_active = ''
     } = req.query;
 
-    const currentUser = (req as any).user;
-
-    // Validate and parse parameters
-    const pageNum = Math.max(1, parseInt(page as string));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
     const offset = (pageNum - 1) * limitNum;
 
-    // Build filter conditions
+    // Build where clause
     const where: any = {};
-    if (status) where.status = status;
-    if (proponent_id) where.proponent_id = proponent_id;
-    if (date_from) where.date_received = { [Op.gte]: date_from };
-    if (date_to) where.date_received = { ...where.date_received, [Op.lte]: date_to };
 
-    // Apply user MRFC access filter for USER role
-    if (currentUser?.role === 'USER') {
-      const userMrfcIds = currentUser.mrfcAccess || [];
-      where.id = { [Op.in]: userMrfcIds };
-    }
-
-    // Search filter (including proponent name)
     if (search) {
       where[Op.or] = [
-        { mrfc_number: { [Op.like]: `%${search}%` } },
-        { project_title: { [Op.like]: `%${search}%` } }
+        { name: { [Op.iLike]: `%${search}%` } },
+        { municipality: { [Op.iLike]: `%${search}%` } }
       ];
     }
 
-    // Query MRFCs with proponent and assigned users
-    const { count, rows: mrfcs } = await Mrfc.findAndCountAll({
+    if (municipality) {
+      where.municipality = { [Op.iLike]: `%${municipality}%` };
+    }
+
+    if (province) {
+      where.province = { [Op.iLike]: `%${province}%` };
+    }
+
+    if (is_active !== '') {
+      where.is_active = is_active === 'true';
+    }
+
+    const { count, rows } = await Mrfc.findAndCountAll({
       where,
-      include: [
-        {
-          model: Proponent,
-          as: 'proponents',
-          attributes: ['id', 'company_name', 'contact_person']
-        },
-        {
-          model: UserMrfcAccess,
-          as: 'user_access',
-          where: { is_active: true },
-          required: false,
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['id', 'full_name']
-            }
-          ]
-        }
-      ],
       limit: limitNum,
       offset,
-      order: [[sort_by as string, sort_order as string]],
-      distinct: true
+      order: [['created_at', 'DESC']],
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'username', 'full_name']
+        }
+      ]
     });
 
     res.json({
       success: true,
       data: {
-        mrfcs,
+        mrfcs: rows,
         pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total: count,
-          totalPages: Math.ceil(count / limitNum),
-          hasNext: pageNum * limitNum < count,
-          hasPrev: pageNum > 1
+          current_page: pageNum,
+          total_pages: Math.ceil(count / limitNum),
+          total_items: count,
+          items_per_page: limitNum
         }
       }
     });
-  } catch (error: any) {
-    console.error('MRFC listing error:', error);
+  } catch (error) {
+    console.error('Error listing MRFCs:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'MRFC_LISTING_FAILED',
-        message: error.message || 'Failed to retrieve MRFCs'
+        code: 'SERVER_ERROR',
+        message: 'Failed to list MRFCs'
       }
     });
   }
 };
 
 /**
- * Create new MRFC record
- * POST /api/v1/mrfcs
+ * Get single MRFC by ID with full details
+ * GET /api/v1/mrfcs/:id
  */
-export const createMrfc = async (req: Request, res: Response): Promise<void> => {
+export const getMrfcById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const {
-      mrfc_number,
-      project_title,
-      proponent_id,
-      date_received,
-      location,
-      project_cost,
-      project_description,
-      mineral_type,
-      area_hectares,
-      status,
-      assigned_user_ids
-    } = req.body;
-    const currentUser = (req as any).user;
+    const { id } = req.params;
 
-    // Validate MRFC number format
-    const mrfcNumberRegex = /^MRFC-\d{4}-\d{3}$/;
-    if (!mrfcNumberRegex.test(mrfc_number)) {
-      res.status(400).json({
+    const mrfc = await Mrfc.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'username', 'full_name']
+        },
+        {
+          model: Proponent,
+          as: 'proponents'
+        },
+        {
+          model: UserMrfcAccess,
+          as: 'user_access',
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'username', 'full_name', 'email']
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!mrfc) {
+      res.status(404).json({
         success: false,
         error: {
-          code: 'INVALID_MRFC_NUMBER',
-          message: 'MRFC number must follow format: MRFC-YYYY-XXX'
+          code: 'MRFC_NOT_FOUND',
+          message: 'MRFC not found'
         }
       });
       return;
     }
 
-    // Check if MRFC number exists
-    const existing = await Mrfc.findOne({ where: { mrfc_number } });
+    res.json({
+      success: true,
+      data: mrfc
+    });
+  } catch (error) {
+    console.error('Error fetching MRFC:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Failed to fetch MRFC'
+      }
+    });
+  }
+};
+
+/**
+ * Create new MRFC
+ * POST /api/v1/mrfcs
+ */
+export const createMrfc = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const currentUser = (req as any).user;
+    const {
+      name,
+      municipality,
+      province,
+      region,
+      contact_person,
+      contact_number,
+      email,
+      address,
+      assigned_user_ids
+    } = req.body;
+
+    // Check if MRFC with same name and municipality exists
+    const existing = await Mrfc.findOne({
+      where: {
+        name,
+        municipality
+      }
+    });
+
     if (existing) {
       res.status(409).json({
         success: false,
         error: {
           code: 'MRFC_EXISTS',
-          message: 'MRFC number already exists'
-        }
-      });
-      return;
-    }
-
-    // Verify proponent exists
-    const proponent = await Proponent.findByPk(proponent_id);
-    if (!proponent) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'PROPONENT_NOT_FOUND',
-          message: 'Proponent not found'
+          message: 'MRFC with this name and municipality already exists'
         }
       });
       return;
@@ -175,16 +192,15 @@ export const createMrfc = async (req: Request, res: Response): Promise<void> => 
     const mrfc = await sequelize.transaction(async (t) => {
       const newMrfc = await Mrfc.create(
         {
-          mrfc_number,
-          project_title,
-          proponent_id,
-          date_received: date_received || new Date(),
-          location,
-          project_cost,
-          project_description,
-          mineral_type,
-          area_hectares,
-          status: status || 'PENDING',
+          name,
+          municipality,
+          province,
+          region,
+          contact_person,
+          contact_number,
+          email,
+          address,
+          is_active: true,
           created_by: currentUser?.userId
         },
         { transaction: t }
@@ -205,10 +221,10 @@ export const createMrfc = async (req: Request, res: Response): Promise<void> => 
       await AuditLog.create(
         {
           user_id: currentUser?.userId,
-          action: 'CREATE_MRFC',
-          entity_type: 'MRFC',
+          action: AuditAction.CREATE,
+          entity_type: 'mrfcs',
           entity_id: newMrfc.id,
-          details: { mrfc_number: newMrfc.mrfc_number }
+          new_values: newMrfc.toJSON()
         },
         { transaction: t }
       );
@@ -221,118 +237,29 @@ export const createMrfc = async (req: Request, res: Response): Promise<void> => 
       message: 'MRFC created successfully',
       data: mrfc
     });
-  } catch (error: any) {
-    console.error('MRFC creation error:', error);
+  } catch (error) {
+    console.error('Error creating MRFC:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'MRFC_CREATION_FAILED',
-        message: error.message || 'Failed to create MRFC'
+        code: 'SERVER_ERROR',
+        message: 'Failed to create MRFC'
       }
     });
   }
 };
 
 /**
- * Get MRFC by ID
- * GET /api/v1/mrfcs/:id
- */
-export const getMrfcById = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const mrfcId = parseInt(req.params.id);
-
-    // Validate ID
-    if (isNaN(mrfcId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_ID',
-          message: 'Invalid MRFC ID'
-        }
-      });
-      return;
-    }
-
-    // Find MRFC with full details
-    const mrfc = await Mrfc.findByPk(mrfcId, {
-      include: [
-        {
-          model: Proponent,
-          as: 'proponents'
-        },
-        {
-          model: UserMrfcAccess,
-          as: 'user_access',
-          where: { is_active: true },
-          required: false,
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['id', 'full_name', 'email']
-            }
-          ]
-        },
-        {
-          model: Document,
-          as: 'documents',
-          attributes: ['id', 'filename', 'file_type', 'uploaded_at'],
-          limit: 10
-        },
-        {
-          model: Agenda,
-          as: 'agendas',
-          include: [
-            {
-              model: Quarter,
-              as: 'quarter'
-            }
-          ],
-          limit: 10
-        }
-      ]
-    });
-
-    // Check if MRFC exists
-    if (!mrfc) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'MRFC_NOT_FOUND',
-          message: 'MRFC not found'
-        }
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      data: mrfc
-    });
-  } catch (error: any) {
-    console.error('Get MRFC error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'GET_MRFC_FAILED',
-        message: error.message || 'Failed to retrieve MRFC'
-      }
-    });
-  }
-};
-
-/**
- * Update MRFC information
+ * Update MRFC
  * PUT /api/v1/mrfcs/:id
  */
 export const updateMrfc = async (req: Request, res: Response): Promise<void> => {
   try {
-    const mrfcId = parseInt(req.params.id);
     const currentUser = (req as any).user;
-    const { assigned_user_ids, proponent_id, ...updates } = req.body;
+    const { id } = req.params;
+    const updateData = req.body;
 
-    // Find MRFC
-    const mrfc = await Mrfc.findByPk(mrfcId);
+    const mrfc = await Mrfc.findByPk(id);
     if (!mrfc) {
       res.status(404).json({
         success: false,
@@ -344,90 +271,52 @@ export const updateMrfc = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Verify new proponent if changing
-    if (proponent_id && proponent_id !== mrfc.proponent_id) {
-      const proponent = await Proponent.findByPk(proponent_id);
-      if (!proponent) {
-        res.status(404).json({
-          success: false,
-          error: {
-            code: 'PROPONENT_NOT_FOUND',
-            message: 'Proponent not found'
-          }
-        });
-        return;
-      }
-      updates.proponent_id = proponent_id;
-    }
-
-    // Update MRFC with transaction
     await sequelize.transaction(async (t) => {
-      await mrfc.update(updates, { transaction: t });
+      const oldValues = mrfc.toJSON();
 
-      // Update user access if provided
-      if (assigned_user_ids) {
-        // Remove existing access
-        await UserMrfcAccess.destroy({
-          where: { mrfc_id: mrfcId },
-          transaction: t
-        });
-
-        // Create new access records
-        if (assigned_user_ids.length > 0) {
-          const accessRecords = assigned_user_ids.map((userId: number) => ({
-            user_id: userId,
-            mrfc_id: mrfcId,
-            granted_by: currentUser?.userId,
-            is_active: true
-          }));
-          await UserMrfcAccess.bulkCreate(accessRecords, { transaction: t });
-        }
-      }
+      await mrfc.update(updateData, { transaction: t });
 
       // Create audit log
       await AuditLog.create(
         {
           user_id: currentUser?.userId,
-          action: 'UPDATE_MRFC',
-          entity_type: 'MRFC',
-          entity_id: mrfcId,
-          details: { mrfc_number: mrfc.mrfc_number, updates }
+          action: AuditAction.UPDATE,
+          entity_type: 'mrfcs',
+          entity_id: mrfc.id,
+          old_values: oldValues,
+          new_values: mrfc.toJSON()
         },
         { transaction: t }
       );
     });
 
-    // Return updated MRFC
-    const updatedMrfc = await Mrfc.findByPk(mrfcId);
-
     res.json({
       success: true,
       message: 'MRFC updated successfully',
-      data: updatedMrfc
+      data: mrfc
     });
-  } catch (error: any) {
-    console.error('MRFC update error:', error);
+  } catch (error) {
+    console.error('Error updating MRFC:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'MRFC_UPDATE_FAILED',
-        message: error.message || 'Failed to update MRFC'
+        code: 'SERVER_ERROR',
+        message: 'Failed to update MRFC'
       }
     });
   }
 };
 
 /**
- * Delete MRFC (soft delete)
+ * Soft delete MRFC (set is_active to false)
  * DELETE /api/v1/mrfcs/:id
  */
 export const deleteMrfc = async (req: Request, res: Response): Promise<void> => {
   try {
-    const mrfcId = parseInt(req.params.id);
     const currentUser = (req as any).user;
+    const { id } = req.params;
 
-    // Find MRFC
-    const mrfc = await Mrfc.findByPk(mrfcId);
+    const mrfc = await Mrfc.findByPk(id);
     if (!mrfc) {
       res.status(404).json({
         success: false,
@@ -439,13 +328,11 @@ export const deleteMrfc = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Soft delete with transaction
     await sequelize.transaction(async (t) => {
+      const oldValues = mrfc.toJSON();
+
       await mrfc.update(
-        {
-          status: 'DELETED',
-          deleted_at: new Date()
-        },
+        { is_active: false },
         { transaction: t }
       );
 
@@ -453,10 +340,10 @@ export const deleteMrfc = async (req: Request, res: Response): Promise<void> => 
       await AuditLog.create(
         {
           user_id: currentUser?.userId,
-          action: 'DELETE_MRFC',
-          entity_type: 'MRFC',
-          entity_id: mrfcId,
-          details: { mrfc_number: mrfc.mrfc_number }
+          action: AuditAction.DELETE,
+          entity_type: 'mrfcs',
+          entity_id: mrfc.id,
+          old_values: oldValues
         },
         { transaction: t }
       );
@@ -466,13 +353,13 @@ export const deleteMrfc = async (req: Request, res: Response): Promise<void> => 
       success: true,
       message: 'MRFC deleted successfully'
     });
-  } catch (error: any) {
-    console.error('MRFC deletion error:', error);
+  } catch (error) {
+    console.error('Error deleting MRFC:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'MRFC_DELETION_FAILED',
-        message: error.message || 'Failed to delete MRFC'
+        code: 'SERVER_ERROR',
+        message: 'Failed to delete MRFC'
       }
     });
   }

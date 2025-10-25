@@ -54,7 +54,7 @@ router.use('/audit-logs', auditLogRoutes);
 router.use('/statistics', statisticsRoutes);
 
 // Health check endpoint
-router.get('/health', (req, res) => {
+router.get('/health', (_req, res) => {
   res.json({
     success: true,
     message: 'MGB MRFC Manager API is running',

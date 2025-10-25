@@ -33,8 +33,8 @@ export interface JwtPayload {
  */
 export const generateToken = (payload: JwtPayload): string => {
   return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN
-  });
+    expiresIn: JWT_EXPIRES_IN as string
+  } as jwt.SignOptions);
 };
 
 /**
@@ -45,8 +45,8 @@ export const generateToken = (payload: JwtPayload): string => {
  */
 export const generateRefreshToken = (payload: JwtPayload): string => {
   return jwt.sign(payload, JWT_REFRESH_SECRET, {
-    expiresIn: JWT_REFRESH_EXPIRES_IN
-  });
+    expiresIn: JWT_REFRESH_EXPIRES_IN as string
+  } as jwt.SignOptions);
 };
 
 /**

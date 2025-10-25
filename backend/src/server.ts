@@ -13,7 +13,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
-import sequelize, { testConnection } from './config/database';
+import { testConnection } from './config/database';
 import routes from './routes';
 
 // Load environment variables
@@ -81,7 +81,7 @@ if (process.env.NODE_ENV === 'development') {
  */
 
 // Root endpoint
-app.get('/', (req: Request, res: Response) => {
+app.get('/', (_req: Request, res: Response) => {
   res.json({
     success: true,
     message: 'MGB MRFC Manager API',
@@ -112,7 +112,7 @@ app.use((req: Request, res: Response) => {
  */
 
 // Global error handler
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Global error handler:', err);
 
   // Sequelize validation errors
@@ -146,7 +146,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   }
 
   // Default error response
-  res.status(err.status || 500).json({
+  return res.status(err.status || 500).json({
     success: false,
     error: {
       code: err.code || 'INTERNAL_SERVER_ERROR',
@@ -169,25 +169,27 @@ const initializeDatabase = async (): Promise<void> => {
     // Test database connection
     await testConnection();
 
-    // TODO: When implementing models, sync database
-    // await sequelize.sync({ force: false });
+    // Import models and utilities
+    const { User } = await import('./models');
+    const { UserRole } = await import('./models/User');
+    const { hashPassword } = await import('./utils/password');
 
-    // TODO: Create super admin user if not exists
-    // const superAdminUsername = process.env.SUPER_ADMIN_USERNAME || 'superadmin';
-    // const existingSuperAdmin = await User.findOne({ where: { username: superAdminUsername } });
-    // if (!existingSuperAdmin) {
-    //   const password_hash = await hashPassword(process.env.SUPER_ADMIN_PASSWORD || 'Change@Me#2025');
-    //   await User.create({
-    //     username: superAdminUsername,
-    //     password_hash,
-    //     full_name: process.env.SUPER_ADMIN_FULL_NAME || 'System Administrator',
-    //     email: process.env.SUPER_ADMIN_EMAIL || 'admin@mgb.gov.ph',
-    //     role: 'SUPER_ADMIN',
-    //     is_active: true,
-    //     email_verified: true
-    //   });
-    //   console.log('✅ Super admin user created');
-    // }
+    // Create super admin user if not exists
+    const superAdminUsername = process.env.SUPER_ADMIN_USERNAME || 'superadmin';
+    const existingSuperAdmin = await User.findOne({ where: { username: superAdminUsername } });
+    if (!existingSuperAdmin) {
+      const password_hash = await hashPassword(process.env.SUPER_ADMIN_PASSWORD || 'Change@Me#2025');
+      await User.create({
+        username: superAdminUsername,
+        password_hash,
+        full_name: process.env.SUPER_ADMIN_FULL_NAME || 'System Administrator',
+        email: process.env.SUPER_ADMIN_EMAIL || 'admin@mgb.gov.ph',
+        role: UserRole.SUPER_ADMIN,
+        is_active: true,
+        email_verified: true
+      });
+      console.log('✅ Super admin user created');
+    }
 
     console.log('✅ Database initialized successfully');
   } catch (error) {
@@ -224,19 +226,22 @@ const startServer = async (): Promise<void> => {
   }
 };
 
-// Start the server
-startServer();
+// Start the server only if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  process.exit(1);
-});
+  // Handle uncaught exceptions
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    process.exit(1);
+  });
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
+  });
+}
 
 export default app;
+export { initializeDatabase };

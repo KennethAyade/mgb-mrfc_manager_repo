@@ -7,6 +7,7 @@
 
 import { Request, Response } from 'express';
 import { User, UserMrfcAccess } from '../models';
+import { UserRole } from '../models/User';
 import { hashPassword, verifyPassword } from '../utils/password';
 import { generateToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';
 
@@ -53,7 +54,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       password_hash,
       full_name,
       email,
-      role: 'USER',
+      role: UserRole.USER,
       is_active: true,
       email_verified: false
     });
@@ -243,8 +244,10 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Generate new access token with same payload
-    const newToken = generateToken(payload);
+    // Generate new access token with same payload (without exp, iat fields)
+    const { userId, username, role, email, mrfcAccess } = payload;
+    const cleanPayload = { userId, username, role, email, mrfcAccess };
+    const newToken = generateToken(cleanPayload);
 
     res.json({
       success: true,

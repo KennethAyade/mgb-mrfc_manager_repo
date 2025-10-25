@@ -2,12 +2,14 @@
  * ================================================
  * USER MANAGEMENT CONTROLLER
  * ================================================
- * Handles user CRUD operations and status management
+ * Handles user CRUD operations, status management, and MRFC access
  */
 
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { User, UserMrfcAccess, Mrfc, AuditLog } from '../models';
+import { UserRole } from '../models/User';
+import { AuditAction } from '../models/AuditLog';
 import { hashPassword } from '../utils/password';
 import sequelize from '../config/database';
 
@@ -20,83 +22,158 @@ export const listUsers = async (req: Request, res: Response): Promise<void> => {
     const {
       page = '1',
       limit = '20',
-      search,
-      role,
-      is_active,
+      search = '',
+      role = '',
+      is_active = '',
       sort_by = 'created_at',
       sort_order = 'DESC'
     } = req.query;
 
-    // Validate and parse parameters
-    const pageNum = Math.max(1, parseInt(page as string));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
+    const pageNum = parseInt(page as string);
+    const limitNum = Math.min(parseInt(limit as string), 100);
     const offset = (pageNum - 1) * limitNum;
 
-    // Build filter conditions
+    // Build WHERE clause
     const where: any = {};
-    if (role) where.role = role;
-    if (is_active !== undefined) where.is_active = is_active === 'true';
 
-    // Search filter
     if (search) {
       where[Op.or] = [
-        { username: { [Op.like]: `%${search}%` } },
-        { full_name: { [Op.like]: `%${search}%` } },
-        { email: { [Op.like]: `%${search}%` } }
+        { username: { [Op.iLike]: `%${search}%` } },
+        { full_name: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } }
       ];
     }
 
-    // Query users (exclude password_hash)
-    const { count, rows: users } = await User.findAndCountAll({
+    if (role) {
+      where.role = role;
+    }
+
+    if (is_active !== '') {
+      where.is_active = is_active === 'true';
+    }
+
+    const { count, rows } = await User.findAndCountAll({
       where,
-      attributes: { exclude: ['password_hash'] },
       limit: limitNum,
       offset,
-      order: [[sort_by as string, sort_order as string]]
+      order: [[sort_by as string, sort_order as string]],
+      attributes: { exclude: ['password_hash'] }
     });
 
     res.json({
       success: true,
       data: {
-        users,
+        users: rows,
         pagination: {
           page: pageNum,
           limit: limitNum,
           total: count,
           totalPages: Math.ceil(count / limitNum),
-          hasNext: pageNum * limitNum < count,
+          hasNext: pageNum < Math.ceil(count / limitNum),
           hasPrev: pageNum > 1
         }
       }
     });
-  } catch (error: any) {
-    console.error('User listing error:', error);
+  } catch (error) {
+    console.error('Error listing users:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'USER_LISTING_FAILED',
-        message: error.message || 'Failed to retrieve users'
+        code: 'SERVER_ERROR',
+        message: 'Failed to list users'
       }
     });
   }
 };
 
 /**
- * Create new user account
+ * Get user by ID
+ * GET /api/v1/users/:id
+ */
+export const getUserById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id, {
+      attributes: { exclude: ['password_hash'] },
+      include: [
+        {
+          model: UserMrfcAccess,
+          as: 'mrfc_access',
+          where: { is_active: true },
+          required: false,
+          include: [
+            {
+              model: Mrfc,
+              as: 'mrfc',
+              attributes: ['id', 'name', 'municipality']
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User not found'
+        }
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Failed to fetch user'
+      }
+    });
+  }
+};
+
+/**
+ * Create new user
  * POST /api/v1/users
  */
 export const createUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { username, password, full_name, email, role, is_active, mrfc_access } = req.body;
     const currentUser = (req as any).user;
+    const {
+      username,
+      password,
+      full_name,
+      email,
+      role
+    } = req.body;
 
-    // Authorization check: Only SUPER_ADMIN can create ADMIN accounts
-    if (role === 'ADMIN' && currentUser?.role !== 'SUPER_ADMIN') {
+    // Check permissions - only SUPER_ADMIN can create ADMIN users
+    if (role === UserRole.ADMIN && currentUser.role !== UserRole.SUPER_ADMIN) {
       res.status(403).json({
         success: false,
         error: {
           code: 'INSUFFICIENT_PERMISSIONS',
-          message: 'Only SUPER_ADMIN can create ADMIN accounts'
+          message: 'Only SUPER_ADMIN can create ADMIN users'
+        }
+      });
+      return;
+    }
+
+    // Cannot create SUPER_ADMIN users
+    if (role === UserRole.SUPER_ADMIN) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Cannot create SUPER_ADMIN users via API'
         }
       });
       return;
@@ -139,160 +216,69 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
           password_hash,
           full_name,
           email,
-          role: role || 'USER',
-          is_active: is_active !== false
+          role: role || UserRole.USER,
+          is_active: true,
+          email_verified: true
         },
         { transaction: t }
       );
 
-      // If USER role and mrfc_access provided, create access records
-      if (newUser.role === 'USER' && mrfc_access?.length > 0) {
-        const accessRecords = mrfc_access.map((mrfcId: number) => ({
-          user_id: newUser.id,
-          mrfc_id: mrfcId,
-          granted_by: currentUser?.userId,
-          is_active: true
-        }));
-        await UserMrfcAccess.bulkCreate(accessRecords, { transaction: t });
-      }
+      // Create audit log
+      await AuditLog.create(
+        {
+          user_id: currentUser.userId,
+          action: AuditAction.CREATE,
+          entity_type: 'users',
+          entity_id: newUser.id,
+          new_values: {
+            username: newUser.username,
+            full_name: newUser.full_name,
+            email: newUser.email,
+            role: newUser.role
+          }
+        },
+        { transaction: t }
+      );
 
       return newUser;
     });
 
-    // Return user data (no password)
+    // Return user without password
+    const { password_hash: _, ...userData } = user.toJSON();
+
     res.status(201).json({
       success: true,
       message: 'User created successfully',
-      data: {
-        id: user.id,
-        username: user.username,
-        full_name: user.full_name,
-        email: user.email,
-        role: user.role,
-        is_active: user.is_active,
-        created_at: user.created_at
-      }
+      data: userData
     });
-  } catch (error: any) {
-    console.error('User creation error:', error);
+  } catch (error) {
+    console.error('Error creating user:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'USER_CREATION_FAILED',
-        message: error.message || 'Failed to create user'
+        code: 'SERVER_ERROR',
+        message: 'Failed to create user'
       }
     });
   }
 };
 
 /**
- * Get user by ID
- * GET /api/v1/users/:id
- */
-export const getUserById = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = parseInt(req.params.id);
-    const currentUser = (req as any).user;
-
-    // Validate ID
-    if (isNaN(userId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_ID',
-          message: 'Invalid user ID'
-        }
-      });
-      return;
-    }
-
-    // Authorization check
-    const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
-    const isOwnProfile = currentUser?.userId === userId;
-
-    if (!isAdmin && !isOwnProfile) {
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: 'You can only view your own profile'
-        }
-      });
-      return;
-    }
-
-    // Find user with MRFC access
-    const user = await User.findByPk(userId, {
-      attributes: { exclude: ['password_hash'] },
-      include: [
-        {
-          model: UserMrfcAccess,
-          as: 'mrfc_access',
-          where: { is_active: true },
-          required: false,
-          include: [
-            {
-              model: Mrfc,
-              as: 'mrfc',
-              attributes: ['id', 'mrfc_number', 'project_title']
-            }
-          ]
-        }
-      ]
-    });
-
-    // Check if user exists
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'USER_NOT_FOUND',
-          message: 'User not found'
-        }
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      data: user
-    });
-  } catch (error: any) {
-    console.error('Get user error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'GET_USER_FAILED',
-        message: error.message || 'Failed to retrieve user'
-      }
-    });
-  }
-};
-
-/**
- * Update user information
+ * Update user
  * PUT /api/v1/users/:id
  */
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = parseInt(req.params.id);
     const currentUser = (req as any).user;
-    const { full_name, email, role, is_active, mrfc_access } = req.body;
+    const { id } = req.params;
+    const updateData = req.body;
 
-    // Validate ID
-    if (isNaN(userId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_ID',
-          message: 'Invalid user ID'
-        }
-      });
-      return;
-    }
+    // Remove fields that shouldn't be updated directly
+    delete updateData.password_hash;
+    delete updateData.id;
+    delete updateData.created_at;
 
-    // Find user
-    const user = await User.findByPk(userId);
+    const user = await User.findByPk(id);
     if (!user) {
       res.status(404).json({
         success: false,
@@ -304,122 +290,83 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Authorization check
-    const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
-    const isOwnProfile = currentUser?.userId === userId;
-
-    // USER can only update their own profile and limited fields
-    if (!isAdmin && !isOwnProfile) {
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: 'You can only update your own profile'
-        }
-      });
-      return;
-    }
-
-    // Build update object
-    const updates: any = {};
-
-    if (isAdmin) {
-      // ADMIN can update all fields
-      if (full_name) updates.full_name = full_name;
-      if (email) updates.email = email;
-      if (role) updates.role = role;
-      if (is_active !== undefined) updates.is_active = is_active;
-    } else {
-      // USER can only update full_name and email
-      if (full_name) updates.full_name = full_name;
-      if (email) updates.email = email;
-    }
-
-    // Check if new email already exists
-    if (email && email !== user.email) {
-      const existingEmail = await User.findOne({ where: { email, id: { [Op.ne]: userId } } });
-      if (existingEmail) {
-        res.status(409).json({
+    // Check permissions for role changes
+    if (updateData.role) {
+      // Only SUPER_ADMIN can change roles
+      if (currentUser.role !== UserRole.SUPER_ADMIN) {
+        res.status(403).json({
           success: false,
           error: {
-            code: 'EMAIL_EXISTS',
-            message: 'Email already registered'
+            code: 'INSUFFICIENT_PERMISSIONS',
+            message: 'Only SUPER_ADMIN can change user roles'
+          }
+        });
+        return;
+      }
+
+      // Cannot change SUPER_ADMIN role
+      if (user.role === UserRole.SUPER_ADMIN || updateData.role === UserRole.SUPER_ADMIN) {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Cannot modify SUPER_ADMIN role'
           }
         });
         return;
       }
     }
 
-    // Update user with transaction
     await sequelize.transaction(async (t) => {
-      await user.update(updates, { transaction: t });
+      const { password_hash: _, ...oldValues } = user.toJSON();
 
-      // Update MRFC access if provided (ADMIN only)
-      if (isAdmin && mrfc_access && user.role === 'USER') {
-        // Remove existing access
-        await UserMrfcAccess.destroy({
-          where: { user_id: userId },
-          transaction: t
-        });
+      await user.update(updateData, { transaction: t });
 
-        // Create new access records
-        if (mrfc_access.length > 0) {
-          const accessRecords = mrfc_access.map((mrfcId: number) => ({
-            user_id: userId,
-            mrfc_id: mrfcId,
-            granted_by: currentUser?.userId,
-            is_active: true
-          }));
-          await UserMrfcAccess.bulkCreate(accessRecords, { transaction: t });
-        }
-      }
+      const { password_hash: __, ...newValues } = user.toJSON();
+
+      // Create audit log
+      await AuditLog.create(
+        {
+          user_id: currentUser.userId,
+          action: AuditAction.UPDATE,
+          entity_type: 'users',
+          entity_id: user.id,
+          old_values: oldValues,
+          new_values: newValues
+        },
+        { transaction: t }
+      );
     });
 
-    // Return updated user (exclude password)
-    const updatedUser = await User.findByPk(userId, {
-      attributes: { exclude: ['password_hash'] }
-    });
+    const { password_hash: _, ...userData } = user.toJSON();
 
     res.json({
       success: true,
       message: 'User updated successfully',
-      data: updatedUser
+      data: userData
     });
-  } catch (error: any) {
-    console.error('User update error:', error);
+  } catch (error) {
+    console.error('Error updating user:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'USER_UPDATE_FAILED',
-        message: error.message || 'Failed to update user'
+        code: 'SERVER_ERROR',
+        message: 'Failed to update user'
       }
     });
   }
 };
 
 /**
- * Delete user (soft delete)
+ * Soft delete user
  * DELETE /api/v1/users/:id
  */
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = parseInt(req.params.id);
     const currentUser = (req as any).user;
+    const { id } = req.params;
 
-    // Prevent self-deletion
-    if (currentUser?.userId === userId) {
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'CANNOT_DELETE_SELF',
-          message: 'Cannot delete your own account'
-        }
-      });
-      return;
-    }
-
-    // Find user
-    const user = await User.findByPk(userId);
+    const user = await User.findByPk(id);
     if (!user) {
       res.status(404).json({
         success: false,
@@ -431,20 +378,49 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Soft delete with transaction
+    // Cannot delete SUPER_ADMIN
+    if (user.role === UserRole.SUPER_ADMIN) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Cannot delete SUPER_ADMIN user'
+        }
+      });
+      return;
+    }
+
+    // Cannot delete self
+    if (user.id.toString() === currentUser.userId.toString()) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Cannot delete your own account'
+        }
+      });
+      return;
+    }
+
     await sequelize.transaction(async (t) => {
+      const { password_hash: _, ...oldValues } = user.toJSON();
+
+      // Soft delete
       await user.update(
-        {
-          is_active: false,
-          deleted_at: new Date()
-        },
+        { is_active: false },
         { transaction: t }
       );
 
-      // Deactivate MRFC access
-      await UserMrfcAccess.update(
-        { is_active: false },
-        { where: { user_id: userId }, transaction: t }
+      // Create audit log
+      await AuditLog.create(
+        {
+          user_id: currentUser.userId,
+          action: AuditAction.DELETE,
+          entity_type: 'users',
+          entity_id: user.id,
+          old_values: oldValues
+        },
+        { transaction: t }
       );
     });
 
@@ -452,42 +428,28 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       success: true,
       message: 'User deleted successfully'
     });
-  } catch (error: any) {
-    console.error('User deletion error:', error);
+  } catch (error) {
+    console.error('Error deleting user:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'USER_DELETION_FAILED',
-        message: error.message || 'Failed to delete user'
+        code: 'SERVER_ERROR',
+        message: 'Failed to delete user'
       }
     });
   }
 };
 
 /**
- * Toggle user account status (activate/deactivate)
+ * Toggle user active status
  * PUT /api/v1/users/:id/toggle-status
  */
 export const toggleUserStatus = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = parseInt(req.params.id);
     const currentUser = (req as any).user;
-    const { is_active } = req.body;
+    const { id } = req.params;
 
-    // Prevent self-status toggle
-    if (currentUser?.userId === userId) {
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'CANNOT_TOGGLE_SELF',
-          message: 'Cannot change your own account status'
-        }
-      });
-      return;
-    }
-
-    // Find user
-    const user = await User.findByPk(userId);
+    const user = await User.findByPk(id);
     if (!user) {
       res.status(404).json({
         success: false,
@@ -499,26 +461,160 @@ export const toggleUserStatus = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Update status
-    await user.update({ is_active });
+    // Prevent deactivating own account
+    if (user.id === currentUser?.userId) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'CANNOT_DEACTIVATE_SELF',
+          message: 'Cannot deactivate your own account'
+        }
+      });
+      return;
+    }
 
-    const action = is_active ? 'activated' : 'deactivated';
+    await sequelize.transaction(async (t) => {
+      const oldValues = { is_active: user.is_active };
+      const newStatus = !user.is_active;
+
+      await user.update(
+        { is_active: newStatus },
+        { transaction: t }
+      );
+
+      // Create audit log
+      await AuditLog.create(
+        {
+          user_id: currentUser?.userId,
+          action: AuditAction.UPDATE,
+          entity_type: 'users',
+          entity_id: user.id,
+          old_values: oldValues,
+          new_values: { is_active: newStatus }
+        },
+        { transaction: t }
+      );
+    });
+
     res.json({
       success: true,
-      message: `User account ${action} successfully`,
+      message: `User ${user.is_active ? 'activated' : 'deactivated'} successfully`,
       data: {
         id: user.id,
         username: user.username,
         is_active: user.is_active
       }
     });
-  } catch (error: any) {
-    console.error('Toggle user status error:', error);
+  } catch (error) {
+    console.error('Error toggling user status:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'TOGGLE_STATUS_FAILED',
-        message: error.message || 'Failed to toggle user status'
+        code: 'SERVER_ERROR',
+        message: 'Failed to toggle user status'
+      }
+    });
+  }
+};
+
+/**
+ * Grant MRFC access to user
+ * POST /api/v1/users/:id/grant-mrfc-access
+ */
+export const grantMrfcAccess = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const currentUser = (req as any).user;
+    const { id } = req.params;
+    const { mrfc_ids } = req.body;
+
+    if (!Array.isArray(mrfc_ids) || mrfc_ids.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_INPUT',
+          message: 'mrfc_ids must be a non-empty array'
+        }
+      });
+      return;
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User not found'
+        }
+      });
+      return;
+    }
+
+    // Verify all MRFCs exist
+    const mrfcs = await Mrfc.findAll({
+      where: {
+        id: { [Op.in]: mrfc_ids },
+        is_active: true
+      }
+    });
+
+    if (mrfcs.length !== mrfc_ids.length) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'MRFC_NOT_FOUND',
+          message: 'One or more MRFCs not found or inactive'
+        }
+      });
+      return;
+    }
+
+    await sequelize.transaction(async (t) => {
+      // Create access records
+      const accessRecords = mrfc_ids.map((mrfc_id: number) => ({
+        user_id: user.id,
+        mrfc_id,
+        granted_by: currentUser.userId,
+        is_active: true
+      }));
+
+      await UserMrfcAccess.bulkCreate(accessRecords, {
+        transaction: t,
+        updateOnDuplicate: ['is_active', 'granted_by']
+      });
+
+      // Create audit log
+      await AuditLog.create(
+        {
+          user_id: currentUser.userId,
+          action: AuditAction.CREATE,
+          entity_type: 'user_mrfc_access',
+          entity_id: user.id,
+          new_values: {
+            user_id: user.id,
+            mrfc_ids,
+            granted_by: currentUser.userId
+          }
+        },
+        { transaction: t }
+      );
+    });
+
+    res.json({
+      success: true,
+      message: 'MRFC access granted successfully',
+      data: {
+        user_id: user.id,
+        mrfc_count: mrfc_ids.length
+      }
+    });
+  } catch (error) {
+    console.error('Error granting MRFC access:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Failed to grant MRFC access'
       }
     });
   }
