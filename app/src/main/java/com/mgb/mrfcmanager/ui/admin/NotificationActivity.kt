@@ -6,14 +6,32 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.tabs.TabLayout
+import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
+import com.mgb.mrfcmanager.data.remote.RetrofitClient
+import com.mgb.mrfcmanager.data.remote.api.NotificationApiService
+import com.mgb.mrfcmanager.data.remote.dto.NotificationDto
+import com.mgb.mrfcmanager.data.repository.NotificationRepository
+import com.mgb.mrfcmanager.viewmodel.NotificationListState
+import com.mgb.mrfcmanager.viewmodel.NotificationViewModel
+import com.mgb.mrfcmanager.viewmodel.NotificationViewModelFactory
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 class NotificationActivity : AppCompatActivity() {
 
@@ -21,37 +39,32 @@ class NotificationActivity : AppCompatActivity() {
     private lateinit var tabLayout: TabLayout
     private lateinit var rvNotifications: RecyclerView
     private lateinit var layoutEmptyState: LinearLayout
+    private lateinit var progressBar: ProgressBar
+    private lateinit var swipeRefresh: SwipeRefreshLayout
 
-    private val allNotifications = mutableListOf<NotificationItem>()
-    private val displayedNotifications = mutableListOf<NotificationItem>()
+    private val allNotifications = mutableListOf<NotificationDto>()
+    private val displayedNotifications = mutableListOf<NotificationDto>()
     private lateinit var notificationAdapter: NotificationAdapter
+    private lateinit var viewModel: NotificationViewModel
 
-    data class NotificationItem(
-        val id: Long,
-        val title: String,
-        val message: String,
-        val time: String,
-        val type: NotificationType,
-        var isRead: Boolean = false
-    )
-
-    enum class NotificationType {
-        MEETING,
-        COMPLIANCE,
-        ALERT,
-        GENERAL
-    }
+    private var userId: Long = 0L
+    private var currentTabPosition: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_notification)
 
+        // Get userId from TokenManager or intent
+        userId = intent.getLongExtra("USER_ID", 0L)
+
         setupToolbar()
         initializeViews()
+        setupViewModel()
         setupRecyclerView()
         setupTabs()
-        loadDemoNotifications()
-        filterNotifications(0)
+        setupSwipeRefresh()
+        observeNotificationState()
+        loadNotifications()
     }
 
     private fun setupToolbar() {
@@ -66,10 +79,68 @@ class NotificationActivity : AppCompatActivity() {
         tabLayout = findViewById(R.id.tabLayout)
         rvNotifications = findViewById(R.id.rvNotifications)
         layoutEmptyState = findViewById(R.id.layoutEmptyState)
+        progressBar = findViewById(R.id.progressBar)
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh = findViewById(R.id.swipeRefresh)
 
         tvMarkAllRead.setOnClickListener {
             markAllAsRead()
         }
+    }
+
+    private fun setupViewModel() {
+        // Use singleton TokenManager to prevent DataStore conflicts
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+        val notificationApiService = retrofit.create(NotificationApiService::class.java)
+        val notificationRepository = NotificationRepository(notificationApiService)
+        val factory = NotificationViewModelFactory(notificationRepository)
+        viewModel = ViewModelProvider(this, factory)[NotificationViewModel::class.java]
+
+        // Get userId from TokenManager if not provided
+        if (userId == 0L) {
+            userId = tokenManager.getUserId() ?: 0L
+        }
+    }
+
+    private fun setupSwipeRefresh() {
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh.setOnRefreshListener {
+        //     loadNotifications()
+        // }
+    }
+
+    private fun observeNotificationState() {
+        viewModel.notificationListState.observe(this) { state ->
+            when (state) {
+                is NotificationListState.Loading -> {
+                    showLoading(true)
+                }
+                is NotificationListState.Success -> {
+                    showLoading(false)
+                    allNotifications.clear()
+                    allNotifications.addAll(state.data)
+                    filterNotifications(currentTabPosition)
+                }
+                is NotificationListState.Error -> {
+                    showLoading(false)
+                    showError(state.message)
+                }
+                is NotificationListState.Idle -> {
+                    showLoading(false)
+                }
+            }
+        }
+    }
+
+    private fun showLoading(isLoading: Boolean) {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh.isRefreshing = false
+    }
+
+    private fun showError(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     private fun setupRecyclerView() {
@@ -93,79 +164,31 @@ class NotificationActivity : AppCompatActivity() {
         })
     }
 
-    private fun loadDemoNotifications() {
-        // TODO: BACKEND - Fetch notifications from database
-        allNotifications.addAll(
-            listOf(
-                NotificationItem(
-                    1,
-                    "Meeting Reminder",
-                    "MRFC-1 meeting scheduled for tomorrow at 10:00 AM",
-                    "2 hours ago",
-                    NotificationType.MEETING,
-                    false
-                ),
-                NotificationItem(
-                    2,
-                    "Compliance Alert",
-                    "Proponent 3 has pending compliance report submission",
-                    "5 hours ago",
-                    NotificationType.ALERT,
-                    false
-                ),
-                NotificationItem(
-                    3,
-                    "Document Uploaded",
-                    "New MTF Report uploaded for Q2 2025",
-                    "1 day ago",
-                    NotificationType.GENERAL,
-                    true
-                ),
-                NotificationItem(
-                    4,
-                    "Attendance Required",
-                    "Please mark attendance for MRFC-2 meeting",
-                    "1 day ago",
-                    NotificationType.MEETING,
-                    false
-                ),
-                NotificationItem(
-                    5,
-                    "Compliance Warning",
-                    "Deadline approaching for CMVR submission",
-                    "2 days ago",
-                    NotificationType.ALERT,
-                    false
-                ),
-                NotificationItem(
-                    6,
-                    "Meeting Minutes",
-                    "Minutes from last MRFC meeting are now available",
-                    "3 days ago",
-                    NotificationType.GENERAL,
-                    true
-                ),
-                NotificationItem(
-                    7,
-                    "New Proponent Added",
-                    "Proponent 10 has been added to MRFC-1",
-                    "4 days ago",
-                    NotificationType.GENERAL,
-                    true
-                ),
-                NotificationItem(
-                    8,
-                    "System Update",
-                    "MRFC Manager system will undergo maintenance on Sunday",
-                    "5 days ago",
-                    NotificationType.GENERAL,
-                    true
-                )
-            )
-        )
+    private fun loadNotifications() {
+        if (userId == 0L) {
+            showError("User ID is required")
+            return
+        }
+
+        // Load notifications based on current tab
+        when (currentTabPosition) {
+            0 -> {
+                // All notifications
+                viewModel.loadNotifications(userId = userId)
+            }
+            1 -> {
+                // Unread only
+                viewModel.loadUnreadNotifications(userId = userId)
+            }
+            2 -> {
+                // All notifications (will filter for alerts in filterNotifications)
+                viewModel.loadNotifications(userId = userId)
+            }
+        }
     }
 
     private fun filterNotifications(tabPosition: Int) {
+        currentTabPosition = tabPosition
         displayedNotifications.clear()
 
         when (tabPosition) {
@@ -179,7 +202,9 @@ class NotificationActivity : AppCompatActivity() {
             }
             2 -> {
                 // Alerts only
-                displayedNotifications.addAll(allNotifications.filter { it.type == NotificationType.ALERT })
+                displayedNotifications.addAll(allNotifications.filter {
+                    it.notificationType.equals("ALERT", ignoreCase = true)
+                })
             }
         }
 
@@ -187,16 +212,48 @@ class NotificationActivity : AppCompatActivity() {
         updateEmptyState()
     }
 
-    private fun markAsRead(notification: NotificationItem) {
-        // TODO: BACKEND - Update read status in database
-        notification.isRead = true
-        notificationAdapter.notifyDataSetChanged()
+    private fun markAsRead(notification: NotificationDto) {
+        lifecycleScope.launch {
+            when (val result = viewModel.markAsRead(notification.id)) {
+                is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                    // Update local list
+                    val index = allNotifications.indexOfFirst { it.id == notification.id }
+                    if (index != -1) {
+                        allNotifications[index] = result.data
+                        filterNotifications(currentTabPosition)
+                    }
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                    showError("Failed to mark as read: ${result.message}")
+                }
+                else -> {}
+            }
+        }
     }
 
     private fun markAllAsRead() {
-        // TODO: BACKEND - Update all notifications as read in database
-        allNotifications.forEach { it.isRead = true }
-        notificationAdapter.notifyDataSetChanged()
+        lifecycleScope.launch {
+            var hasError = false
+            displayedNotifications.forEach { notification ->
+                if (!notification.isRead) {
+                    when (viewModel.markAsRead(notification.id)) {
+                        is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                            hasError = true
+                        }
+                        else -> {}
+                    }
+                }
+            }
+
+            if (hasError) {
+                showError("Some notifications could not be marked as read")
+            } else {
+                Toast.makeText(this@NotificationActivity, "All notifications marked as read", Toast.LENGTH_SHORT).show()
+            }
+
+            // Reload notifications
+            loadNotifications()
+        }
     }
 
     private fun updateEmptyState() {
@@ -211,8 +268,8 @@ class NotificationActivity : AppCompatActivity() {
 
     // Adapter for notifications
     class NotificationAdapter(
-        private val notifications: List<NotificationItem>,
-        private val onNotificationClick: (NotificationItem) -> Unit
+        private val notifications: List<NotificationDto>,
+        private val onNotificationClick: (NotificationDto) -> Unit
     ) : RecyclerView.Adapter<NotificationAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -235,25 +292,26 @@ class NotificationActivity : AppCompatActivity() {
             private val tvTime: TextView = itemView.findViewById(R.id.tvTime)
             private val viewUnreadIndicator: View = itemView.findViewById(R.id.viewUnreadIndicator)
 
-            fun bind(notification: NotificationItem, onNotificationClick: (NotificationItem) -> Unit) {
+            fun bind(notification: NotificationDto, onNotificationClick: (NotificationDto) -> Unit) {
                 tvTitle.text = notification.title
                 tvMessage.text = notification.message
-                tvTime.text = notification.time
+                tvTime.text = formatTimestamp(notification.createdAt)
 
                 // Set icon based on type
-                val (iconRes, iconColor) = when (notification.type) {
-                    NotificationType.MEETING -> R.drawable.ic_calendar to R.color.primary
-                    NotificationType.COMPLIANCE -> R.drawable.ic_check to R.color.status_success
-                    NotificationType.ALERT -> R.drawable.ic_warning to R.color.status_warning
-                    NotificationType.GENERAL -> R.drawable.ic_notifications to R.color.primary
+                val (iconRes, iconColor) = when (notification.notificationType.uppercase()) {
+                    "MEETING" -> R.drawable.ic_calendar to R.color.primary
+                    "COMPLIANCE" -> R.drawable.ic_check to R.color.status_success
+                    "ALERT", "DEADLINE" -> R.drawable.ic_warning to R.color.status_warning
+                    "DOCUMENT" -> R.drawable.ic_document to R.color.primary
+                    else -> R.drawable.ic_notifications to R.color.primary
                 }
 
                 ivNotificationIcon.setImageResource(iconRes)
                 ivNotificationIcon.setColorFilter(itemView.context.getColor(iconColor))
                 cardIcon.setCardBackgroundColor(
                     itemView.context.getColor(
-                        when (notification.type) {
-                            NotificationType.ALERT -> R.color.status_warning
+                        when (notification.notificationType.uppercase()) {
+                            "ALERT", "DEADLINE" -> R.color.status_warning
                             else -> R.color.background
                         }
                     )
@@ -267,6 +325,39 @@ class NotificationActivity : AppCompatActivity() {
 
                 itemView.setOnClickListener {
                     onNotificationClick(notification)
+                }
+            }
+
+            private fun formatTimestamp(timestamp: String): String {
+                return try {
+                    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+                    sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    val date = sdf.parse(timestamp) ?: return timestamp
+
+                    val now = Date()
+                    val diffInMillis = now.time - date.time
+
+                    when {
+                        diffInMillis < TimeUnit.MINUTES.toMillis(1) -> "Just now"
+                        diffInMillis < TimeUnit.HOURS.toMillis(1) -> {
+                            val minutes = TimeUnit.MILLISECONDS.toMinutes(diffInMillis)
+                            "$minutes ${if (minutes == 1L) "minute" else "minutes"} ago"
+                        }
+                        diffInMillis < TimeUnit.DAYS.toMillis(1) -> {
+                            val hours = TimeUnit.MILLISECONDS.toHours(diffInMillis)
+                            "$hours ${if (hours == 1L) "hour" else "hours"} ago"
+                        }
+                        diffInMillis < TimeUnit.DAYS.toMillis(7) -> {
+                            val days = TimeUnit.MILLISECONDS.toDays(diffInMillis)
+                            "$days ${if (days == 1L) "day" else "days"} ago"
+                        }
+                        else -> {
+                            val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                            displayFormat.format(date)
+                        }
+                    }
+                } catch (e: Exception) {
+                    timestamp
                 }
             }
         }

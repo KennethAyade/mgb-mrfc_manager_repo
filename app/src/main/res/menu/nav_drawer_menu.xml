@@ -65,6 +65,16 @@
         </menu>
     </item>
 
+    <!-- Admin Section (SUPER_ADMIN ONLY) -->
+    <item android:title="Administration">
+        <menu>
+            <item
+                android:id="@+id/nav_user_management"
+                android:icon="@drawable/ic_people"
+                android:title="User Management" />
+        </menu>
+    </item>
+
     <!-- Bottom Section -->
     <group android:checkableBehavior="single">
         <item

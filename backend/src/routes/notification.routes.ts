@@ -14,6 +14,11 @@
 
 import { Router, Request, Response } from 'express';
 import { authenticate } from '../middleware/auth';
+import {
+  listNotifications,
+  countUnread,
+  markAsRead
+} from '../controllers/notification.controller';
 
 const router = Router();
 
@@ -93,64 +98,8 @@ const router = Router();
  * - MRFC_ASSIGNED: User granted access to new MRFC
  * - MEETING_REMINDER: Upcoming quarterly meeting
  */
-router.get('/', authenticate, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT NOTIFICATION LISTING LOGIC
-    // Step 1: Parse query parameters
-    // const { is_read, type, page = 1, limit = 20 } = req.query;
-
-    // Step 2: Build filter conditions
-    // const where: any = { user_id: req.user?.userId };
-    // if (is_read !== undefined) where.is_read = is_read === 'true';
-    // if (type) where.type = type;
-
-    // Step 3: Calculate pagination
-    // const pageNum = Math.max(1, parseInt(page as string));
-    // const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
-    // const offset = (pageNum - 1) * limitNum;
-
-    // Step 4: Query notifications
-    // const { count, rows: notifications } = await Notification.findAndCountAll({
-    //   where,
-    //   limit: limitNum,
-    //   offset,
-    //   order: [['created_at', 'DESC']]
-    // });
-
-    // Step 5: Return results
-    // return res.json({
-    //   success: true,
-    //   data: {
-    //     notifications,
-    //     pagination: {
-    //       page: pageNum,
-    //       limit: limitNum,
-    //       total: count,
-    //       totalPages: Math.ceil(count / limitNum),
-    //       hasNext: pageNum * limitNum < count,
-    //       hasPrev: pageNum > 1
-    //     }
-    //   }
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Notification listing endpoint not yet implemented. See comments in notification.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Notification listing error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'NOTIFICATION_LISTING_FAILED',
-        message: error.message || 'Failed to retrieve notifications'
-      }
-    });
-  }
-});
+// Use controller implementation
+router.get('/', authenticate, listNotifications);
 
 /**
  * ================================================
@@ -175,39 +124,8 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
  * - 401: Not authenticated
  * - 500: Database error
  */
-router.get('/unread', authenticate, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT UNREAD COUNT LOGIC
-    // const count = await Notification.count({
-    //   where: {
-    //     user_id: req.user?.userId,
-    //     is_read: false
-    //   }
-    // });
-
-    // return res.json({
-    //   success: true,
-    //   data: { unread_count: count }
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Unread count endpoint not yet implemented. See comments in notification.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Unread count error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'UNREAD_COUNT_FAILED',
-        message: error.message || 'Failed to get unread count'
-      }
-    });
-  }
-});
+// Use controller implementation
+router.get('/unread', authenticate, countUnread);
 
 /**
  * ================================================
@@ -249,64 +167,8 @@ router.get('/unread', authenticate, async (req: Request, res: Response) => {
  * - Once marked as read, read_at timestamp is set
  * - Can mark already-read notifications (idempotent)
  */
-router.put('/:id/read', authenticate, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT MARK AS READ LOGIC
-    // Step 1: Find notification
-    // const notification = await Notification.findByPk(req.params.id);
-    // if (!notification) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'NOTIFICATION_NOT_FOUND', message: 'Notification not found' }
-    //   });
-    // }
-
-    // Step 2: Authorization check
-    // if (notification.user_id !== req.user?.userId) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: {
-    //       code: 'FORBIDDEN',
-    //       message: 'You can only mark your own notifications as read'
-    //     }
-    //   });
-    // }
-
-    // Step 3: Mark as read
-    // await notification.update({
-    //   is_read: true,
-    //   read_at: new Date()
-    // });
-
-    // Step 4: Return updated notification
-    // return res.json({
-    //   success: true,
-    //   message: 'Notification marked as read',
-    //   data: {
-    //     id: notification.id,
-    //     is_read: notification.is_read,
-    //     read_at: notification.read_at
-    //   }
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Mark as read endpoint not yet implemented. See comments in notification.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Mark as read error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'MARK_AS_READ_FAILED',
-        message: error.message || 'Failed to mark notification as read'
-      }
-    });
-  }
-});
+// Use controller implementation
+router.put('/:id/read', authenticate, markAsRead);
 
 /**
  * ================================================
@@ -343,55 +205,15 @@ router.put('/:id/read', authenticate, async (req: Request, res: Response) => {
  * - Permanent deletion (no soft delete)
  * - Useful for clearing old notifications
  */
+// TODO: Implement delete notification in controller first
 router.delete('/:id', authenticate, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT NOTIFICATION DELETION LOGIC
-    // Step 1: Find notification
-    // const notification = await Notification.findByPk(req.params.id);
-    // if (!notification) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'NOTIFICATION_NOT_FOUND', message: 'Notification not found' }
-    //   });
-    // }
-
-    // Step 2: Authorization check
-    // if (notification.user_id !== req.user?.userId) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: {
-    //       code: 'FORBIDDEN',
-    //       message: 'You can only delete your own notifications'
-    //     }
-    //   });
-    // }
-
-    // Step 3: Delete notification
-    // await notification.destroy();
-
-    // Step 4: Return success
-    // return res.json({
-    //   success: true,
-    //   message: 'Notification deleted successfully'
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Notification deletion endpoint not yet implemented. See comments in notification.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Notification deletion error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'NOTIFICATION_DELETION_FAILED',
-        message: error.message || 'Failed to delete notification'
-      }
-    });
-  }
+  res.status(501).json({
+    success: false,
+    error: {
+      code: 'NOT_IMPLEMENTED',
+      message: 'Notification deletion not yet implemented in controller.'
+    }
+  });
 });
 
 export default router;

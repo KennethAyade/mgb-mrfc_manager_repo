@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("kotlin-kapt") // For annotation processing (Room, Moshi)
 }
 
 android {
@@ -33,6 +34,10 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {
@@ -54,6 +59,9 @@ dependencies {
     // RecyclerView
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 
+    // SwipeRefreshLayout
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
     // Image loading
     implementation("io.coil-kt:coil:2.5.0")
 
@@ -64,6 +72,40 @@ dependencies {
 
     // Charts for compliance dashboard
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    // ========== BACKEND INTEGRATION DEPENDENCIES ==========
+
+    // Networking - Retrofit & OkHttp
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // JSON Parsing - Moshi
+    implementation("com.squareup.moshi:moshi:1.15.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
+    kapt("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")
+
+    // Coroutines (for async operations)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+
+    // ViewModel & LiveData runtime
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+
+    // Room (local database for offline support)
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+
+    // DataStore (for preferences & token storage)
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // Security (for encrypted token storage)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // WorkManager (for background sync)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

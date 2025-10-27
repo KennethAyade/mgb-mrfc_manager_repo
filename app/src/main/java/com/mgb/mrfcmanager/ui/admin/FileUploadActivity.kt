@@ -15,14 +15,30 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.model.Document
+import com.mgb.mrfcmanager.data.remote.RetrofitClient
+import com.mgb.mrfcmanager.data.remote.api.DocumentApiService
+import com.mgb.mrfcmanager.data.remote.dto.DocumentDto
+import com.mgb.mrfcmanager.data.repository.DocumentRepository
 import com.mgb.mrfcmanager.utils.DemoData
+import com.mgb.mrfcmanager.utils.TokenManager
+import com.mgb.mrfcmanager.viewmodel.DocumentListState
+import com.mgb.mrfcmanager.viewmodel.DocumentUploadState
+import com.mgb.mrfcmanager.viewmodel.DocumentViewModel
+import com.mgb.mrfcmanager.viewmodel.DocumentViewModelFactory
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,6 +47,8 @@ class FileUploadActivity : AppCompatActivity() {
 
     private lateinit var tilCategory: TextInputLayout
     private lateinit var actvCategory: AutoCompleteTextView
+    private lateinit var tilDescription: TextInputLayout
+    private lateinit var etDescription: TextInputEditText
     private lateinit var tvSelectedFile: TextView
     private lateinit var btnBrowseFile: MaterialButton
     private lateinit var btnUpload: MaterialButton
@@ -44,8 +62,11 @@ class FileUploadActivity : AppCompatActivity() {
     private var selectedFileName: String = ""
     private var selectedCategory: String = ""
 
-    private val uploadedFiles = mutableListOf<Document>()
+    private val uploadedFiles = mutableListOf<DocumentDto>()
     private lateinit var filesAdapter: UploadedFilesAdapter
+    private lateinit var viewModel: DocumentViewModel
+
+    private var mrfcId: Long = 0L
 
     private val categories = listOf(
         "MTF Report",
@@ -54,6 +75,8 @@ class FileUploadActivity : AppCompatActivity() {
         "Research Report",
         "CMVR Report",
         "Minutes",
+        "Agenda Document",
+        "Proponent Document",
         "Other"
     )
 
@@ -65,12 +88,17 @@ class FileUploadActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_file_upload)
 
+        mrfcId = intent.getLongExtra("MRFC_ID", 0L)
+
         setupToolbar()
         initializeViews()
+        setupViewModel()
         setupCategoryDropdown()
         setupRecyclerView()
         setupClickListeners()
-        loadDemoData()
+        observeUploadState()
+        observeDocumentListState()
+        loadUploadedFiles()
     }
 
     private fun setupToolbar() {
@@ -83,6 +111,9 @@ class FileUploadActivity : AppCompatActivity() {
     private fun initializeViews() {
         tilCategory = findViewById(R.id.tilCategory)
         actvCategory = findViewById(R.id.actvCategory)
+        // TODO: Add tilDescription and etDescription to layout XML
+        // tilDescription = findViewById(R.id.tilDescription)
+        // etDescription = findViewById(R.id.etDescription)
         tvSelectedFile = findViewById(R.id.tvSelectedFile)
         btnBrowseFile = findViewById(R.id.btnBrowseFile)
         btnUpload = findViewById(R.id.btnUpload)
@@ -91,6 +122,69 @@ class FileUploadActivity : AppCompatActivity() {
         tvProgress = findViewById(R.id.tvProgress)
         rvUploadedFiles = findViewById(R.id.rvUploadedFiles)
         tvNoFiles = findViewById(R.id.tvNoFiles)
+    }
+
+    private fun setupViewModel() {
+        // Use singleton TokenManager to prevent DataStore conflicts
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+        val documentApiService = retrofit.create(DocumentApiService::class.java)
+        val documentRepository = DocumentRepository(documentApiService)
+        val factory = DocumentViewModelFactory(documentRepository)
+        viewModel = ViewModelProvider(this, factory)[DocumentViewModel::class.java]
+    }
+
+    private fun observeUploadState() {
+        viewModel.uploadState.observe(this) { state ->
+            when (state) {
+                is DocumentUploadState.Loading -> {
+                    showUploadProgress(true)
+                }
+                is DocumentUploadState.Success -> {
+                    showUploadProgress(false)
+                    Toast.makeText(this, "File uploaded successfully", Toast.LENGTH_SHORT).show()
+                    resetForm()
+                    viewModel.resetUploadState()
+                    loadUploadedFiles() // Refresh the list
+                }
+                is DocumentUploadState.Error -> {
+                    showUploadProgress(false)
+                    Toast.makeText(this, "Upload failed: ${state.message}", Toast.LENGTH_LONG).show()
+                    viewModel.resetUploadState()
+                }
+                is DocumentUploadState.Idle -> {
+                    showUploadProgress(false)
+                }
+            }
+        }
+    }
+
+    private fun observeDocumentListState() {
+        viewModel.documentListState.observe(this) { state ->
+            when (state) {
+                is DocumentListState.Loading -> {
+                    // Optional: Show loading indicator for the list
+                }
+                is DocumentListState.Success -> {
+                    uploadedFiles.clear()
+                    uploadedFiles.addAll(state.data)
+                    filesAdapter.notifyDataSetChanged()
+                    updateFileListVisibility()
+                }
+                is DocumentListState.Error -> {
+                    Toast.makeText(this, "Failed to load files: ${state.message}", Toast.LENGTH_SHORT).show()
+                }
+                is DocumentListState.Idle -> {
+                    // Nothing to do
+                }
+            }
+        }
+    }
+
+    private fun showUploadProgress(show: Boolean) {
+        cardUploadProgress.visibility = if (show) View.VISIBLE else View.GONE
+        btnUpload.isEnabled = !show
+        btnBrowseFile.isEnabled = !show
     }
 
     private fun setupCategoryDropdown() {
@@ -166,49 +260,54 @@ class FileUploadActivity : AppCompatActivity() {
     }
 
     private fun uploadFile() {
-        if (selectedFileUri == null || selectedCategory.isEmpty()) return
+        if (selectedFileUri == null || selectedCategory.isEmpty()) {
+            Toast.makeText(this, "Please select a file and category", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        // Show progress
-        cardUploadProgress.visibility = View.VISIBLE
-        btnUpload.isEnabled = false
+        if (mrfcId == 0L) {
+            Toast.makeText(this, "MRFC ID is required", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        // Simulate upload progress
-        // TODO: BACKEND - Implement actual file upload to server/storage
-        simulateUpload()
+        val uri = selectedFileUri ?: return
+
+        // Copy file from URI to temp file
+        lifecycleScope.launch {
+            try {
+                val tempFile = createTempFileFromUri(uri, selectedFileName)
+                // TODO: Add etDescription to layout XML
+                // val description = etDescription.text.toString().trim()
+                val description = ""
+
+                // Upload file using ViewModel
+                viewModel.uploadDocument(
+                    file = tempFile,
+                    mrfcId = mrfcId,
+                    documentType = selectedCategory,
+                    description = description.ifEmpty { null }
+                )
+
+                // Clean up temp file after upload attempt
+                tempFile.deleteOnExit()
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@FileUploadActivity,
+                    "Failed to prepare file: ${e.localizedMessage}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
-    private fun simulateUpload() {
-        Thread {
-            for (i in 0..100 step 10) {
-                Thread.sleep(100)
-                runOnUiThread {
-                    progressBar.progress = i
-                    tvProgress.text = "$i%"
-                }
+    private fun createTempFileFromUri(uri: Uri, fileName: String): File {
+        val tempFile = File(cacheDir, fileName)
+        contentResolver.openInputStream(uri)?.use { input ->
+            FileOutputStream(tempFile).use { output ->
+                input.copyTo(output)
             }
-
-            // Add to uploaded files list
-            val fileType = getFileType(selectedFileName)
-            val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val newDocument = Document(
-                id = System.currentTimeMillis(),
-                fileName = selectedFileName,
-                fileType = fileType,
-                category = selectedCategory,
-                uploadDate = currentDate
-            )
-
-            runOnUiThread {
-                uploadedFiles.add(0, newDocument)
-                filesAdapter.notifyItemInserted(0)
-                rvUploadedFiles.scrollToPosition(0)
-
-                // Reset form
-                resetForm()
-                Toast.makeText(this, "File uploaded successfully", Toast.LENGTH_SHORT).show()
-                updateFileListVisibility()
-            }
-        }.start()
+        }
+        return tempFile
     }
 
     private fun getFileType(fileName: String): String {
@@ -228,20 +327,38 @@ class FileUploadActivity : AppCompatActivity() {
         selectedCategory = ""
         tvSelectedFile.text = "No file selected"
         actvCategory.text = null
+        // TODO: Add etDescription to layout XML
+        // etDescription.text = null
         cardUploadProgress.visibility = View.GONE
         progressBar.progress = 0
         tvProgress.text = "0%"
         btnUpload.isEnabled = false
     }
 
-    private fun removeFile(document: Document) {
-        // TODO: BACKEND - Delete file from server/storage
-        val position = uploadedFiles.indexOf(document)
-        if (position != -1) {
-            uploadedFiles.removeAt(position)
-            filesAdapter.notifyItemRemoved(position)
-            updateFileListVisibility()
-            Toast.makeText(this, "File removed", Toast.LENGTH_SHORT).show()
+    private fun removeFile(document: DocumentDto) {
+        lifecycleScope.launch {
+            val result = viewModel.deleteDocument(document.id)
+            when (result) {
+                is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                    val position = uploadedFiles.indexOf(document)
+                    if (position != -1) {
+                        uploadedFiles.removeAt(position)
+                        filesAdapter.notifyItemRemoved(position)
+                        updateFileListVisibility()
+                        Toast.makeText(this@FileUploadActivity, "File deleted", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                    Toast.makeText(
+                        this@FileUploadActivity,
+                        "Failed to delete: ${result.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
+                    // Nothing to do
+                }
+            }
         }
     }
 
@@ -255,17 +372,21 @@ class FileUploadActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadDemoData() {
-        // Load demo uploaded files
-        uploadedFiles.addAll(DemoData.documentList)
-        filesAdapter.notifyDataSetChanged()
-        updateFileListVisibility()
+    private fun loadUploadedFiles() {
+        if (mrfcId == 0L) {
+            // If no MRFC ID, just show empty state
+            updateFileListVisibility()
+            return
+        }
+
+        // Load documents from backend for this MRFC
+        viewModel.loadDocumentsByMrfc(mrfcId)
     }
 
     // Adapter for uploaded files
     class UploadedFilesAdapter(
-        private val files: List<Document>,
-        private val onDeleteClick: (Document) -> Unit
+        private val files: List<DocumentDto>,
+        private val onDeleteClick: (DocumentDto) -> Unit
     ) : RecyclerView.Adapter<UploadedFilesAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -286,17 +407,23 @@ class FileUploadActivity : AppCompatActivity() {
             private val tvFileInfo: TextView = itemView.findViewById(R.id.tvFileInfo)
             private val ivDelete: ImageView = itemView.findViewById(R.id.ivDelete)
 
-            fun bind(document: Document, onDeleteClick: (Document) -> Unit) {
+            fun bind(document: DocumentDto, onDeleteClick: (DocumentDto) -> Unit) {
                 tvFileName.text = document.fileName
-                tvFileInfo.text = "${document.category} • ${document.uploadDate}"
 
-                // Set appropriate icon based on file type
-                val iconRes = when (document.fileType.uppercase()) {
-                    "PDF" -> R.drawable.ic_file
-                    "EXCEL" -> R.drawable.ic_file
-                    "WORD" -> R.drawable.ic_file
-                    else -> R.drawable.ic_file
+                // Format date
+                val uploadDate = try {
+                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                    val date = format.parse(document.uploadDate)
+                    date?.let { displayFormat.format(it) } ?: document.uploadDate
+                } catch (e: Exception) {
+                    document.uploadDate
                 }
+
+                tvFileInfo.text = "${document.documentType} • $uploadDate"
+
+                // Set appropriate icon based on mime type
+                val iconRes = R.drawable.ic_file
                 ivFileIcon.setImageResource(iconRes)
 
                 ivDelete.setOnClickListener {

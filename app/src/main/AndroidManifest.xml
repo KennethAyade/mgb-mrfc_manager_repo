@@ -10,6 +10,7 @@
         android:maxSdkVersion="28" />
 
     <application
+        android:name=".MRFCManagerApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -18,6 +19,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MRFCManager"
+        android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="31">
 
         <!-- Splash Screen - Main Launcher -->
@@ -90,6 +92,17 @@
             android:name=".ui.admin.NotificationActivity"
             android:exported="false"
             android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
+        <!-- SUPER_ADMIN User Management Activities -->
+        <activity
+            android:name=".ui.admin.UserManagementActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
+        <activity
+            android:name=".ui.admin.CreateUserActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.UserManagementActivity" />
 
         <!-- User Activities -->
         <activity

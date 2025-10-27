@@ -9,17 +9,33 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.textfield.TextInputEditText
+import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
+import com.mgb.mrfcmanager.data.remote.RetrofitClient
+import com.mgb.mrfcmanager.data.remote.api.NotesApiService
+import com.mgb.mrfcmanager.data.remote.dto.CreateNoteRequest
+import com.mgb.mrfcmanager.data.remote.dto.NotesDto
+import com.mgb.mrfcmanager.data.remote.dto.UpdateNoteRequest
+import com.mgb.mrfcmanager.data.repository.NotesRepository
+import com.mgb.mrfcmanager.utils.TokenManager
+import com.mgb.mrfcmanager.viewmodel.NotesListState
+import com.mgb.mrfcmanager.viewmodel.NotesViewModel
+import com.mgb.mrfcmanager.viewmodel.NotesViewModelFactory
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,23 +46,18 @@ class NotesActivity : AppCompatActivity() {
     private lateinit var rvNotes: RecyclerView
     private lateinit var layoutEmptyState: LinearLayout
     private lateinit var fabAddNote: FloatingActionButton
+    private lateinit var progressBar: ProgressBar
+    private lateinit var swipeRefresh: SwipeRefreshLayout
 
     private var mrfcId: Long = 0
     private var mrfcName: String = ""
     private var quarter: String = ""
+    private var agendaId: Long? = null
 
-    private val allNotes = mutableListOf<Note>()
-    private val displayedNotes = mutableListOf<Note>()
+    private val allNotes = mutableListOf<NotesDto>()
+    private val displayedNotes = mutableListOf<NotesDto>()
     private lateinit var notesAdapter: NotesAdapter
-
-    data class Note(
-        val id: Long,
-        val title: String,
-        val content: String,
-        val date: String,
-        val quarter: String,
-        val mrfcId: Long
-    )
+    private lateinit var viewModel: NotesViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,11 +66,15 @@ class NotesActivity : AppCompatActivity() {
         mrfcId = intent.getLongExtra("MRFC_ID", 0)
         mrfcName = intent.getStringExtra("MRFC_NAME") ?: ""
         quarter = intent.getStringExtra("QUARTER") ?: ""
+        agendaId = intent.getLongExtra("AGENDA_ID", -1L).takeIf { it != -1L }
 
         setupToolbar()
         initializeViews()
+        setupViewModel()
         setupRecyclerView()
         setupSearch()
+        setupSwipeRefresh()
+        observeNotesState()
         loadNotes()
     }
 
@@ -75,10 +90,63 @@ class NotesActivity : AppCompatActivity() {
         rvNotes = findViewById(R.id.rvNotes)
         layoutEmptyState = findViewById(R.id.layoutEmptyState)
         fabAddNote = findViewById(R.id.fabAddNote)
+        progressBar = findViewById(R.id.progressBar)
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh = findViewById(R.id.swipeRefresh)
 
         fabAddNote.setOnClickListener {
             showAddNoteDialog()
         }
+    }
+
+    private fun setupViewModel() {
+        // Use singleton TokenManager to prevent DataStore conflicts
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+        val notesApiService = retrofit.create(NotesApiService::class.java)
+        val notesRepository = NotesRepository(notesApiService)
+        val factory = NotesViewModelFactory(notesRepository)
+        viewModel = ViewModelProvider(this, factory)[NotesViewModel::class.java]
+    }
+
+    private fun setupSwipeRefresh() {
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh.setOnRefreshListener {
+        //     loadNotes()
+        // }
+    }
+
+    private fun observeNotesState() {
+        viewModel.notesListState.observe(this) { state ->
+            when (state) {
+                is NotesListState.Loading -> {
+                    showLoading(true)
+                }
+                is NotesListState.Success -> {
+                    showLoading(false)
+                    allNotes.clear()
+                    allNotes.addAll(state.data)
+                    filterNotes(etSearch.text.toString())
+                }
+                is NotesListState.Error -> {
+                    showLoading(false)
+                    showError(state.message)
+                }
+                is NotesListState.Idle -> {
+                    showLoading(false)
+                }
+            }
+        }
+    }
+
+    private fun showLoading(isLoading: Boolean) {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh.isRefreshing = false
+    }
+
+    private fun showError(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     private fun setupRecyclerView() {
@@ -102,38 +170,17 @@ class NotesActivity : AppCompatActivity() {
     }
 
     private fun loadNotes() {
-        // TODO: BACKEND - Fetch notes from database
-        // Load demo notes
-        allNotes.addAll(
-            listOf(
-                Note(
-                    1,
-                    "Meeting Notes - Q2 2025",
-                    "Discussion on MTF disbursement and AEPEP progress. Action items: Follow up on pending reports and schedule next meeting.",
-                    getCurrentDate(),
-                    "2nd Quarter 2025",
-                    mrfcId
-                ),
-                Note(
-                    2,
-                    "CMVR Review Notes",
-                    "Reviewed compliance monitoring validation report. All proponents are in compliance. Minor issues noted for follow-up.",
-                    "2025-10-10",
-                    "2nd Quarter 2025",
-                    mrfcId
-                ),
-                Note(
-                    3,
-                    "Action Items",
-                    "1. Submit quarterly reports by end of month\n2. Schedule site visit for Proponent 3\n3. Update AEPEP financial status",
-                    "2025-10-08",
-                    "2nd Quarter 2025",
-                    mrfcId
-                )
-            )
-        )
+        if (mrfcId == 0L) {
+            showError("MRFC ID is required")
+            return
+        }
 
-        filterNotes("")
+        // Load notes from backend
+        if (agendaId != null) {
+            viewModel.loadNotesByAgenda(agendaId!!)
+        } else {
+            viewModel.loadNotesByMrfc(mrfcId)
+        }
     }
 
     private fun filterNotes(query: String) {
@@ -198,7 +245,7 @@ class NotesActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun showNoteDetailsDialog(note: Note) {
+    private fun showNoteDetailsDialog(note: NotesDto) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_note, null)
         val tvDialogTitle = dialogView.findViewById<TextView>(R.id.tvDialogTitle)
         val etNoteTitle = dialogView.findViewById<TextInputEditText>(R.id.etNoteTitle)
@@ -232,7 +279,7 @@ class NotesActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun showNoteMenu(note: Note, view: View) {
+    private fun showNoteMenu(note: NotesDto, view: View) {
         val popup = PopupMenu(this, view)
         popup.menuInflater.inflate(R.menu.menu_note, popup.menu)
         popup.setOnMenuItemClickListener { item ->
@@ -252,40 +299,77 @@ class NotesActivity : AppCompatActivity() {
     }
 
     private fun saveNote(title: String, content: String) {
-        // TODO: BACKEND - Save note to database
-        val newNote = Note(
-            id = System.currentTimeMillis(),
+        if (mrfcId == 0L) {
+            showError("MRFC ID is required")
+            return
+        }
+
+        val request = CreateNoteRequest(
+            mrfcId = mrfcId,
+            agendaId = agendaId,
             title = title,
             content = content,
-            date = getCurrentDate(),
-            quarter = quarter.ifEmpty { "Current Quarter" },
-            mrfcId = mrfcId
+            noteType = "MEETING",
+            isPrivate = false
         )
 
-        allNotes.add(0, newNote)
-        filterNotes(etSearch.text.toString())
-        Toast.makeText(this, "Note saved", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun updateNote(note: Note, title: String, content: String) {
-        // TODO: BACKEND - Update note in database
-        val index = allNotes.indexOf(note)
-        if (index != -1) {
-            allNotes[index] = note.copy(title = title, content = content)
-            filterNotes(etSearch.text.toString())
-            Toast.makeText(this, "Note updated", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            when (val result = viewModel.createNote(request)) {
+                is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                    Toast.makeText(this@NotesActivity, "Note saved", Toast.LENGTH_SHORT).show()
+                    loadNotes() // Refresh list
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                    showError("Failed to save note: ${result.message}")
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
+                    // Nothing to do
+                }
+            }
         }
     }
 
-    private fun deleteNote(note: Note) {
+    private fun updateNote(note: NotesDto, title: String, content: String) {
+        val request = UpdateNoteRequest(
+            title = title,
+            content = content
+        )
+
+        lifecycleScope.launch {
+            when (val result = viewModel.updateNote(note.id, request)) {
+                is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                    Toast.makeText(this@NotesActivity, "Note updated", Toast.LENGTH_SHORT).show()
+                    loadNotes() // Refresh list
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                    showError("Failed to update note: ${result.message}")
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
+                    // Nothing to do
+                }
+            }
+        }
+    }
+
+    private fun deleteNote(note: NotesDto) {
         AlertDialog.Builder(this)
             .setTitle("Delete Note")
             .setMessage("Are you sure you want to delete this note?")
             .setPositiveButton("Delete") { _, _ ->
-                // TODO: BACKEND - Delete note from database
-                allNotes.remove(note)
-                filterNotes(etSearch.text.toString())
-                Toast.makeText(this, "Note deleted", Toast.LENGTH_SHORT).show()
+                lifecycleScope.launch {
+                    when (val result = viewModel.deleteNote(note.id)) {
+                        is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                            Toast.makeText(this@NotesActivity, "Note deleted", Toast.LENGTH_SHORT).show()
+                            loadNotes() // Refresh list
+                        }
+                        is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                            showError("Failed to delete note: ${result.message}")
+                        }
+                        is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
+                            // Nothing to do
+                        }
+                    }
+                }
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -297,9 +381,9 @@ class NotesActivity : AppCompatActivity() {
 
     // Adapter for notes
     class NotesAdapter(
-        private val notes: List<Note>,
-        private val onNoteClick: (Note) -> Unit,
-        private val onMenuClick: (Note, View) -> Unit
+        private val notes: List<NotesDto>,
+        private val onNoteClick: (NotesDto) -> Unit,
+        private val onMenuClick: (NotesDto, View) -> Unit
     ) : RecyclerView.Adapter<NotesAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -321,11 +405,23 @@ class NotesActivity : AppCompatActivity() {
             private val tvNoteQuarter: TextView = itemView.findViewById(R.id.tvNoteQuarter)
             private val ivMenu: ImageView = itemView.findViewById(R.id.ivMenu)
 
-            fun bind(note: Note, onNoteClick: (Note) -> Unit, onMenuClick: (Note, View) -> Unit) {
+            fun bind(note: NotesDto, onNoteClick: (NotesDto) -> Unit, onMenuClick: (NotesDto, View) -> Unit) {
                 tvNoteTitle.text = note.title
                 tvNoteContent.text = note.content
-                tvNoteDate.text = note.date
-                tvNoteQuarter.text = note.quarter
+
+                // Format date
+                val date = try {
+                    val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                    val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                    val parsedDate = format.parse(note.createdAt)
+                    parsedDate?.let { displayFormat.format(it) } ?: note.createdAt
+                } catch (e: Exception) {
+                    note.createdAt
+                }
+                tvNoteDate.text = date
+
+                // Display note type
+                tvNoteQuarter.text = note.noteType
 
                 itemView.setOnClickListener {
                     onNoteClick(note)

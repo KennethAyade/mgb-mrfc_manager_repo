@@ -8,9 +8,16 @@ import com.mgb.mrfcmanager.R
 
 class QuarterSelectionActivity : AppCompatActivity() {
 
+    private var mrfcId: Long = 0L
+    private var mrfcName: String = ""
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_quarter_selection)
+
+        // Get MRFC ID from intent
+        mrfcId = intent.getLongExtra("MRFC_ID", 0L)
+        mrfcName = intent.getStringExtra("MRFC_NAME") ?: ""
 
         setupToolbar()
         setupQuarterCards()
@@ -19,6 +26,7 @@ class QuarterSelectionActivity : AppCompatActivity() {
     private fun setupToolbar() {
         setSupportActionBar(findViewById(R.id.toolbar))
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = if (mrfcName.isNotEmpty()) "$mrfcName - Select Quarter" else "Select Quarter"
         findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar).setNavigationOnClickListener {
             finish()
         }
@@ -42,6 +50,8 @@ class QuarterSelectionActivity : AppCompatActivity() {
     private fun openAgenda(quarter: String) {
         val intent = Intent(this, AgendaManagementActivity::class.java)
         intent.putExtra("QUARTER", quarter)
+        intent.putExtra("MRFC_ID", mrfcId)
+        intent.putExtra("MRFC_NAME", mrfcName)
         startActivity(intent)
     }
 }

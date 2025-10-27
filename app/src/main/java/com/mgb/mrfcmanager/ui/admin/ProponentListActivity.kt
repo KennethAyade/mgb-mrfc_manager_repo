@@ -3,24 +3,44 @@ package com.mgb.mrfcmanager.ui.admin
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
-import com.mgb.mrfcmanager.data.model.Proponent
-import com.mgb.mrfcmanager.utils.DemoData
+import com.mgb.mrfcmanager.data.remote.RetrofitClient
+import com.mgb.mrfcmanager.data.remote.api.ProponentApiService
+import com.mgb.mrfcmanager.data.remote.dto.ProponentDto
+import com.mgb.mrfcmanager.data.repository.ProponentRepository
+import com.mgb.mrfcmanager.utils.TokenManager
+import com.mgb.mrfcmanager.viewmodel.ProponentListState
+import com.mgb.mrfcmanager.viewmodel.ProponentViewModel
+import com.mgb.mrfcmanager.viewmodel.ProponentViewModelFactory
+import java.text.NumberFormat
+import java.util.Locale
 
+/**
+ * Proponent List Activity - Displays proponents for a specific MRFC
+ * Integrated with backend API
+ */
 class ProponentListActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ProponentAdapter
     private lateinit var tvMRFCName: TextView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var tvError: TextView
+    private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var viewModel: ProponentViewModel
 
     private var mrfcId: Long = -1
     private var mrfcName: String = ""
@@ -31,54 +51,127 @@ class ProponentListActivity : AppCompatActivity() {
 
         loadMRFCInfo()
         setupToolbar()
-        setupViews()
+        initViews()
+        setupViewModel()
         setupRecyclerView()
+        observeProponentList()
         setupFAB()
+        setupSwipeRefresh()
+
+        // Load proponents for this MRFC
+        if (mrfcId != -1L) {
+            viewModel.loadProponentsByMrfc(mrfcId)
+        } else {
+            Toast.makeText(this, "Invalid MRFC ID", Toast.LENGTH_SHORT).show()
+            finish()
+        }
     }
 
     private fun loadMRFCInfo() {
         mrfcId = intent.getLongExtra("MRFC_ID", -1)
-        mrfcName = intent.getStringExtra("MRFC_NAME") ?: "MRFC"
+        mrfcName = intent.getStringExtra("MRFC_NAME") ?: intent.getStringExtra("MRFC_NUMBER") ?: "MRFC"
     }
 
     private fun setupToolbar() {
         setSupportActionBar(findViewById(R.id.toolbar))
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = "Proponents"
         findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar).setNavigationOnClickListener {
             finish()
         }
     }
 
-    private fun setupViews() {
+    private fun initViews() {
         tvMRFCName = findViewById(R.id.tvMRFCName)
         tvMRFCName.text = mrfcName
+        recyclerView = findViewById(R.id.rvProponentList)
+        progressBar = findViewById(R.id.progressBar)
+    }
+
+    private fun setupViewModel() {
+        // Use singleton TokenManager to prevent DataStore conflicts
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+        val proponentApiService = retrofit.create(ProponentApiService::class.java)
+        val repository = ProponentRepository(proponentApiService)
+
+        val factory = ProponentViewModelFactory(repository)
+        viewModel = ViewModelProvider(this, factory)[ProponentViewModel::class.java]
     }
 
     private fun setupRecyclerView() {
-        recyclerView = findViewById(R.id.rvProponentList)
-
-        // Use GridLayoutManager with column count from resources (1 for phone, 2 for tablet)
-        val columnCount = resources.getInteger(R.integer.list_grid_columns)
+        // Use GridLayoutManager with column count based on screen width
+        // 1 column for phones, 2 columns for tablets
+        val displayMetrics = resources.displayMetrics
+        val screenWidthDp = displayMetrics.widthPixels / displayMetrics.density
+        val columnCount = if (screenWidthDp >= 600) 2 else 1
         recyclerView.layoutManager = GridLayoutManager(this, columnCount)
 
-        // TODO: BACKEND - Filter proponents by MRFC ID from database
-        // For now: Load all demo proponents
-        val proponents = DemoData.proponentList.filter { it.mrfcId == mrfcId }
-
-        adapter = ProponentAdapter(proponents) { proponent ->
+        adapter = ProponentAdapter(emptyList()) { proponent ->
             onProponentClicked(proponent)
         }
         recyclerView.adapter = adapter
     }
 
+    private fun observeProponentList() {
+        viewModel.proponentListState.observe(this) { state ->
+            when (state) {
+                is ProponentListState.Idle -> {
+                    showLoading(false)
+                }
+                is ProponentListState.Loading -> {
+                    showLoading(true)
+                    hideError()
+                }
+                is ProponentListState.Success -> {
+                    showLoading(false)
+                    hideError()
+                    adapter.updateData(state.data)
+
+                    if (state.data.isEmpty()) {
+                        showError("No proponents found for this MRFC")
+                    }
+                }
+                is ProponentListState.Error -> {
+                    showLoading(false)
+                    showError(state.message)
+                }
+            }
+        }
+    }
+
+    private fun setupSwipeRefresh() {
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh.setOnRefreshListener {
+        //     viewModel.refresh(mrfcId)
+        //     swipeRefresh.isRefreshing = false
+        // }
+    }
+
     private fun setupFAB() {
         findViewById<FloatingActionButton>(R.id.fabAddProponent).setOnClickListener {
-            // TODO: Open Add Proponent dialog/activity
             Toast.makeText(this, "Add Proponent - Coming Soon", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun onProponentClicked(proponent: Proponent) {
+    private fun showLoading(isLoading: Boolean) {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        recyclerView.visibility = if (isLoading) View.GONE else View.VISIBLE
+    }
+
+    private fun showError(message: String) {
+        // TODO: Add tvError to layout XML
+        // tvError.visibility = View.VISIBLE
+        // tvError.text = message
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun hideError() {
+        // TODO: Add tvError to layout XML
+        // tvError.visibility = View.GONE
+    }
+
+    private fun onProponentClicked(proponent: ProponentDto) {
         val intent = Intent(this, ProponentDetailActivity::class.java)
         intent.putExtra("PROPONENT_ID", proponent.id)
         intent.putExtra("MRFC_ID", mrfcId)
@@ -86,10 +179,19 @@ class ProponentListActivity : AppCompatActivity() {
     }
 }
 
+/**
+ * Adapter for Proponent List
+ * Updated to use ProponentDto from backend
+ */
 class ProponentAdapter(
-    private val proponentList: List<Proponent>,
-    private val onItemClick: (Proponent) -> Unit
+    private var proponentList: List<ProponentDto>,
+    private val onItemClick: (ProponentDto) -> Unit
 ) : RecyclerView.Adapter<ProponentAdapter.ViewHolder>() {
+
+    fun updateData(newList: List<ProponentDto>) {
+        proponentList = newList
+        notifyDataSetChanged()
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -111,16 +213,21 @@ class ProponentAdapter(
         private val tvCompanyName: TextView = itemView.findViewById(R.id.tvCompanyName)
         private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
 
-        fun bind(proponent: Proponent, number: Int, onItemClick: (Proponent) -> Unit) {
+        fun bind(proponent: ProponentDto, number: Int, onItemClick: (ProponentDto) -> Unit) {
             tvProponentNumber.text = number.toString()
-            tvProponentName.text = proponent.name
-            tvCompanyName.text = proponent.companyName
+            tvProponentName.text = proponent.fullName
+
+            // Use project title as "company name" for now
+            tvCompanyName.text = proponent.projectTitle
+
+            // Display status
             tvStatus.text = proponent.status
 
-            // Set status color
-            val statusColor = when (proponent.status) {
-                "Active" -> R.color.status_compliant
-                "Inactive" -> R.color.status_non_compliant
+            // Set status color based on backend status
+            val statusColor = when (proponent.status.uppercase()) {
+                "APPROVED" -> R.color.status_compliant
+                "REJECTED" -> R.color.status_non_compliant
+                "PENDING" -> R.color.status_pending
                 else -> R.color.status_pending
             }
             tvStatus.setTextColor(itemView.context.getColor(statusColor))

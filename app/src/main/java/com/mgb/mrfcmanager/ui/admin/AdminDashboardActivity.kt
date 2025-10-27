@@ -2,17 +2,22 @@ package com.mgb.mrfcmanager.ui.admin
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.MenuItem
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.navigation.NavigationView
+import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.ui.auth.LoginActivity
+import kotlinx.coroutines.launch
 
 /**
  * Modern Admin Dashboard with Navigation Drawer
@@ -26,11 +31,54 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("AdminDashboard", "AdminDashboardActivity onCreate called")
         setContentView(R.layout.activity_admin_dashboard)
 
         setupToolbar()
         setupNavigationDrawer()
         setupDashboardCards()
+        setupRoleBasedUI()
+
+        Log.d("AdminDashboard", "AdminDashboardActivity setup completed")
+    }
+
+    /**
+     * Configure UI based on user role
+     * SUPER_ADMIN sees all options including User Management
+     * ADMIN sees standard admin options
+     */
+    private fun setupRoleBasedUI() {
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        val username = tokenManager.getUsername()
+        val fullName = tokenManager.getFullName()
+
+        Log.d("AdminDashboard", "Setting up UI for role: $userRole, username: $username")
+
+        // Update navigation header with user info
+        val headerView = navigationView.getHeaderView(0)
+        val tvUserName = headerView.findViewById<TextView>(R.id.tvUserName)
+        val tvUserRole = headerView.findViewById<TextView>(R.id.tvUserRole)
+
+        tvUserName.text = fullName ?: username ?: "Admin User"
+
+        // Display user-friendly role name
+        tvUserRole.text = when (userRole) {
+            "SUPER_ADMIN" -> "Super Administrator"
+            "ADMIN" -> "Administrator"
+            "USER" -> "User"
+            else -> "User"
+        }
+
+        // Hide User Management menu for non-SUPER_ADMIN users
+        if (userRole != "SUPER_ADMIN") {
+            val menu = navigationView.menu
+            val userManagementItem = menu.findItem(R.id.nav_user_management)
+            userManagementItem?.isVisible = false
+            Log.d("AdminDashboard", "User Management hidden for ADMIN role")
+        } else {
+            Log.d("AdminDashboard", "User Management visible for SUPER_ADMIN")
+        }
     }
 
     private fun setupToolbar() {
@@ -105,6 +153,9 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
             R.id.nav_notifications -> {
                 startActivity(Intent(this, NotificationActivity::class.java))
             }
+            R.id.nav_user_management -> {
+                startActivity(Intent(this, UserManagementActivity::class.java))
+            }
             R.id.nav_settings -> {
                 Toast.makeText(this, "Settings - Coming Soon", Toast.LENGTH_SHORT).show()
             }
@@ -118,11 +169,17 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
     }
 
     private fun logout() {
-        // TODO: BACKEND - Clear session/token
-        val intent = Intent(this, LoginActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
-        finish()
+        // Use singleton TokenManager from Application class
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        lifecycleScope.launch {
+            tokenManager.clearTokens()
+
+            // Navigate to login
+            val intent = Intent(this@AdminDashboardActivity, LoginActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+        }
     }
 
     override fun onBackPressed() {

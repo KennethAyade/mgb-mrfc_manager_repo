@@ -1,5 +1,7 @@
 package com.mgb.mrfcmanager.ui.user
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -8,19 +10,37 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.textfield.TextInputEditText
+import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.model.Document
+import com.mgb.mrfcmanager.data.remote.RetrofitClient
+import com.mgb.mrfcmanager.data.remote.api.DocumentApiService
+import com.mgb.mrfcmanager.data.remote.dto.DocumentDto
+import com.mgb.mrfcmanager.data.repository.DocumentRepository
 import com.mgb.mrfcmanager.utils.DemoData
+import com.mgb.mrfcmanager.utils.TokenManager
+import com.mgb.mrfcmanager.viewmodel.DocumentListState
+import com.mgb.mrfcmanager.viewmodel.DocumentViewModel
+import com.mgb.mrfcmanager.viewmodel.DocumentViewModelFactory
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class DocumentListActivity : AppCompatActivity() {
 
@@ -40,16 +60,21 @@ class DocumentListActivity : AppCompatActivity() {
     private lateinit var chipQ4_2024: Chip
     private lateinit var rvDocuments: RecyclerView
     private lateinit var layoutEmptyState: LinearLayout
+    private lateinit var progressBar: ProgressBar
+    private lateinit var swipeRefresh: SwipeRefreshLayout
 
     private var mrfcId: Long = 0
     private var mrfcName: String = ""
 
-    private val allDocuments = mutableListOf<Document>()
-    private val displayedDocuments = mutableListOf<Document>()
+    private val allDocuments = mutableListOf<DocumentDto>()
+    private val displayedDocuments = mutableListOf<DocumentDto>()
     private lateinit var documentsAdapter: DocumentsAdapter
+    private lateinit var viewModel: DocumentViewModel
 
     private var currentFileTypeFilter = "All"
     private var currentQuarterFilter = "All"
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val displayDateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,9 +85,12 @@ class DocumentListActivity : AppCompatActivity() {
 
         setupToolbar()
         initializeViews()
+        setupViewModel()
         setupRecyclerView()
         setupFilters()
         setupSearch()
+        setupSwipeRefresh()
+        observeDocumentState()
         loadDocuments()
     }
 
@@ -91,6 +119,9 @@ class DocumentListActivity : AppCompatActivity() {
         chipQ4_2024 = findViewById(R.id.chipQ4_2024)
         rvDocuments = findViewById(R.id.rvDocuments)
         layoutEmptyState = findViewById(R.id.layoutEmptyState)
+        progressBar = findViewById(R.id.progressBar)
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh = findViewById(R.id.swipeRefresh)
 
         ivFilter.setOnClickListener {
             // Reset all filters
@@ -103,6 +134,56 @@ class DocumentListActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupViewModel() {
+        // Use singleton TokenManager to prevent DataStore conflicts
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+        val documentApiService = retrofit.create(DocumentApiService::class.java)
+        val documentRepository = DocumentRepository(documentApiService)
+        val factory = DocumentViewModelFactory(documentRepository)
+        viewModel = ViewModelProvider(this, factory)[DocumentViewModel::class.java]
+    }
+
+    private fun setupSwipeRefresh() {
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh.setOnRefreshListener {
+        //     loadDocuments()
+        // }
+    }
+
+    private fun observeDocumentState() {
+        viewModel.documentListState.observe(this) { state ->
+            when (state) {
+                is DocumentListState.Loading -> {
+                    showLoading(true)
+                }
+                is DocumentListState.Success -> {
+                    showLoading(false)
+                    allDocuments.clear()
+                    allDocuments.addAll(state.data)
+                    filterDocuments()
+                }
+                is DocumentListState.Error -> {
+                    showLoading(false)
+                    showError(state.message)
+                }
+                is DocumentListState.Idle -> {
+                    showLoading(false)
+                }
+            }
+        }
+    }
+
+    private fun showLoading(isLoading: Boolean) {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh.isRefreshing = false
+    }
+
+    private fun showError(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
     private fun setupRecyclerView() {
         documentsAdapter = DocumentsAdapter(
             displayedDocuments,
@@ -110,8 +191,11 @@ class DocumentListActivity : AppCompatActivity() {
             onDownloadClick = { document -> downloadDocument(document) }
         )
 
-        // Use GridLayoutManager with column count from resources (1 for phone, 2 for tablet)
-        val columnCount = resources.getInteger(R.integer.list_grid_columns)
+        // Use GridLayoutManager with column count based on screen width
+        // 1 column for phones, 2 columns for tablets
+        val displayMetrics = resources.displayMetrics
+        val screenWidthDp = displayMetrics.widthPixels / displayMetrics.density
+        val columnCount = if (screenWidthDp >= 600) 2 else 1
         rvDocuments.layoutManager = GridLayoutManager(this, columnCount)
         rvDocuments.adapter = documentsAdapter
     }
@@ -228,32 +312,47 @@ class DocumentListActivity : AppCompatActivity() {
     }
 
     private fun loadDocuments() {
-        // TODO: BACKEND - Fetch documents from database for this MRFC
-        allDocuments.addAll(DemoData.documentList)
-        filterDocuments()
+        if (mrfcId == 0L) {
+            showError("MRFC ID is required")
+            return
+        }
+
+        // Load documents from backend for this MRFC
+        viewModel.loadDocumentsByMrfc(mrfcId)
     }
 
     private fun filterDocuments() {
         displayedDocuments.clear()
 
         val searchQuery = etSearch.text.toString()
-        var filtered: List<Document> = allDocuments
+        var filtered: List<DocumentDto> = allDocuments
 
         // Filter by file type
         if (currentFileTypeFilter != "All") {
-            filtered = filtered.filter { it.fileType == currentFileTypeFilter }
+            filtered = filtered.filter { doc ->
+                val mimeType = doc.mimeType.lowercase()
+                when (currentFileTypeFilter) {
+                    "PDF" -> mimeType.contains("pdf")
+                    "Excel" -> mimeType.contains("spreadsheet") || mimeType.contains("excel")
+                    "Word" -> mimeType.contains("word") || mimeType.contains("document")
+                    else -> true
+                }
+            }
         }
 
-        // Filter by quarter
+        // Filter by document type (quarter/category)
         if (currentQuarterFilter != "All") {
-            filtered = filtered.filter { it.quarter == currentQuarterFilter }
+            filtered = filtered.filter { doc ->
+                doc.documentType.contains(currentQuarterFilter, ignoreCase = true)
+            }
         }
 
         // Filter by search query
         if (searchQuery.isNotEmpty()) {
             filtered = filtered.filter {
                 it.fileName.contains(searchQuery, ignoreCase = true) ||
-                it.category.contains(searchQuery, ignoreCase = true)
+                it.documentType.contains(searchQuery, ignoreCase = true) ||
+                it.description?.contains(searchQuery, ignoreCase = true) == true
             }
         }
 
@@ -272,21 +371,28 @@ class DocumentListActivity : AppCompatActivity() {
         }
     }
 
-    private fun openDocument(document: Document) {
-        // TODO: BACKEND - Open/preview document
+    private fun openDocument(document: DocumentDto) {
+        // Open document - for now just show message
+        // TODO: Implement proper document viewer or open with external app
         Toast.makeText(this, "Opening ${document.fileName}", Toast.LENGTH_SHORT).show()
     }
 
-    private fun downloadDocument(document: Document) {
-        // TODO: BACKEND - Download document to device
-        Toast.makeText(this, "Downloading ${document.fileName}", Toast.LENGTH_SHORT).show()
+    private fun downloadDocument(document: DocumentDto) {
+        Toast.makeText(this, "Downloading ${document.fileName}...", Toast.LENGTH_SHORT).show()
+
+        // TODO: Implement actual download from backend
+        // This would need to:
+        // 1. Call viewModel.downloadDocument(document.id)
+        // 2. Save ResponseBody to Downloads folder
+        // 3. Notify user of completion
+        Toast.makeText(this, "Download feature requires backend integration", Toast.LENGTH_SHORT).show()
     }
 
     // Adapter for documents
     class DocumentsAdapter(
-        private val documents: List<Document>,
-        private val onDocumentClick: (Document) -> Unit,
-        private val onDownloadClick: (Document) -> Unit
+        private val documents: List<DocumentDto>,
+        private val onDocumentClick: (DocumentDto) -> Unit,
+        private val onDownloadClick: (DocumentDto) -> Unit
     ) : RecyclerView.Adapter<DocumentsAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -310,19 +416,36 @@ class DocumentListActivity : AppCompatActivity() {
             private val ivDownload: ImageView = itemView.findViewById(R.id.ivDownload)
 
             fun bind(
-                document: Document,
-                onDocumentClick: (Document) -> Unit,
-                onDownloadClick: (Document) -> Unit
+                document: DocumentDto,
+                onDocumentClick: (DocumentDto) -> Unit,
+                onDownloadClick: (DocumentDto) -> Unit
             ) {
                 tvFileName.text = document.fileName
-                tvCategory.text = document.category
-                tvFileDate.text = "Uploaded on ${document.uploadDate}"
+                tvCategory.text = document.documentType
 
-                // Set icon and color based on file type
-                val (iconRes, bgColor) = when (document.fileType.uppercase()) {
-                    "PDF" -> R.drawable.ic_file to R.color.status_error
-                    "EXCEL" -> R.drawable.ic_file to R.color.status_success
-                    "WORD" -> R.drawable.ic_file to R.color.status_info
+                // Format date
+                val uploadDate = try {
+                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                    val date = format.parse(document.uploadDate)
+                    date?.let { displayFormat.format(it) } ?: document.uploadDate
+                } catch (e: Exception) {
+                    document.uploadDate
+                }
+                tvFileDate.text = "Uploaded on $uploadDate"
+
+                // Set icon and color based on mime type
+                val (iconRes, bgColor) = when {
+                    document.mimeType.contains("pdf", ignoreCase = true) ->
+                        R.drawable.ic_file to R.color.status_error
+                    document.mimeType.contains("spreadsheet", ignoreCase = true) ||
+                    document.mimeType.contains("excel", ignoreCase = true) ->
+                        R.drawable.ic_file to R.color.status_success
+                    document.mimeType.contains("word", ignoreCase = true) ||
+                    document.mimeType.contains("document", ignoreCase = true) ->
+                        R.drawable.ic_file to R.color.status_info
+                    document.mimeType.contains("image", ignoreCase = true) ->
+                        R.drawable.ic_file to R.color.status_warning
                     else -> R.drawable.ic_file to R.color.primary
                 }
 

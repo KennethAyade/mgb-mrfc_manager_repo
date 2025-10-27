@@ -11,8 +11,10 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.github.mikephil.charting.charts.PieChart
 import com.github.mikephil.charting.data.PieData
 import com.github.mikephil.charting.data.PieDataSet
@@ -20,9 +22,20 @@ import com.github.mikephil.charting.data.PieEntry
 import com.github.mikephil.charting.formatter.PercentFormatter
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.model.Proponent
+import com.mgb.mrfcmanager.data.remote.RetrofitClient
+import com.mgb.mrfcmanager.data.remote.api.ComplianceApiService
+import com.mgb.mrfcmanager.data.remote.dto.ComplianceDto
+import com.mgb.mrfcmanager.data.remote.dto.ComplianceSummaryDto
+import com.mgb.mrfcmanager.data.repository.ComplianceRepository
 import com.mgb.mrfcmanager.utils.DemoData
+import com.mgb.mrfcmanager.utils.TokenManager
+import com.mgb.mrfcmanager.viewmodel.ComplianceListState
+import com.mgb.mrfcmanager.viewmodel.ComplianceSummaryState
+import com.mgb.mrfcmanager.viewmodel.ComplianceViewModel
+import com.mgb.mrfcmanager.viewmodel.ComplianceViewModelFactory
 import kotlin.random.Random
 
 class ComplianceDashboardActivity : AppCompatActivity() {
@@ -34,9 +47,16 @@ class ComplianceDashboardActivity : AppCompatActivity() {
     private lateinit var rvComplianceList: RecyclerView
     private lateinit var btnGenerateReport: MaterialButton
     private lateinit var btnExportData: MaterialButton
+    private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var progressBar: ProgressBar
 
-    private val complianceData = mutableListOf<ComplianceItem>()
+    private val complianceData = mutableListOf<ComplianceDto>()
     private lateinit var complianceAdapter: ComplianceAdapter
+
+    private lateinit var viewModel: ComplianceViewModel
+    private var mrfcId: Long = 0L
+    private var currentQuarter: String? = null
+    private var currentYear: Int? = null
 
     data class ComplianceItem(
         val proponent: Proponent,
@@ -54,12 +74,19 @@ class ComplianceDashboardActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_compliance_dashboard)
 
+        // Get intent extras
+        mrfcId = intent.getLongExtra("MRFC_ID", 0L)
+        currentQuarter = intent.getStringExtra("QUARTER")
+        currentYear = intent.getIntExtra("YEAR", 0).takeIf { it != 0 }
+
         setupToolbar()
         initializeViews()
+        setupViewModel()
         setupRecyclerView()
         setupClickListeners()
+        setupSwipeRefresh()
+        observeViewModelStates()
         loadComplianceData()
-        updateDashboard()
     }
 
     private fun setupToolbar() {
@@ -77,6 +104,72 @@ class ComplianceDashboardActivity : AppCompatActivity() {
         rvComplianceList = findViewById(R.id.rvComplianceList)
         btnGenerateReport = findViewById(R.id.btnGenerateReport)
         btnExportData = findViewById(R.id.btnExportData)
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh = findViewById(R.id.swipeRefresh)
+        progressBar = findViewById(R.id.progressBar)
+    }
+
+    private fun setupViewModel() {
+        // Use singleton TokenManager to prevent DataStore conflicts
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+        val complianceApiService = retrofit.create(ComplianceApiService::class.java)
+        val complianceRepository = ComplianceRepository(complianceApiService)
+        val factory = ComplianceViewModelFactory(complianceRepository)
+        viewModel = ViewModelProvider(this, factory)[ComplianceViewModel::class.java]
+    }
+
+    private fun setupSwipeRefresh() {
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh.setOnRefreshListener {
+        //     loadComplianceData()
+        // }
+    }
+
+    private fun observeViewModelStates() {
+        // Observe compliance list state
+        viewModel.complianceListState.observe(this) { state ->
+            when (state) {
+                is ComplianceListState.Loading -> showLoading(true)
+                is ComplianceListState.Success -> {
+                    showLoading(false)
+                    complianceData.clear()
+                    complianceData.addAll(state.data)
+                    complianceAdapter.notifyDataSetChanged()
+                }
+                is ComplianceListState.Error -> {
+                    showLoading(false)
+                    showError(state.message)
+                }
+                is ComplianceListState.Idle -> showLoading(false)
+            }
+        }
+
+        // Observe compliance summary state
+        viewModel.complianceSummaryState.observe(this) { state ->
+            when (state) {
+                is ComplianceSummaryState.Loading -> showLoading(true)
+                is ComplianceSummaryState.Success -> {
+                    showLoading(false)
+                    updateDashboardFromSummary(state.data)
+                }
+                is ComplianceSummaryState.Error -> {
+                    showLoading(false)
+                    showError(state.message)
+                }
+                is ComplianceSummaryState.Idle -> showLoading(false)
+            }
+        }
+    }
+
+    private fun showLoading(isLoading: Boolean) {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        // TODO: Add swipeRefresh to layout XML
+        // swipeRefresh.isRefreshing = false
+    }
+
+    private fun showError(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     private fun setupRecyclerView() {
@@ -98,28 +191,32 @@ class ComplianceDashboardActivity : AppCompatActivity() {
     }
 
     private fun loadComplianceData() {
-        // Generate demo compliance data for each proponent
-        // TODO: BACKEND - Fetch actual compliance data from database
-
-        DemoData.proponentList.forEach { proponent ->
-            val percentage = Random.nextInt(40, 101) // Random percentage between 40-100
-            val status = when {
-                percentage >= 80 -> ComplianceStatus.COMPLIANT
-                percentage >= 60 -> ComplianceStatus.PARTIAL
-                else -> ComplianceStatus.NON_COMPLIANT
-            }
-            complianceData.add(ComplianceItem(proponent, percentage, status))
+        if (mrfcId == 0L) {
+            showError("MRFC ID is required")
+            return
         }
 
-        complianceAdapter.notifyDataSetChanged()
+        // Load compliance records and summary
+        viewModel.loadCompliance(mrfcId = mrfcId, quarter = currentQuarter, year = currentYear)
+        viewModel.loadComplianceSummary(mrfcId = mrfcId, quarter = currentQuarter, year = currentYear)
+    }
+
+    private fun updateDashboardFromSummary(summary: ComplianceSummaryDto) {
+        // Update summary cards
+        tvCompliantCount.text = summary.compliant.toString()
+        tvPartialCount.text = summary.partial.toString()
+        tvNonCompliantCount.text = summary.nonCompliant.toString()
+
+        // Setup pie chart
+        setupPieChart(summary.compliant, summary.partial, summary.nonCompliant)
     }
 
     private fun updateDashboard() {
-        // Calculate overall statistics
+        // Calculate overall statistics from loaded compliance data
         val totalProponents = complianceData.size
-        val compliantCount = complianceData.count { it.status == ComplianceStatus.COMPLIANT }
-        val partialCount = complianceData.count { it.status == ComplianceStatus.PARTIAL }
-        val nonCompliantCount = complianceData.count { it.status == ComplianceStatus.NON_COMPLIANT }
+        val compliantCount = complianceData.count { it.status.equals("COMPLIANT", ignoreCase = true) }
+        val partialCount = complianceData.count { it.status.equals("PARTIAL", ignoreCase = true) }
+        val nonCompliantCount = complianceData.count { it.status.equals("NON_COMPLIANT", ignoreCase = true) }
 
         // Update summary cards
         tvCompliantCount.text = compliantCount.toString()
@@ -182,7 +279,7 @@ class ComplianceDashboardActivity : AppCompatActivity() {
 
     // Adapter for compliance list
     class ComplianceAdapter(
-        private val complianceList: List<ComplianceItem>
+        private val complianceList: List<ComplianceDto>
     ) : RecyclerView.Adapter<ComplianceAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -205,17 +302,22 @@ class ComplianceDashboardActivity : AppCompatActivity() {
             private val progressCompliance: ProgressBar = itemView.findViewById(R.id.progressCompliance)
             private val tvPercentage: TextView = itemView.findViewById(R.id.tvPercentage)
 
-            fun bind(item: ComplianceItem) {
-                tvProponentName.text = item.proponent.name
-                tvCompanyName.text = item.proponent.companyName
-                progressCompliance.progress = item.compliancePercentage
-                tvPercentage.text = "${item.compliancePercentage}%"
+            fun bind(compliance: ComplianceDto) {
+                // Display compliance type and quarter
+                tvProponentName.text = compliance.complianceType
+                tvCompanyName.text = "${compliance.quarter} ${compliance.year}"
 
-                // Set status badge
-                val (statusText, statusColor) = when (item.status) {
-                    ComplianceStatus.COMPLIANT -> "Compliant" to R.color.status_compliant
-                    ComplianceStatus.PARTIAL -> "Partial" to R.color.status_partial
-                    ComplianceStatus.NON_COMPLIANT -> "Non-Compliant" to R.color.status_non_compliant
+                // Calculate percentage from score (assuming score is out of 100)
+                val percentage = compliance.score?.toInt() ?: 0
+                progressCompliance.progress = percentage
+                tvPercentage.text = "$percentage%"
+
+                // Set status badge based on compliance status
+                val (statusText, statusColor) = when (compliance.status.uppercase()) {
+                    "COMPLIANT" -> "Compliant" to R.color.status_compliant
+                    "PARTIAL" -> "Partial" to R.color.status_partial
+                    "NON_COMPLIANT" -> "Non-Compliant" to R.color.status_non_compliant
+                    else -> compliance.status to R.color.status_pending
                 }
 
                 tvStatus.text = statusText
