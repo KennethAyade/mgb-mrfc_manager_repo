@@ -23,17 +23,9 @@
                 android:icon="@drawable/ic_people"
                 android:title="Proponents" />
             <item
-                android:id="@+id/nav_agenda"
+                android:id="@+id/nav_meetings"
                 android:icon="@drawable/ic_calendar"
-                android:title="Agenda" />
-            <item
-                android:id="@+id/nav_attendance"
-                android:icon="@drawable/ic_people"
-                android:title="Attendance" />
-            <item
-                android:id="@+id/nav_minutes"
-                android:icon="@drawable/ic_document"
-                android:title="Minutes" />
+                android:title="Meetings" />
         </menu>
     </item>
 

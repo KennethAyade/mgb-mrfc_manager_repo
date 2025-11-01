@@ -17,6 +17,7 @@ import com.google.android.material.navigation.NavigationView
 import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.ui.auth.LoginActivity
+import com.mgb.mrfcmanager.ui.meeting.QuarterSelectionActivity as MeetingQuarterSelection
 import kotlinx.coroutines.launch
 
 /**
@@ -70,14 +71,15 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
             else -> "User"
         }
 
-        // Hide User Management menu for non-SUPER_ADMIN users
-        if (userRole != "SUPER_ADMIN") {
+        // Hide User Management menu for USER role only
+        // SUPER_ADMIN and ADMIN both have access to User Management
+        if (userRole == "USER") {
             val menu = navigationView.menu
             val userManagementItem = menu.findItem(R.id.nav_user_management)
             userManagementItem?.isVisible = false
-            Log.d("AdminDashboard", "User Management hidden for ADMIN role")
+            Log.d("AdminDashboard", "User Management hidden for USER role")
         } else {
-            Log.d("AdminDashboard", "User Management visible for SUPER_ADMIN")
+            Log.d("AdminDashboard", "User Management visible for $userRole")
         }
     }
 
@@ -129,14 +131,9 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
             R.id.nav_proponents -> {
                 startActivity(Intent(this, MRFCListActivity::class.java))
             }
-            R.id.nav_agenda -> {
-                startActivity(Intent(this, QuarterSelectionActivity::class.java))
-            }
-            R.id.nav_attendance -> {
-                startActivity(Intent(this, AttendanceActivity::class.java))
-            }
-            R.id.nav_minutes -> {
-                startActivity(Intent(this, QuarterSelectionActivity::class.java))
+            R.id.nav_meetings -> {
+                // Navigate directly to quarter selection for general meetings
+                startActivity(Intent(this, MeetingQuarterSelection::class.java))
             }
             R.id.nav_documents -> {
                 startActivity(Intent(this, FileUploadActivity::class.java))

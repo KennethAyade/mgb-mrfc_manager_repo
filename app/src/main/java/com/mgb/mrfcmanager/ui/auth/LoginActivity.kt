@@ -90,7 +90,7 @@ class LoginActivity : AppCompatActivity() {
                 is LoginState.Success -> {
                     Log.d("LoginActivity", "State: Success - User: ${state.data.user.username}, Role: ${state.data.user.role}")
                     showLoading(false)
-                    val role = state.data.user.role
+                    val role = state.data.user.role ?: "USER" // Default to USER if role is null
                     navigateToDashboard(role)
                 }
                 is LoginState.Error -> {

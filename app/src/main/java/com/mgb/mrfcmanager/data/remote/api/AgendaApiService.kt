@@ -23,7 +23,7 @@ interface AgendaApiService {
         @Query("year") year: Int? = null,
         @Query("status") status: String? = null,
         @Query("is_active") isActive: Boolean? = null
-    ): Response<ApiResponse<List<AgendaDto>>>
+    ): Response<ApiResponse<PaginatedAgendasResponse>>
 
     /**
      * Get agenda by ID

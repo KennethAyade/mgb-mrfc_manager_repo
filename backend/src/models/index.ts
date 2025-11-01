@@ -12,6 +12,8 @@ import Mrfc from './Mrfc';
 import Proponent from './Proponent';
 import Quarter from './Quarter';
 import Agenda from './Agenda';
+import AgendaItem from './AgendaItem';
+import MeetingMinutes from './MeetingMinutes';
 import MatterArising from './MatterArising';
 import Attendance from './Attendance';
 import Document from './Document';
@@ -332,6 +334,58 @@ VoiceRecording.belongsTo(Agenda, {
   as: 'agenda'
 });
 
+// Agenda -> AgendaItem (one-to-many)
+Agenda.hasMany(AgendaItem, {
+  foreignKey: 'agenda_id',
+  as: 'agenda_items',
+  onDelete: 'CASCADE'
+});
+AgendaItem.belongsTo(Agenda, {
+  foreignKey: 'agenda_id',
+  as: 'agenda'
+});
+
+// User -> AgendaItem (one-to-many)
+User.hasMany(AgendaItem, {
+  foreignKey: 'added_by',
+  as: 'agenda_items'
+});
+AgendaItem.belongsTo(User, {
+  foreignKey: 'added_by',
+  as: 'contributor'
+});
+
+// Agenda -> MeetingMinutes (one-to-one)
+Agenda.hasOne(MeetingMinutes, {
+  foreignKey: 'agenda_id',
+  as: 'meeting_minutes',
+  onDelete: 'CASCADE'
+});
+MeetingMinutes.belongsTo(Agenda, {
+  foreignKey: 'agenda_id',
+  as: 'agenda'
+});
+
+// User -> MeetingMinutes (creator/organizer)
+User.hasMany(MeetingMinutes, {
+  foreignKey: 'created_by',
+  as: 'created_minutes'
+});
+MeetingMinutes.belongsTo(User, {
+  foreignKey: 'created_by',
+  as: 'organizer'
+});
+
+// User -> MeetingMinutes (approver)
+User.hasMany(MeetingMinutes, {
+  foreignKey: 'approved_by',
+  as: 'approved_minutes'
+});
+MeetingMinutes.belongsTo(User, {
+  foreignKey: 'approved_by',
+  as: 'approver'
+});
+
 /**
  * Export all models
  */
@@ -341,6 +395,8 @@ export {
   Proponent,
   Quarter,
   Agenda,
+  AgendaItem,
+  MeetingMinutes,
   MatterArising,
   Attendance,
   Document,
@@ -361,6 +417,8 @@ export default {
   Proponent,
   Quarter,
   Agenda,
+  AgendaItem,
+  MeetingMinutes,
   MatterArising,
   Attendance,
   Document,

@@ -35,7 +35,7 @@ class AuthRepository(
                             accessToken = loginData.token,
                             refreshToken = loginData.refreshToken,
                             userId = loginData.user.id,
-                            role = loginData.user.role,
+                            role = loginData.user.role ?: "USER", // Default to USER if role is null
                             username = loginData.user.username,
                             fullName = loginData.user.fullName
                         )

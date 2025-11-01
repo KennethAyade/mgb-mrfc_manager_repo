@@ -4,96 +4,61 @@ import com.squareup.moshi.Json
 
 /**
  * Agenda Data Transfer Object
- * Maps to backend Agenda model
+ * Maps to backend Agenda model - represents MRFC meeting agendas
+ * Updated to match backend schema exactly
  */
 data class AgendaDto(
     @Json(name = "id")
     val id: Long,
 
     @Json(name = "mrfc_id")
-    val mrfcId: Long,
+    val mrfcId: Long?, // null for general meetings not tied to specific MRFC
 
-    @Json(name = "quarter")
-    val quarter: String, // Q1, Q2, Q3, Q4
-
-    @Json(name = "year")
-    val year: Int,
-
-    @Json(name = "agenda_number")
-    val agendaNumber: String,
-
-    @Json(name = "title")
-    val title: String,
-
-    @Json(name = "description")
-    val description: String?,
+    @Json(name = "quarter_id")
+    val quarterId: Long,
 
     @Json(name = "meeting_date")
-    val meetingDate: String?,
+    val meetingDate: String?, // ISO date format: YYYY-MM-DD
+
+    @Json(name = "meeting_time")
+    val meetingTime: String? = null, // HH:MM:SS format
+
+    @Json(name = "location")
+    val location: String? = null,
 
     @Json(name = "status")
-    val status: String, // DRAFT, FINAL, APPROVED
-
-    @Json(name = "items")
-    val items: List<AgendaItemDto>? = null,
-
-    @Json(name = "is_active")
-    val isActive: Boolean = true,
+    val status: String, // DRAFT, PUBLISHED, COMPLETED, CANCELLED
 
     @Json(name = "created_at")
-    val createdAt: String? = null,
+    val createdAt: String,
 
     @Json(name = "updated_at")
-    val updatedAt: String? = null
+    val updatedAt: String,
+
+    // Populated by backend when including related data
+    @Json(name = "mrfc")
+    val mrfc: MrfcDto? = null,
+
+    @Json(name = "quarter")
+    val quarter: QuarterDto? = null,
+
+    @Json(name = "agenda_items")
+    val agendaItems: List<AgendaItemDto>? = null,
+
+    @Json(name = "meeting_minutes")
+    val meetingMinutes: MeetingMinutesDto? = null
 )
 
 /**
- * Agenda Item DTO (individual items within an agenda)
+ * Agenda Item DTO (discussion topics within an agenda)
+ * Updated to match backend schema
  */
 data class AgendaItemDto(
     @Json(name = "id")
-    val id: Long? = null,
+    val id: Long,
 
     @Json(name = "agenda_id")
-    val agendaId: Long? = null,
-
-    @Json(name = "item_number")
-    val itemNumber: String,
-
-    @Json(name = "title")
-    val title: String,
-
-    @Json(name = "description")
-    val description: String?,
-
-    @Json(name = "proponent_id")
-    val proponentId: Long? = null,
-
-    @Json(name = "duration_minutes")
-    val durationMinutes: Int? = null,
-
-    @Json(name = "order_index")
-    val orderIndex: Int = 0,
-
-    @Json(name = "status")
-    val status: String = "PENDING" // PENDING, DISCUSSED, APPROVED, DEFERRED
-)
-
-/**
- * Request DTO for creating/updating Agenda
- */
-data class CreateAgendaRequest(
-    @Json(name = "mrfc_id")
-    val mrfcId: Long,
-
-    @Json(name = "quarter")
-    val quarter: String,
-
-    @Json(name = "year")
-    val year: Int,
-
-    @Json(name = "agenda_number")
-    val agendaNumber: String,
+    val agendaId: Long,
 
     @Json(name = "title")
     val title: String,
@@ -101,14 +66,83 @@ data class CreateAgendaRequest(
     @Json(name = "description")
     val description: String? = null,
 
+    @Json(name = "added_by")
+    val addedBy: Long,
+
+    @Json(name = "added_by_name")
+    val addedByName: String,
+
+    @Json(name = "added_by_username")
+    val addedByUsername: String,
+
+    @Json(name = "order_index")
+    val orderIndex: Int = 0,
+
+    @Json(name = "created_at")
+    val createdAt: String,
+
+    @Json(name = "updated_at")
+    val updatedAt: String
+)
+
+/**
+ * Quarter DTO for quarter references
+ */
+data class QuarterDto(
+    @Json(name = "id")
+    val id: Long,
+
+    @Json(name = "quarter")
+    val quarter: String, // Q1, Q2, Q3, Q4
+
+    @Json(name = "year")
+    val year: Int,
+
+    @Json(name = "start_date")
+    val startDate: String,
+
+    @Json(name = "end_date")
+    val endDate: String
+)
+
+/**
+ * Request DTO for creating/updating Agenda
+ */
+data class CreateAgendaRequest(
+    @Json(name = "mrfc_id")
+    val mrfcId: Long? = null, // null means general meeting (not tied to specific MRFC)
+
+    @Json(name = "quarter_id")
+    val quarterId: Long,
+
     @Json(name = "meeting_date")
-    val meetingDate: String? = null,
+    val meetingDate: String, // YYYY-MM-DD
+
+    @Json(name = "meeting_time")
+    val meetingTime: String? = null, // HH:MM:SS
+
+    @Json(name = "location")
+    val location: String? = null,
 
     @Json(name = "status")
-    val status: String = "DRAFT",
+    val status: String = "DRAFT"
+)
 
-    @Json(name = "items")
-    val items: List<AgendaItemDto>? = null
+/**
+ * Request DTO for creating/updating Agenda Item
+ */
+data class CreateAgendaItemRequest(
+    @Json(name = "agenda_id")
+    val agendaId: Long,
+
+    @Json(name = "title")
+    val title: String,
+
+    @Json(name = "description")
+    val description: String? = null,
+
+    @Json(name = "order_index")
+    val orderIndex: Int = 0
 )
 
 /**

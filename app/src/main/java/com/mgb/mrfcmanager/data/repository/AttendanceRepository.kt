@@ -1,74 +1,61 @@
 package com.mgb.mrfcmanager.data.repository
 
 import com.mgb.mrfcmanager.data.remote.api.AttendanceApiService
+import com.mgb.mrfcmanager.data.remote.api.UpdateAttendanceRequest
 import com.mgb.mrfcmanager.data.remote.dto.AttendanceDto
+import com.mgb.mrfcmanager.data.remote.dto.AttendanceListResponse
 import com.mgb.mrfcmanager.data.remote.dto.CreateAttendanceRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 
 /**
  * Repository for attendance operations
  * Handles all attendance-related API calls including photo uploads
+ * Updated to match tested backend endpoints
  */
 class AttendanceRepository(private val apiService: AttendanceApiService) {
 
     /**
-     * Get all attendance records with optional filters
+     * Get attendance records for a specific meeting with summary statistics
+     * Uses the new endpoint: GET /attendance/meeting/:agendaId
      */
-    suspend fun getAllAttendance(
-        agendaId: Long? = null,
-        userId: Long? = null
-    ): Result<List<AttendanceDto>> {
+    suspend fun getAttendanceByMeeting(agendaId: Long): Result<AttendanceListResponse> {
         return withContext(Dispatchers.IO) {
             try {
-                val response = apiService.getAllAttendance(agendaId, userId)
+                val response = apiService.getAttendanceByMeeting(agendaId)
 
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body?.success == true && body.data != null) {
                         Result.Success(body.data)
                     } else {
-                        Result.Error(body?.error?.message ?: "Failed to fetch attendance records")
+                        Result.Error(
+                            message = body?.error?.message ?: "Failed to fetch attendance records",
+                            code = body?.error?.code
+                        )
                     }
                 } else {
-                    Result.Error("HTTP ${response.code()}: ${response.message()}")
+                    Result.Error(
+                        message = "HTTP ${response.code()}: ${response.message()}",
+                        code = response.code().toString()
+                    )
                 }
             } catch (e: Exception) {
-                Result.Error(e.localizedMessage ?: "Network error occurred")
+                Result.Error(
+                    message = e.localizedMessage ?: "Network error. Please check your connection.",
+                    code = "NETWORK_ERROR"
+                )
             }
         }
     }
 
     /**
-     * Get attendance record by ID
-     */
-    suspend fun getAttendanceById(id: Long): Result<AttendanceDto> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getAttendanceById(id)
-
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body?.success == true && body.data != null) {
-                        Result.Success(body.data)
-                    } else {
-                        Result.Error(body?.error?.message ?: "Failed to fetch attendance record")
-                    }
-                } else {
-                    Result.Error("HTTP ${response.code()}: ${response.message()}")
-                }
-            } catch (e: Exception) {
-                Result.Error(e.localizedMessage ?: "Network error occurred")
-            }
-        }
-    }
-
-    /**
-     * Create a new attendance record
+     * Create attendance record without photo
      */
     suspend fun createAttendance(request: CreateAttendanceRequest): Result<AttendanceDto> {
         return withContext(Dispatchers.IO) {
@@ -80,50 +67,108 @@ class AttendanceRepository(private val apiService: AttendanceApiService) {
                     if (body?.success == true && body.data != null) {
                         Result.Success(body.data)
                     } else {
-                        Result.Error(body?.error?.message ?: "Failed to create attendance record")
+                        Result.Error(
+                            message = body?.error?.message ?: "Failed to create attendance record",
+                            code = body?.error?.code
+                        )
                     }
                 } else {
-                    Result.Error("HTTP ${response.code()}: ${response.message()}")
+                    Result.Error(
+                        message = "HTTP ${response.code()}: ${response.message()}",
+                        code = response.code().toString()
+                    )
                 }
             } catch (e: Exception) {
-                Result.Error(e.localizedMessage ?: "Network error occurred")
+                Result.Error(
+                    message = e.localizedMessage ?: "Network error",
+                    code = "NETWORK_ERROR"
+                )
             }
         }
     }
 
     /**
-     * Upload photo for attendance record
+     * Create attendance record with photo upload
+     * Uses multipart/form-data for photo upload
      */
-    suspend fun uploadPhoto(attendanceId: Long, photoFile: File): Result<AttendanceDto> {
+    suspend fun createAttendanceWithPhoto(
+        agendaId: Long,
+        proponentId: Long? = null,
+        attendeeName: String? = null,
+        attendeePosition: String? = null,
+        attendeeDepartment: String? = null,
+        isPresent: Boolean = true,
+        remarks: String? = null,
+        photoFile: File? = null
+    ): Result<AttendanceDto> {
         return withContext(Dispatchers.IO) {
             try {
-                val requestFile = photoFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
-                val photoPart = MultipartBody.Part.createFormData("photo", photoFile.name, requestFile)
+                // Convert all parameters to RequestBody
+                val agendaIdBody = agendaId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+                val isPresentBody = isPresent.toString().toRequestBody("text/plain".toMediaTypeOrNull())
 
-                val response = apiService.uploadPhoto(attendanceId, photoPart)
+                val proponentIdBody = proponentId?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val attendeeNameBody = attendeeName?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val attendeePositionBody = attendeePosition?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val attendeeDepartmentBody = attendeeDepartment?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val remarksBody = remarks?.toRequestBody("text/plain".toMediaTypeOrNull())
+
+                // Prepare photo part if file exists
+                val photoPart = photoFile?.let { file ->
+                    val requestFile = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
+                    MultipartBody.Part.createFormData("photo", file.name, requestFile)
+                }
+
+                val response = apiService.createAttendanceWithPhoto(
+                    agendaId = agendaIdBody,
+                    proponentId = proponentIdBody,
+                    attendeeName = attendeeNameBody,
+                    attendeePosition = attendeePositionBody,
+                    attendeeDepartment = attendeeDepartmentBody,
+                    isPresent = isPresentBody,
+                    remarks = remarksBody,
+                    photo = photoPart
+                )
 
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body?.success == true && body.data != null) {
                         Result.Success(body.data)
                     } else {
-                        Result.Error(body?.error?.message ?: "Failed to upload photo")
+                        Result.Error(
+                            message = body?.error?.message ?: "Failed to create attendance with photo",
+                            code = body?.error?.code
+                        )
                     }
                 } else {
-                    Result.Error("HTTP ${response.code()}: ${response.message()}")
+                    Result.Error(
+                        message = "HTTP ${response.code()}: ${response.message()}",
+                        code = response.code().toString()
+                    )
                 }
             } catch (e: Exception) {
-                Result.Error(e.localizedMessage ?: "Photo upload error occurred")
+                Result.Error(
+                    message = e.localizedMessage ?: "Photo upload error",
+                    code = "NETWORK_ERROR"
+                )
             }
         }
     }
 
     /**
-     * Update an attendance record
+     * Update attendance record (only status and remarks can be updated)
      */
-    suspend fun updateAttendance(id: Long, request: CreateAttendanceRequest): Result<AttendanceDto> {
+    suspend fun updateAttendance(
+        id: Long,
+        isPresent: Boolean? = null,
+        remarks: String? = null
+    ): Result<AttendanceDto> {
         return withContext(Dispatchers.IO) {
             try {
+                val request = UpdateAttendanceRequest(
+                    isPresent = isPresent,
+                    remarks = remarks
+                )
                 val response = apiService.updateAttendance(id, request)
 
                 if (response.isSuccessful) {
@@ -131,19 +176,28 @@ class AttendanceRepository(private val apiService: AttendanceApiService) {
                     if (body?.success == true && body.data != null) {
                         Result.Success(body.data)
                     } else {
-                        Result.Error(body?.error?.message ?: "Failed to update attendance record")
+                        Result.Error(
+                            message = body?.error?.message ?: "Failed to update attendance record",
+                            code = body?.error?.code
+                        )
                     }
                 } else {
-                    Result.Error("HTTP ${response.code()}: ${response.message()}")
+                    Result.Error(
+                        message = "HTTP ${response.code()}: ${response.message()}",
+                        code = response.code().toString()
+                    )
                 }
             } catch (e: Exception) {
-                Result.Error(e.localizedMessage ?: "Network error occurred")
+                Result.Error(
+                    message = e.localizedMessage ?: "Network error",
+                    code = "NETWORK_ERROR"
+                )
             }
         }
     }
 
     /**
-     * Delete an attendance record
+     * Delete attendance record
      */
     suspend fun deleteAttendance(id: Long): Result<Unit> {
         return withContext(Dispatchers.IO) {
@@ -155,13 +209,22 @@ class AttendanceRepository(private val apiService: AttendanceApiService) {
                     if (body?.success == true) {
                         Result.Success(Unit)
                     } else {
-                        Result.Error(body?.error?.message ?: "Failed to delete attendance record")
+                        Result.Error(
+                            message = body?.error?.message ?: "Failed to delete attendance record",
+                            code = body?.error?.code
+                        )
                     }
                 } else {
-                    Result.Error("HTTP ${response.code()}: ${response.message()}")
+                    Result.Error(
+                        message = "HTTP ${response.code()}: ${response.message()}",
+                        code = response.code().toString()
+                    )
                 }
             } catch (e: Exception) {
-                Result.Error(e.localizedMessage ?: "Network error occurred")
+                Result.Error(
+                    message = e.localizedMessage ?: "Network error",
+                    code = "NETWORK_ERROR"
+                )
             }
         }
     }

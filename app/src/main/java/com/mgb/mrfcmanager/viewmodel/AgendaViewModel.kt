@@ -23,16 +23,24 @@ class AgendaViewModel(private val repository: AgendaRepository) : ViewModel() {
     val agendaDetailState: LiveData<AgendaDetailState> = _agendaDetailState
 
     /**
-     * Load agendas by MRFC and quarter
+     * Load agendas with optional filters
      */
-    fun loadAgendasByMrfcAndQuarter(mrfcId: Long, quarter: String, year: Int? = null) {
+    fun loadAgendas(
+        mrfcId: Long? = null,
+        quarter: String? = null,
+        year: Int? = null,
+        status: String? = null,
+        activeOnly: Boolean = true
+    ) {
         _agendaListState.value = AgendaListState.Loading
 
         viewModelScope.launch {
             when (val result = repository.getAllAgendas(
                 mrfcId = mrfcId,
                 quarter = quarter,
-                year = year
+                year = year,
+                status = status,
+                activeOnly = activeOnly
             )) {
                 is Result.Success -> {
                     _agendaListState.value = AgendaListState.Success(result.data)
@@ -48,45 +56,24 @@ class AgendaViewModel(private val repository: AgendaRepository) : ViewModel() {
     }
 
     /**
-     * Load all agendas for a specific MRFC
+     * Load agendas by MRFC and quarter (convenience method)
      */
-    fun loadAgendasByMrfc(mrfcId: Long) {
-        _agendaListState.value = AgendaListState.Loading
-
-        viewModelScope.launch {
-            when (val result = repository.getAllAgendas(mrfcId = mrfcId)) {
-                is Result.Success -> {
-                    _agendaListState.value = AgendaListState.Success(result.data)
-                }
-                is Result.Error -> {
-                    _agendaListState.value = AgendaListState.Error(result.message)
-                }
-                is Result.Loading -> {
-                    _agendaListState.value = AgendaListState.Loading
-                }
-            }
-        }
+    fun loadAgendasByMrfcAndQuarter(mrfcId: Long, quarter: String, year: Int? = null) {
+        loadAgendas(mrfcId = mrfcId, quarter = quarter, year = year)
     }
 
     /**
-     * Load all agendas (no filter)
+     * Load all agendas for a specific MRFC (convenience method)
+     */
+    fun loadAgendasByMrfc(mrfcId: Long) {
+        loadAgendas(mrfcId = mrfcId)
+    }
+
+    /**
+     * Load all agendas (no filter) (convenience method)
      */
     fun loadAllAgendas() {
-        _agendaListState.value = AgendaListState.Loading
-
-        viewModelScope.launch {
-            when (val result = repository.getAllAgendas()) {
-                is Result.Success -> {
-                    _agendaListState.value = AgendaListState.Success(result.data)
-                }
-                is Result.Error -> {
-                    _agendaListState.value = AgendaListState.Error(result.message)
-                }
-                is Result.Loading -> {
-                    _agendaListState.value = AgendaListState.Loading
-                }
-            }
-        }
+        loadAgendas()
     }
 
     /**

@@ -95,73 +95,114 @@ const router = Router();
  */
 router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
-    // TODO: IMPLEMENT AGENDA LISTING LOGIC
+    const { Agenda, Quarter, Mrfc, Proponent } = require('../models');
+    const { Op } = require('sequelize');
+
     // Step 1: Parse query parameters
-    // const { page = 1, limit = 20, quarter_id, mrfc_id, status, sort_by = 'agenda_number', sort_order = 'ASC' } = req.query;
+    const {
+      page = '1',
+      limit = '20',
+      quarter_id,
+      mrfc_id,
+      status,
+      sort_by = 'meeting_date',
+      sort_order = 'DESC'
+    } = req.query;
 
     // Step 2: Validate parameters
-    // const pageNum = Math.max(1, parseInt(page as string));
-    // const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
-    // const offset = (pageNum - 1) * limitNum;
+    const pageNum = Math.max(1, parseInt(page as string));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
+    const offset = (pageNum - 1) * limitNum;
 
     // Step 3: Build filter conditions
-    // const where: any = {};
-    // if (quarter_id) where.quarter_id = quarter_id;
-    // if (mrfc_id) where.mrfc_id = mrfc_id;
-    // if (status) where.status = status;
+    const where: any = {};
+    if (quarter_id) where.quarter_id = parseInt(quarter_id as string);
 
-    // Step 4: Apply user MRFC access filter
-    // if (req.user?.role === 'USER') {
-    //   const userMrfcIds = req.user.mrfcAccess || [];
-    //   where.mrfc_id = { [Op.in]: userMrfcIds };
-    // }
+    // Handle mrfc_id filtering: 0 means general meetings (NULL), otherwise filter by specific MRFC
+    if (mrfc_id !== undefined) {
+      const mrfcIdNum = parseInt(mrfc_id as string);
+      if (mrfcIdNum === 0) {
+        where.mrfc_id = null; // General meetings
+      } else {
+        where.mrfc_id = mrfcIdNum; // Specific MRFC
+      }
+    }
 
-    // Step 5: Query agendas
-    // const { count, rows: agendas } = await Agenda.findAndCountAll({
-    //   where,
-    //   include: [
-    //     {
-    //       model: Quarter,
-    //       as: 'quarter',
-    //       attributes: ['id', 'quarter_number', 'year', 'meeting_date']
-    //     },
-    //     {
-    //       model: MRFC,
-    //       as: 'mrfc',
-    //       attributes: ['id', 'mrfc_number', 'project_title'],
-    //       include: [{
-    //         model: Proponent,
-    //         as: 'proponent',
-    //         attributes: ['company_name']
-    //       }]
-    //     }
-    //   ],
-    //   limit: limitNum,
-    //   offset,
-    //   order: [[sort_by as string, sort_order as string]]
-    // });
+    if (status) where.status = status;
 
-    // Step 6: Return paginated results
-    // return res.json({
-    //   success: true,
-    //   data: {
-    //     agendas,
-    //     pagination: {
-    //       page: pageNum,
-    //       limit: limitNum,
-    //       total: count,
-    //       totalPages: Math.ceil(count / limitNum),
-    //       hasNext: pageNum * limitNum < count,
-    //       hasPrev: pageNum > 1
-    //     }
-    //   }
-    // });
+    // Step 4: Apply user MRFC access filter for USER role
+    if (req.user?.role === 'USER') {
+      const userMrfcIds = req.user.mrfcAccess || [];
+      if (userMrfcIds.length > 0) {
+        where.mrfc_id = { [Op.in]: userMrfcIds };
+      } else {
+        // User has no MRFC access, return empty result
+        return res.json({
+          success: true,
+          data: {
+            agendas: [],
+            pagination: {
+              page: pageNum,
+              limit: limitNum,
+              total: 0,
+              totalPages: 0,
+              hasNext: false,
+              hasPrev: false
+            }
+          }
+        });
+      }
+    }
 
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Agenda listing endpoint not yet implemented. See comments in agenda.routes.ts for implementation details.'
+    // Step 5: Query agendas (meetings)
+    const { count, rows: agendas } = await Agenda.findAndCountAll({
+      where,
+      include: [
+        {
+          model: Quarter,
+          as: 'quarter',
+          attributes: ['id', 'name', 'quarter_number', 'year', 'start_date', 'end_date']
+        },
+        {
+          model: Mrfc,
+          as: 'mrfc',
+          attributes: ['id', 'name', 'municipality', 'province'],
+          include: [{
+            model: Proponent,
+            as: 'proponents',
+            attributes: ['id', 'company_name', 'contact_person'],
+            limit: 5 // Limit proponents to avoid excessive data
+          }]
+        }
+      ],
+      limit: limitNum,
+      offset,
+      order: [[sort_by as string, sort_order as string]]
+    });
+
+    // Step 6: Transform agendas to include 'quarter' field for Android compatibility
+    const transformedAgendas = agendas.map((agenda: any) => {
+      const agendaData = agenda.toJSON();
+      if (agendaData.quarter && agendaData.quarter.quarter_number) {
+        // Add 'quarter' field as "Q1", "Q2", etc.
+        agendaData.quarter.quarter = `Q${agendaData.quarter.quarter_number}`;
+      }
+      return agendaData;
+    });
+
+    // Step 7: Return paginated results
+    return res.json({
+      success: true,
+      data: {
+        agendas: transformedAgendas,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: count,
+          totalPages: Math.ceil(count / limitNum),
+          hasNext: pageNum * limitNum < count,
+          hasPrev: pageNum > 1
+        }
       }
     });
   } catch (error: any) {
@@ -234,85 +275,116 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
  */
 router.post('/', authenticate, adminOnly, async (req: Request, res: Response) => {
   try {
-    // TODO: IMPLEMENT AGENDA CREATION LOGIC
-    // Step 1: Verify quarter exists
-    // const quarter = await Quarter.findByPk(req.body.quarter_id);
-    // if (!quarter) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'QUARTER_NOT_FOUND', message: 'Quarter not found' }
-    //   });
-    // }
+    const { Agenda, Quarter, Mrfc, AuditLog } = require('../models');
 
-    // Step 2: Verify MRFC exists
-    // const mrfc = await MRFC.findByPk(req.body.mrfc_id);
-    // if (!mrfc) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'MRFC_NOT_FOUND', message: 'MRFC not found' }
-    //   });
-    // }
+    // Step 1: Validate required fields
+    const { mrfc_id, quarter_id, meeting_date, meeting_time, location, status } = req.body;
 
-    // Step 3: Check for duplicate
-    // const existing = await Agenda.findOne({
-    //   where: {
-    //     quarter_id: req.body.quarter_id,
-    //     mrfc_id: req.body.mrfc_id
-    //   }
-    // });
-    // if (existing) {
-    //   return res.status(409).json({
-    //     success: false,
-    //     error: {
-    //       code: 'AGENDA_EXISTS',
-    //       message: 'This MRFC already has an agenda item for this quarter'
-    //     }
-    //   });
-    // }
+    // mrfc_id can be null for general meetings, but quarter_id and meeting_date are required
+    if (quarter_id === undefined || quarter_id === null || !meeting_date) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Missing required fields: quarter_id, meeting_date'
+        }
+      });
+    }
 
-    // Step 4: Create agenda
-    // const agenda = await Agenda.create({
-    //   ...req.body,
-    //   status: req.body.status || 'SCHEDULED',
-    //   created_by: req.user?.userId
-    // });
+    // Step 2: Verify quarter exists
+    const quarter = await Quarter.findByPk(quarter_id);
+    if (!quarter) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'QUARTER_NOT_FOUND', message: 'Quarter not found' }
+      });
+    }
 
-    // Step 5: Create audit log
-    // await AuditLog.create({
-    //   user_id: req.user?.userId,
-    //   action: 'CREATE_AGENDA',
-    //   entity_type: 'AGENDA',
-    //   entity_id: agenda.id,
-    //   details: { agenda_number: agenda.agenda_number, mrfc_id: agenda.mrfc_id }
-    // });
-
-    // Step 6: Create notifications for assigned users
-    // const assignedUsers = await UserMrfcAccess.findAll({
-    //   where: { mrfc_id: agenda.mrfc_id, is_active: true }
-    // });
-    // for (const access of assignedUsers) {
-    //   await Notification.create({
-    //     user_id: access.user_id,
-    //     type: 'AGENDA_CREATED',
-    //     message: `New agenda item created for ${mrfc.mrfc_number}`,
-    //     related_entity_type: 'AGENDA',
-    //     related_entity_id: agenda.id
-    //   });
-    // }
-
-    // Step 7: Return created agenda
-    // return res.status(201).json({
-    //   success: true,
-    //   message: 'Agenda item created successfully',
-    //   data: agenda
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Agenda creation endpoint not yet implemented. See comments in agenda.routes.ts for implementation details.'
+    // Step 3: Verify MRFC exists (only if mrfc_id is provided)
+    let mrfc = null;
+    if (mrfc_id) {
+      mrfc = await Mrfc.findByPk(mrfc_id);
+      if (!mrfc) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'MRFC_NOT_FOUND', message: 'MRFC not found' }
+        });
       }
+
+      // Step 4: Check for duplicate (one meeting per MRFC per quarter)
+      const existing = await Agenda.findOne({
+        where: {
+          quarter_id: quarter_id,
+          mrfc_id: mrfc_id
+        }
+      });
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          error: {
+            code: 'AGENDA_EXISTS',
+            message: `This MRFC already has a meeting scheduled for ${quarter.name}`
+          }
+        });
+      }
+    }
+    // For general meetings (mrfc_id is null), allow multiple meetings per quarter
+
+    // Step 5: Create meeting (agenda)
+    const agenda = await Agenda.create({
+      mrfc_id,
+      quarter_id,
+      meeting_date,
+      meeting_time: meeting_time || null,
+      location: location || null,
+      status: status || 'DRAFT'
+    });
+
+    // Step 6: Create audit log
+    await AuditLog.create({
+      user_id: req.user?.userId,
+      action: 'CREATE',
+      entity_type: 'AGENDA',
+      entity_id: agenda.id,
+      old_values: null,
+      new_values: {
+        mrfc_id: agenda.mrfc_id,
+        quarter_id: agenda.quarter_id,
+        meeting_date: agenda.meeting_date,
+        location: agenda.location
+      },
+      ip_address: req.ip,
+      user_agent: req.headers['user-agent']
+    });
+
+    // Step 7: Fetch created agenda with relations
+    const createdAgenda = await Agenda.findByPk(agenda.id, {
+      include: [
+        {
+          model: Quarter,
+          as: 'quarter',
+          attributes: ['id', 'name', 'quarter_number', 'year', 'start_date', 'end_date']
+        },
+        {
+          model: Mrfc,
+          as: 'mrfc',
+          attributes: ['id', 'name', 'municipality']
+        }
+      ]
+    });
+
+    // Step 8: Transform agenda to include 'quarter' field for Android compatibility
+    const agendaData = createdAgenda?.toJSON();
+    if (agendaData && agendaData.quarter && agendaData.quarter.quarter_number) {
+      agendaData.quarter.quarter = `Q${agendaData.quarter.quarter_number}`;
+    }
+
+    // Step 9: Return created meeting
+    const meetingType = mrfc ? `${mrfc.name} - ${quarter.name}` : `General Meeting - ${quarter.name}`;
+    return res.status(201).json({
+      success: true,
+      message: `Meeting created successfully for ${meetingType}`,
+      data: agendaData
     });
   } catch (error: any) {
     console.error('Agenda creation error:', error);
@@ -320,7 +392,7 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
       success: false,
       error: {
         code: 'AGENDA_CREATION_FAILED',
-        message: error.message || 'Failed to create agenda item'
+        message: error.message || 'Failed to create meeting'
       }
     });
   }
@@ -391,82 +463,93 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
  */
 router.get('/:id', authenticate, async (req: Request, res: Response) => {
   try {
-    // TODO: IMPLEMENT GET AGENDA BY ID LOGIC
-    // Step 1: Parse and validate ID
-    // const agendaId = parseInt(req.params.id);
-    // if (isNaN(agendaId)) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     error: { code: 'INVALID_ID', message: 'Invalid agenda ID' }
-    //   });
-    // }
+    const { Agenda, Quarter, Mrfc, Proponent, Attendance, MatterArising, User } = require('../models');
 
-    // Step 2: Find agenda with full details
-    // const agenda = await Agenda.findByPk(agendaId, {
-    //   include: [
-    //     {
-    //       model: Quarter,
-    //       as: 'quarter'
-    //     },
-    //     {
-    //       model: MRFC,
-    //       as: 'mrfc',
-    //       include: [{
-    //         model: Proponent,
-    //         as: 'proponent'
-    //       }]
-    //     },
-    //     {
-    //       model: Attendance,
-    //       as: 'attendance',
-    //       include: [{
-    //         model: User,
-    //         as: 'user',
-    //         attributes: ['id', 'full_name']
-    //       }]
-    //     }
-    //   ]
-    // });
+    // Step 1: Parse and validate ID
+    const agendaId = parseInt(req.params.id);
+    if (isNaN(agendaId)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_ID', message: 'Invalid agenda ID' }
+      });
+    }
+
+    // Step 2: Find meeting with full details
+    const agenda = await Agenda.findByPk(agendaId, {
+      include: [
+        {
+          model: Quarter,
+          as: 'quarter',
+          attributes: ['id', 'name', 'quarter_number', 'year', 'start_date', 'end_date']
+        },
+        {
+          model: Mrfc,
+          as: 'mrfc',
+          attributes: ['id', 'name', 'municipality', 'province', 'contact_person', 'contact_number'],
+          include: [{
+            model: Proponent,
+            as: 'proponents',
+            attributes: ['id', 'company_name', 'contact_person', 'status']
+          }]
+        },
+        {
+          model: Attendance,
+          as: 'attendance',
+          include: [{
+            model: Proponent,
+            as: 'proponent',
+            attributes: ['id', 'company_name', 'contact_person']
+          }, {
+            model: User,
+            as: 'marker',
+            attributes: ['id', 'full_name', 'username']
+          }]
+        },
+        {
+          model: MatterArising,
+          as: 'matters_arising',
+          attributes: ['id', 'issue', 'status', 'assigned_to', 'date_raised', 'date_resolved']
+        }
+      ]
+    });
 
     // Step 3: Check if exists
-    // if (!agenda) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'AGENDA_NOT_FOUND', message: 'Agenda not found' }
-    //   });
-    // }
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'AGENDA_NOT_FOUND', message: 'Meeting not found' }
+      });
+    }
 
     // Step 4: Authorization check for USER role
-    // if (req.user?.role === 'USER') {
-    //   const userMrfcIds = req.user.mrfcAccess || [];
-    //   if (!userMrfcIds.includes(agenda.mrfc_id)) {
-    //     return res.status(403).json({
-    //       success: false,
-    //       error: {
-    //         code: 'MRFC_ACCESS_DENIED',
-    //         message: 'You do not have access to this agenda'
-    //       }
-    //     });
-    //   }
-    // }
-
-    // Step 5: Return agenda data
-    // return res.json({ success: true, data: agenda });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Get agenda by ID endpoint not yet implemented. See comments in agenda.routes.ts for implementation details.'
+    if (req.user?.role === 'USER') {
+      const userMrfcIds = req.user.mrfcAccess || [];
+      if (!userMrfcIds.includes(agenda.mrfc_id)) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'MRFC_ACCESS_DENIED',
+            message: 'You do not have access to this meeting'
+          }
+        });
       }
-    });
+    }
+
+    // Step 5: Transform agenda to include 'quarter' field for Android compatibility
+    const agendaData = agenda.toJSON();
+    if (agendaData.quarter && agendaData.quarter.quarter_number) {
+      agendaData.quarter.quarter = `Q${agendaData.quarter.quarter_number}`;
+    }
+
+    // Step 6: Return meeting data
+    return res.json({ success: true, data: agendaData });
   } catch (error: any) {
     console.error('Get agenda error:', error);
     res.status(500).json({
       success: false,
       error: {
         code: 'GET_AGENDA_FAILED',
-        message: error.message || 'Failed to retrieve agenda'
+        message: error.message || 'Failed to retrieve meeting'
       }
     });
   }
@@ -527,15 +610,101 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
  */
 router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) => {
   try {
-    // TODO: IMPLEMENT AGENDA UPDATE LOGIC
-    // See comments above for implementation steps
+    const { Agenda, Quarter, Mrfc, AuditLog } = require('../models');
 
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Agenda update endpoint not yet implemented. See comments in agenda.routes.ts for implementation details.'
-      }
+    // Step 1: Parse and validate ID
+    const agendaId = parseInt(req.params.id);
+    if (isNaN(agendaId)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_ID', message: 'Invalid agenda ID' }
+      });
+    }
+
+    // Step 2: Find existing meeting
+    const agenda = await Agenda.findByPk(agendaId);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'AGENDA_NOT_FOUND', message: 'Meeting not found' }
+      });
+    }
+
+    // Step 3: Store old values for audit log
+    const oldValues = {
+      meeting_date: agenda.meeting_date,
+      meeting_time: agenda.meeting_time,
+      location: agenda.location,
+      status: agenda.status
+    };
+
+    // Step 4: Extract updatable fields from request body
+    const { meeting_date, meeting_time, location, status } = req.body;
+
+    // Step 5: Validate status if provided
+    const validStatuses = ['DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED'];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: `Status must be one of: ${validStatuses.join(', ')}`
+        }
+      });
+    }
+
+    // Step 6: Update meeting fields
+    if (meeting_date) agenda.meeting_date = meeting_date;
+    if (meeting_time !== undefined) agenda.meeting_time = meeting_time;
+    if (location !== undefined) agenda.location = location;
+    if (status) agenda.status = status;
+
+    await agenda.save();
+
+    // Step 7: Create audit log
+    await AuditLog.create({
+      user_id: req.user?.userId,
+      action: 'UPDATE',
+      entity_type: 'AGENDA',
+      entity_id: agenda.id,
+      old_values: oldValues,
+      new_values: {
+        meeting_date: agenda.meeting_date,
+        meeting_time: agenda.meeting_time,
+        location: agenda.location,
+        status: agenda.status
+      },
+      ip_address: req.ip,
+      user_agent: req.headers['user-agent']
+    });
+
+    // Step 8: Fetch updated meeting with relations
+    const updatedAgenda = await Agenda.findByPk(agenda.id, {
+      include: [
+        {
+          model: Quarter,
+          as: 'quarter',
+          attributes: ['id', 'name', 'quarter_number', 'year', 'start_date', 'end_date']
+        },
+        {
+          model: Mrfc,
+          as: 'mrfc',
+          attributes: ['id', 'name', 'municipality']
+        }
+      ]
+    });
+
+    // Step 9: Transform agenda to include 'quarter' field for Android compatibility
+    const agendaData = updatedAgenda?.toJSON();
+    if (agendaData && agendaData.quarter && agendaData.quarter.quarter_number) {
+      agendaData.quarter.quarter = `Q${agendaData.quarter.quarter_number}`;
+    }
+
+    // Step 10: Return updated meeting
+    return res.json({
+      success: true,
+      message: 'Meeting updated successfully',
+      data: agendaData
     });
   } catch (error: any) {
     console.error('Agenda update error:', error);
@@ -543,7 +712,7 @@ router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) 
       success: false,
       error: {
         code: 'AGENDA_UPDATE_FAILED',
-        message: error.message || 'Failed to update agenda'
+        message: error.message || 'Failed to update meeting'
       }
     });
   }
@@ -590,58 +759,78 @@ router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) 
  */
 router.delete('/:id', authenticate, adminOnly, async (req: Request, res: Response) => {
   try {
-    // TODO: IMPLEMENT AGENDA DELETION LOGIC
-    // Step 1: Find agenda
-    // const agenda = await Agenda.findByPk(req.params.id);
-    // if (!agenda) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'AGENDA_NOT_FOUND', message: 'Agenda not found' }
-    //   });
-    // }
+    const { Agenda, Attendance, MatterArising, AuditLog } = require('../models');
+    const sequelize = require('../config/database').default;
 
-    // Step 2: Check if can be deleted
-    // if (agenda.status !== 'SCHEDULED') {
-    //   return res.status(409).json({
-    //     success: false,
-    //     error: {
-    //       code: 'CANNOT_DELETE_DISCUSSED_AGENDA',
-    //       message: 'Cannot delete agenda that has been discussed'
-    //     }
-    //   });
-    // }
+    // Step 1: Parse and validate ID
+    const agendaId = parseInt(req.params.id);
+    if (isNaN(agendaId)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_ID', message: 'Invalid agenda ID' }
+      });
+    }
 
-    // Step 3: Delete with transaction
-    // await sequelize.transaction(async (t) => {
-    //   // Delete related records
-    //   await Attendance.destroy({ where: { agenda_id: agenda.id }, transaction: t });
-    //   await Notification.destroy({ where: { related_entity_type: 'AGENDA', related_entity_id: agenda.id }, transaction: t });
-    //
-    //   // Delete agenda
-    //   await agenda.destroy({ transaction: t });
-    //
-    //   // Create audit log
-    //   await AuditLog.create({
-    //     user_id: req.user?.userId,
-    //     action: 'DELETE_AGENDA',
-    //     entity_type: 'AGENDA',
-    //     entity_id: agenda.id,
-    //     details: { agenda_number: agenda.agenda_number, mrfc_id: agenda.mrfc_id }
-    //   }, { transaction: t });
-    // });
+    // Step 2: Find meeting
+    const agenda = await Agenda.findByPk(agendaId);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'AGENDA_NOT_FOUND', message: 'Meeting not found' }
+      });
+    }
 
-    // Step 4: Return success
-    // return res.json({
-    //   success: true,
-    //   message: 'Agenda deleted successfully'
-    // });
+    // Step 3: Check if can be deleted (only DRAFT meetings can be deleted)
+    if (agenda.status === 'COMPLETED') {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'CANNOT_DELETE_COMPLETED_MEETING',
+          message: 'Cannot delete completed meetings (historical record)'
+        }
+      });
+    }
 
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Agenda deletion endpoint not yet implemented. See comments in agenda.routes.ts for implementation details.'
-      }
+    // Step 4: Store meeting info for audit log
+    const meetingInfo = {
+      mrfc_id: agenda.mrfc_id,
+      quarter_id: agenda.quarter_id,
+      meeting_date: agenda.meeting_date,
+      location: agenda.location,
+      status: agenda.status
+    };
+
+    // Step 5: Delete with transaction (CASCADE will handle related records)
+    await sequelize.transaction(async (t: any) => {
+      // Delete related records explicitly for audit trail
+      const attendanceCount = await Attendance.count({ where: { agenda_id: agenda.id }, transaction: t });
+      const mattersCount = await MatterArising.count({ where: { agenda_id: agenda.id }, transaction: t });
+
+      await Attendance.destroy({ where: { agenda_id: agenda.id }, transaction: t });
+      await MatterArising.destroy({ where: { agenda_id: agenda.id }, transaction: t });
+
+      // Delete meeting
+      await agenda.destroy({ transaction: t });
+
+      // Create audit log
+      await AuditLog.create({
+        user_id: req.user?.userId,
+        action: 'DELETE',
+        entity_type: 'AGENDA',
+        entity_id: agenda.id,
+        old_values: meetingInfo,
+        new_values: null,
+        ip_address: req.ip,
+        user_agent: req.headers['user-agent']
+      }, { transaction: t });
+
+      console.log(`Meeting ${agendaId} deleted: ${attendanceCount} attendance records, ${mattersCount} matters arising removed`);
+    });
+
+    // Step 6: Return success
+    return res.json({
+      success: true,
+      message: 'Meeting deleted successfully'
     });
   } catch (error: any) {
     console.error('Agenda deletion error:', error);
@@ -649,7 +838,7 @@ router.delete('/:id', authenticate, adminOnly, async (req: Request, res: Respons
       success: false,
       error: {
         code: 'AGENDA_DELETION_FAILED',
-        message: error.message || 'Failed to delete agenda'
+        message: error.message || 'Failed to delete meeting'
       }
     });
   }

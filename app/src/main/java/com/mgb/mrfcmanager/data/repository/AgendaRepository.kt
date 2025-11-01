@@ -39,7 +39,8 @@ class AgendaRepository(private val agendaApiService: AgendaApiService) {
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body?.success == true && body.data != null) {
-                        Result.Success(body.data)
+                        // Extract agendas array from paginated response
+                        Result.Success(body.data.agendas)
                     } else {
                         Result.Error(
                             message = body?.error?.message ?: "Failed to fetch agendas",

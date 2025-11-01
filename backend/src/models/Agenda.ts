@@ -6,7 +6,7 @@
  *         COMPLETED (meeting done), CANCELLED (meeting cancelled)
  */
 
-import { Model, DataTypes, Optional } from 'sequelize';
+import { Model, DataTypes, Optional, Op } from 'sequelize';
 import sequelize from '../config/database';
 
 // Enum for agenda status matching PostgreSQL enum
@@ -20,7 +20,7 @@ export enum AgendaStatus {
 // Define model attributes interface
 export interface AgendaAttributes {
   id: number;
-  mrfc_id: number;
+  mrfc_id: number | null; // null for general meetings not tied to specific MRFC
   quarter_id: number;
   meeting_date: Date;
   meeting_time: string | null;
@@ -30,13 +30,13 @@ export interface AgendaAttributes {
   updated_at: Date;
 }
 
-// Define attributes for creation (id, timestamps are optional)
-export interface AgendaCreationAttributes extends Optional<AgendaAttributes, 'id' | 'meeting_time' | 'location' | 'status' | 'created_at' | 'updated_at'> {}
+// Define attributes for creation (id, timestamps, and mrfc_id are optional)
+export interface AgendaCreationAttributes extends Optional<AgendaAttributes, 'id' | 'mrfc_id' | 'meeting_time' | 'location' | 'status' | 'created_at' | 'updated_at'> {}
 
 // Define the Agenda model class
 export class Agenda extends Model<AgendaAttributes, AgendaCreationAttributes> implements AgendaAttributes {
   public id!: number;
-  public mrfc_id!: number;
+  public mrfc_id!: number | null; // null for general meetings
   public quarter_id!: number;
   public meeting_date!: Date;
   public meeting_time!: string | null;
@@ -60,7 +60,7 @@ Agenda.init(
     },
     mrfc_id: {
       type: DataTypes.BIGINT,
-      allowNull: false,
+      allowNull: true, // Allow null for general meetings
       references: {
         model: 'mrfcs',
         key: 'id',
@@ -109,8 +109,13 @@ Agenda.init(
     updatedAt: 'updated_at',
     indexes: [
       {
+        // Unique constraint: one meeting per MRFC per quarter
+        // Note: This allows multiple NULL mrfc_id entries (general meetings)
         unique: true,
         fields: ['mrfc_id', 'quarter_id'],
+        where: {
+          mrfc_id: { [Op.ne]: null } // Only enforce uniqueness when mrfc_id is not null
+        },
       },
     ],
   }

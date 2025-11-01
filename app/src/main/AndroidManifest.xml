@@ -9,6 +9,13 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <!-- Package visibility for camera intent (Android 11+) -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".MRFCManagerApp"
         android:allowBackup="true"
@@ -64,16 +71,6 @@
             android:parentActivityName=".ui.admin.ProponentListActivity" />
 
         <activity
-            android:name=".ui.admin.QuarterSelectionActivity"
-            android:exported="false"
-            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
-
-        <activity
-            android:name=".ui.admin.AgendaManagementActivity"
-            android:exported="false"
-            android:parentActivityName=".ui.admin.QuarterSelectionActivity" />
-
-        <activity
             android:name=".ui.admin.FileUploadActivity"
             android:exported="false"
             android:parentActivityName=".ui.admin.AdminDashboardActivity" />
@@ -103,6 +100,27 @@
             android:name=".ui.admin.CreateUserActivity"
             android:exported="false"
             android:parentActivityName=".ui.admin.UserManagementActivity" />
+
+        <activity
+            android:name=".ui.admin.EditUserActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.UserManagementActivity" />
+
+        <!-- Meeting Management Activities (New UX Flow) -->
+        <activity
+            android:name=".ui.meeting.QuarterSelectionActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
+        <activity
+            android:name=".ui.meeting.MeetingListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.meeting.QuarterSelectionActivity" />
+
+        <activity
+            android:name=".ui.meeting.MeetingDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.meeting.MeetingListActivity" />
 
         <!-- User Activities -->
         <activity

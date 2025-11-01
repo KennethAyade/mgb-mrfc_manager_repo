@@ -66,10 +66,10 @@ data class UserDto(
     val fullName: String,
 
     @Json(name = "email")
-    val email: String,
+    val email: String? = null, // Nullable for partial user data in some responses
 
     @Json(name = "role")
-    val role: String, // SUPER_ADMIN, ADMIN, USER
+    val role: String? = null, // SUPER_ADMIN, ADMIN, USER
 
     @Json(name = "is_active")
     val isActive: Boolean = true, // Default to true if not provided by backend

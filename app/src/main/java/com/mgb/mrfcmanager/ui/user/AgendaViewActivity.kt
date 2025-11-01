@@ -171,24 +171,18 @@ class AgendaViewActivity : AppCompatActivity() {
             tvMeetingDate.text = "Not scheduled"
         }
 
-        // Note: Location is not in AgendaDto - would need to be added to backend
-        tvMeetingLocation.text = "MGB Conference Room"
+        // Populate location if available
+        tvMeetingLocation.text = agenda.location ?: "MGB Conference Room"
 
-        // Populate agenda items
+        // TODO: BACKEND - Agenda items should be fetched separately using AgendaItemApiService
+        // The new backend architecture separates agenda items from the main agenda
+        // For now, clear the items list
         agendaItems.clear()
-        agenda.items?.forEach { itemDto ->
-            agendaItems.add(
-                AgendaItem(
-                    id = itemDto.id ?: 0L,
-                    title = itemDto.title,
-                    description = itemDto.description ?: ""
-                )
-            )
-        }
         agendaAdapter.notifyDataSetChanged()
 
-        // TODO: Matters arising would need a separate API endpoint
-        // For now, clear matters arising as they're not in the current AgendaDto
+        // TODO: BACKEND - Matters arising should be fetched separately using MatterArisingApiService
+        // The new backend architecture separates matters arising from the main agenda
+        // For now, clear the matters list
         mattersArising.clear()
         mattersArisingAdapter.notifyDataSetChanged()
         rvMattersArising.visibility = View.GONE
