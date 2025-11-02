@@ -4,13 +4,13 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mgb.mrfcmanager.data.remote.dto.DocumentCategory
 import com.mgb.mrfcmanager.data.remote.dto.DocumentDto
 import com.mgb.mrfcmanager.data.remote.dto.DocumentUploadResponse
 import com.mgb.mrfcmanager.data.remote.dto.UpdateDocumentRequest
 import com.mgb.mrfcmanager.data.repository.DocumentRepository
 import com.mgb.mrfcmanager.data.repository.Result
 import kotlinx.coroutines.launch
-import okhttp3.ResponseBody
 import java.io.File
 
 /**
@@ -32,18 +32,17 @@ class DocumentViewModel(private val repository: DocumentRepository) : ViewModel(
     val downloadState: LiveData<DocumentDownloadState> = _downloadState
 
     /**
-     * Load all documents with optional filters
+     * Load documents by MRFC ID
      */
-    fun loadDocuments(
-        mrfcId: Long? = null,
-        proponentId: Long? = null,
-        agendaId: Long? = null,
-        documentType: String? = null
+    fun loadDocumentsByMrfc(
+        mrfcId: Long,
+        category: String? = null,
+        status: String? = null
     ) {
         _documentListState.value = DocumentListState.Loading
 
         viewModelScope.launch {
-            when (val result = repository.getAllDocuments(mrfcId, proponentId, agendaId, documentType)) {
+            when (val result = repository.getDocumentsByMrfc(mrfcId, category, status)) {
                 is Result.Success -> {
                     _documentListState.value = DocumentListState.Success(result.data)
                 }
@@ -58,10 +57,28 @@ class DocumentViewModel(private val repository: DocumentRepository) : ViewModel(
     }
 
     /**
-     * Load documents by MRFC ID
+     * Load documents by Proponent ID
      */
-    fun loadDocumentsByMrfc(mrfcId: Long) {
-        loadDocuments(mrfcId = mrfcId)
+    fun loadDocumentsByProponent(
+        proponentId: Long,
+        category: String? = null,
+        status: String? = null
+    ) {
+        _documentListState.value = DocumentListState.Loading
+
+        viewModelScope.launch {
+            when (val result = repository.getDocumentsByProponent(proponentId, category, status)) {
+                is Result.Success -> {
+                    _documentListState.value = DocumentListState.Success(result.data)
+                }
+                is Result.Error -> {
+                    _documentListState.value = DocumentListState.Error(result.message)
+                }
+                is Result.Loading -> {
+                    _documentListState.value = DocumentListState.Loading
+                }
+            }
+        }
     }
 
     /**
@@ -90,17 +107,17 @@ class DocumentViewModel(private val repository: DocumentRepository) : ViewModel(
      */
     fun uploadDocument(
         file: File,
-        mrfcId: Long,
-        documentType: String,
-        description: String? = null,
+        category: DocumentCategory,
+        mrfcId: Long? = null,
         proponentId: Long? = null,
-        agendaId: Long? = null
+        quarterId: Long? = null,
+        description: String? = null
     ) {
         _uploadState.value = DocumentUploadState.Loading
 
         viewModelScope.launch {
             when (val result = repository.uploadDocument(
-                file, mrfcId, documentType, description, proponentId, agendaId
+                file, category, mrfcId, proponentId, quarterId, description
             )) {
                 is Result.Success -> {
                     _uploadState.value = DocumentUploadState.Success(result.data)
@@ -151,15 +168,17 @@ class DocumentViewModel(private val repository: DocumentRepository) : ViewModel(
     }
 
     /**
-     * Refresh document list
+     * Refresh document list by MRFC
      */
-    fun refresh(
-        mrfcId: Long? = null,
-        proponentId: Long? = null,
-        agendaId: Long? = null,
-        documentType: String? = null
-    ) {
-        loadDocuments(mrfcId, proponentId, agendaId, documentType)
+    fun refreshByMrfc(mrfcId: Long) {
+        loadDocumentsByMrfc(mrfcId)
+    }
+
+    /**
+     * Refresh document list by Proponent
+     */
+    fun refreshByProponent(proponentId: Long) {
+        loadDocumentsByProponent(proponentId)
     }
 
     /**
@@ -213,6 +232,6 @@ sealed class DocumentUploadState {
 sealed class DocumentDownloadState {
     object Idle : DocumentDownloadState()
     object Loading : DocumentDownloadState()
-    data class Success(val data: ResponseBody) : DocumentDownloadState()
+    data class Success(val data: Map<String, String>) : DocumentDownloadState()
     data class Error(val message: String) : DocumentDownloadState()
 }

@@ -28,6 +28,7 @@ import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.model.Document
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.DocumentApiService
+import com.mgb.mrfcmanager.data.remote.dto.DocumentCategory
 import com.mgb.mrfcmanager.data.remote.dto.DocumentDto
 import com.mgb.mrfcmanager.data.repository.DocumentRepository
 import com.mgb.mrfcmanager.utils.DemoData
@@ -47,7 +48,6 @@ class FileUploadActivity : AppCompatActivity() {
 
     private lateinit var tilCategory: TextInputLayout
     private lateinit var actvCategory: AutoCompleteTextView
-    private lateinit var tilDescription: TextInputLayout
     private lateinit var etDescription: TextInputEditText
     private lateinit var tvSelectedFile: TextView
     private lateinit var btnBrowseFile: MaterialButton
@@ -60,25 +60,17 @@ class FileUploadActivity : AppCompatActivity() {
 
     private var selectedFileUri: Uri? = null
     private var selectedFileName: String = ""
-    private var selectedCategory: String = ""
+    private var selectedCategory: DocumentCategory? = null
 
     private val uploadedFiles = mutableListOf<DocumentDto>()
     private lateinit var filesAdapter: UploadedFilesAdapter
     private lateinit var viewModel: DocumentViewModel
 
     private var mrfcId: Long = 0L
+    private var proponentId: Long? = null
+    private var quarterId: Long? = null
 
-    private val categories = listOf(
-        "MTF Report",
-        "AEPEP Physical",
-        "AEPEP Financial",
-        "Research Report",
-        "CMVR Report",
-        "Minutes",
-        "Agenda Document",
-        "Proponent Document",
-        "Other"
-    )
+    private val categories = DocumentCategory.values().map { it.getDisplayName() }
 
     companion object {
         private const val FILE_PICKER_REQUEST = 100
@@ -89,6 +81,8 @@ class FileUploadActivity : AppCompatActivity() {
         setContentView(R.layout.activity_file_upload)
 
         mrfcId = intent.getLongExtra("MRFC_ID", 0L)
+        proponentId = intent.getLongExtra("PROPONENT_ID", -1L).takeIf { it != -1L }
+        quarterId = intent.getLongExtra("QUARTER_ID", -1L).takeIf { it != -1L }
 
         setupToolbar()
         initializeViews()
@@ -111,9 +105,7 @@ class FileUploadActivity : AppCompatActivity() {
     private fun initializeViews() {
         tilCategory = findViewById(R.id.tilCategory)
         actvCategory = findViewById(R.id.actvCategory)
-        // TODO: Add tilDescription and etDescription to layout XML
-        // tilDescription = findViewById(R.id.tilDescription)
-        // etDescription = findViewById(R.id.etDescription)
+        etDescription = findViewById(R.id.etDescription)
         tvSelectedFile = findViewById(R.id.tvSelectedFile)
         btnBrowseFile = findViewById(R.id.btnBrowseFile)
         btnUpload = findViewById(R.id.btnUpload)
@@ -191,7 +183,7 @@ class FileUploadActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, categories)
         actvCategory.setAdapter(adapter)
         actvCategory.setOnItemClickListener { _, _, position, _ ->
-            selectedCategory = categories[position]
+            selectedCategory = DocumentCategory.values()[position]
             updateUploadButtonState()
         }
     }
@@ -256,35 +248,37 @@ class FileUploadActivity : AppCompatActivity() {
     }
 
     private fun updateUploadButtonState() {
-        btnUpload.isEnabled = selectedFileUri != null && selectedCategory.isNotEmpty()
+        btnUpload.isEnabled = selectedFileUri != null && selectedCategory != null
     }
 
     private fun uploadFile() {
-        if (selectedFileUri == null || selectedCategory.isEmpty()) {
+        if (selectedFileUri == null || selectedCategory == null) {
             Toast.makeText(this, "Please select a file and category", Toast.LENGTH_SHORT).show()
             return
         }
 
-        if (mrfcId == 0L) {
-            Toast.makeText(this, "MRFC ID is required", Toast.LENGTH_SHORT).show()
+        // Validate that at least one ID is provided (mrfc_id or proponent_id)
+        if (mrfcId == 0L && proponentId == null) {
+            Toast.makeText(this, "MRFC ID or Proponent ID is required", Toast.LENGTH_SHORT).show()
             return
         }
 
         val uri = selectedFileUri ?: return
+        val category = selectedCategory ?: return
 
         // Copy file from URI to temp file
         lifecycleScope.launch {
             try {
                 val tempFile = createTempFileFromUri(uri, selectedFileName)
-                // TODO: Add etDescription to layout XML
-                // val description = etDescription.text.toString().trim()
-                val description = ""
+                val description = etDescription.text.toString().trim()
 
                 // Upload file using ViewModel
                 viewModel.uploadDocument(
                     file = tempFile,
-                    mrfcId = mrfcId,
-                    documentType = selectedCategory,
+                    category = category,
+                    mrfcId = if (mrfcId != 0L) mrfcId else null,
+                    proponentId = proponentId,
+                    quarterId = quarterId,
                     description = description.ifEmpty { null }
                 )
 
@@ -324,11 +318,10 @@ class FileUploadActivity : AppCompatActivity() {
     private fun resetForm() {
         selectedFileUri = null
         selectedFileName = ""
-        selectedCategory = ""
+        selectedCategory = null
         tvSelectedFile.text = "No file selected"
         actvCategory.text = null
-        // TODO: Add etDescription to layout XML
-        // etDescription.text = null
+        etDescription.text = null
         cardUploadProgress.visibility = View.GONE
         progressBar.progress = 0
         tvProgress.text = "0%"
@@ -408,19 +401,26 @@ class FileUploadActivity : AppCompatActivity() {
             private val ivDelete: ImageView = itemView.findViewById(R.id.ivDelete)
 
             fun bind(document: DocumentDto, onDeleteClick: (DocumentDto) -> Unit) {
-                tvFileName.text = document.fileName
+                tvFileName.text = document.originalName
 
                 // Format date
                 val uploadDate = try {
-                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
                     val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-                    val date = format.parse(document.uploadDate)
-                    date?.let { displayFormat.format(it) } ?: document.uploadDate
+                    val date = format.parse(document.createdAt)
+                    date?.let { displayFormat.format(it) } ?: document.createdAt
                 } catch (e: Exception) {
-                    document.uploadDate
+                    document.createdAt
                 }
 
-                tvFileInfo.text = "${document.documentType} • $uploadDate"
+                // Show category, status, and date
+                val statusText = when {
+                    document.isPending -> "Pending"
+                    document.isAccepted -> "Accepted"
+                    document.isRejected -> "Rejected"
+                    else -> "Unknown"
+                }
+                tvFileInfo.text = "${document.category.getDisplayName()} • $statusText • $uploadDate"
 
                 // Set appropriate icon based on mime type
                 val iconRes = R.drawable.ic_file

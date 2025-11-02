@@ -166,6 +166,8 @@ export const createMrfc = async (req: Request, res: Response): Promise<void> => 
       contact_number,
       email,
       address,
+      assigned_admin_id,
+      mrfc_code,
       assigned_user_ids
     } = req.body;
 
@@ -200,6 +202,8 @@ export const createMrfc = async (req: Request, res: Response): Promise<void> => 
           contact_number,
           email,
           address,
+          assigned_admin_id,
+          mrfc_code,
           is_active: true,
           created_by: currentUser?.userId
         },
@@ -360,6 +364,95 @@ export const deleteMrfc = async (req: Request, res: Response): Promise<void> => 
       error: {
         code: 'SERVER_ERROR',
         message: 'Failed to delete MRFC'
+      }
+    });
+  }
+};
+
+/**
+ * Update MRFC compliance status and percentage
+ * PUT /api/v1/mrfcs/:id/compliance
+ */
+export const updateCompliance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const currentUser = (req as any).user;
+    const { id } = req.params;
+    const { compliance_percentage, compliance_status, remarks } = req.body;
+
+    // Validate compliance_percentage
+    if (compliance_percentage !== null && compliance_percentage !== undefined) {
+      if (compliance_percentage < 0 || compliance_percentage > 100) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_PERCENTAGE',
+            message: 'Compliance percentage must be between 0 and 100'
+          }
+        });
+        return;
+      }
+    }
+
+    const mrfc = await Mrfc.findByPk(id);
+    if (!mrfc) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'MRFC_NOT_FOUND',
+          message: 'MRFC not found'
+        }
+      });
+      return;
+    }
+
+    await sequelize.transaction(async (t) => {
+      const oldValues = mrfc.toJSON();
+
+      // Update compliance fields
+      await mrfc.update(
+        {
+          compliance_percentage: compliance_percentage ?? mrfc.compliance_percentage,
+          compliance_status: compliance_status ?? mrfc.compliance_status,
+          compliance_updated_at: new Date(),
+          compliance_updated_by: currentUser?.userId
+        },
+        { transaction: t }
+      );
+
+      // Create audit log
+      await AuditLog.create(
+        {
+          user_id: currentUser?.userId,
+          action: AuditAction.UPDATE,
+          entity_type: 'mrfcs',
+          entity_id: mrfc.id,
+          old_values: {
+            compliance_percentage: oldValues.compliance_percentage,
+            compliance_status: oldValues.compliance_status
+          },
+          new_values: {
+            compliance_percentage: mrfc.compliance_percentage,
+            compliance_status: mrfc.compliance_status,
+            updated_by: currentUser?.full_name,
+            remarks
+          }
+        },
+        { transaction: t }
+      );
+    });
+
+    res.json({
+      success: true,
+      message: 'Compliance updated successfully',
+      data: mrfc
+    });
+  } catch (error) {
+    console.error('Error updating compliance:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Failed to update compliance'
       }
     });
   }

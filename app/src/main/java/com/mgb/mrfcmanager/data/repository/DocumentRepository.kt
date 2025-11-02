@@ -1,6 +1,7 @@
 package com.mgb.mrfcmanager.data.repository
 
 import com.mgb.mrfcmanager.data.remote.api.DocumentApiService
+import com.mgb.mrfcmanager.data.remote.dto.DocumentCategory
 import com.mgb.mrfcmanager.data.remote.dto.DocumentDto
 import com.mgb.mrfcmanager.data.remote.dto.DocumentUploadResponse
 import com.mgb.mrfcmanager.data.remote.dto.UpdateDocumentRequest
@@ -20,27 +21,59 @@ import java.io.File
 class DocumentRepository(private val apiService: DocumentApiService) {
 
     /**
-     * Get all documents with optional filters
+     * Get documents by MRFC ID
      */
-    suspend fun getAllDocuments(
-        mrfcId: Long? = null,
-        proponentId: Long? = null,
-        agendaId: Long? = null,
-        documentType: String? = null
+    suspend fun getDocumentsByMrfc(
+        mrfcId: Long,
+        category: String? = null,
+        status: String? = null
     ): Result<List<DocumentDto>> {
         return withContext(Dispatchers.IO) {
             try {
-                val response = apiService.getAllDocuments(
+                val response = apiService.getDocumentsByMrfc(
                     mrfcId = mrfcId,
-                    proponentId = proponentId,
-                    agendaId = agendaId,
-                    documentType = documentType
+                    category = category,
+                    status = status
                 )
 
                 if (response.isSuccessful) {
                     val body = response.body()
-                    if (body?.success == true && body.data != null) {
-                        Result.Success(body.data)
+                    if (body?.success == true) {
+                        // Return empty list if data is null
+                        Result.Success(body.data ?: emptyList())
+                    } else {
+                        Result.Error(body?.error?.message ?: "Failed to fetch documents")
+                    }
+                } else {
+                    Result.Error("HTTP ${response.code()}: ${response.message()}")
+                }
+            } catch (e: Exception) {
+                Result.Error(e.localizedMessage ?: "Network error occurred")
+            }
+        }
+    }
+
+    /**
+     * Get documents by Proponent ID
+     */
+    suspend fun getDocumentsByProponent(
+        proponentId: Long,
+        category: String? = null,
+        status: String? = null
+    ): Result<List<DocumentDto>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.getDocumentsByProponent(
+                    proponentId = proponentId,
+                    category = category,
+                    status = status
+                )
+
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body?.success == true) {
+                        // Return empty list if data is null
+                        Result.Success(body.data ?: emptyList())
                     } else {
                         Result.Error(body?.error?.message ?: "Failed to fetch documents")
                     }
@@ -82,11 +115,11 @@ class DocumentRepository(private val apiService: DocumentApiService) {
      */
     suspend fun uploadDocument(
         file: File,
-        mrfcId: Long,
-        documentType: String,
-        description: String? = null,
+        category: DocumentCategory,
+        mrfcId: Long? = null,
         proponentId: Long? = null,
-        agendaId: Long? = null
+        quarterId: Long? = null,
+        description: String? = null
     ): Result<DocumentUploadResponse> {
         return withContext(Dispatchers.IO) {
             try {
@@ -97,20 +130,20 @@ class DocumentRepository(private val apiService: DocumentApiService) {
                 val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
                 val filePart = MultipartBody.Part.createFormData("file", file.name, requestFile)
 
-                // Create other parts
-                val mrfcIdPart = mrfcId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
-                val documentTypePart = documentType.toRequestBody("text/plain".toMediaTypeOrNull())
-                val descriptionPart = description?.toRequestBody("text/plain".toMediaTypeOrNull())
+                // Create other parts - category is required, others are optional
+                val categoryPart = category.name.toRequestBody("text/plain".toMediaTypeOrNull())
+                val mrfcIdPart = mrfcId?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
                 val proponentIdPart = proponentId?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
-                val agendaIdPart = agendaId?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val quarterIdPart = quarterId?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val descriptionPart = description?.toRequestBody("text/plain".toMediaTypeOrNull())
 
                 val response = apiService.uploadDocument(
                     file = filePart,
+                    category = categoryPart,
                     mrfcId = mrfcIdPart,
-                    documentType = documentTypePart,
-                    description = descriptionPart,
                     proponentId = proponentIdPart,
-                    agendaId = agendaIdPart
+                    quarterId = quarterIdPart,
+                    description = descriptionPart
                 )
 
                 if (response.isSuccessful) {
@@ -178,19 +211,19 @@ class DocumentRepository(private val apiService: DocumentApiService) {
     }
 
     /**
-     * Download document
+     * Download document (returns download URL from backend)
      */
-    suspend fun downloadDocument(id: Long): Result<ResponseBody> {
+    suspend fun downloadDocument(id: Long): Result<Map<String, String>> {
         return withContext(Dispatchers.IO) {
             try {
                 val response = apiService.downloadDocument(id)
 
                 if (response.isSuccessful) {
                     val body = response.body()
-                    if (body != null) {
-                        Result.Success(body)
+                    if (body?.success == true && body.data != null) {
+                        Result.Success(body.data)
                     } else {
-                        Result.Error("Empty response body")
+                        Result.Error(body?.error?.message ?: "Failed to get download URL")
                     }
                 } else {
                     Result.Error("HTTP ${response.code()}: ${response.message()}")

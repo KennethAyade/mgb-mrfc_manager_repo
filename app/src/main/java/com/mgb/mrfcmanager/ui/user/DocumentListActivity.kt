@@ -340,10 +340,10 @@ class DocumentListActivity : AppCompatActivity() {
             }
         }
 
-        // Filter by document type (quarter/category)
+        // Filter by document category (using category field instead of documentType)
         if (currentQuarterFilter != "All") {
             filtered = filtered.filter { doc ->
-                doc.documentType.contains(currentQuarterFilter, ignoreCase = true)
+                doc.category.getDisplayName().contains(currentQuarterFilter, ignoreCase = true)
             }
         }
 
@@ -351,7 +351,7 @@ class DocumentListActivity : AppCompatActivity() {
         if (searchQuery.isNotEmpty()) {
             filtered = filtered.filter {
                 it.fileName.contains(searchQuery, ignoreCase = true) ||
-                it.documentType.contains(searchQuery, ignoreCase = true) ||
+                it.category.getDisplayName().contains(searchQuery, ignoreCase = true) ||
                 it.description?.contains(searchQuery, ignoreCase = true) == true
             }
         }
@@ -421,16 +421,16 @@ class DocumentListActivity : AppCompatActivity() {
                 onDownloadClick: (DocumentDto) -> Unit
             ) {
                 tvFileName.text = document.fileName
-                tvCategory.text = document.documentType
+                tvCategory.text = document.category.getDisplayName()
 
-                // Format date
+                // Format date (using createdAt field instead of uploadDate)
                 val uploadDate = try {
-                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
                     val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-                    val date = format.parse(document.uploadDate)
-                    date?.let { displayFormat.format(it) } ?: document.uploadDate
+                    val date = format.parse(document.createdAt)
+                    date?.let { displayFormat.format(it) } ?: document.createdAt
                 } catch (e: Exception) {
-                    document.uploadDate
+                    document.createdAt
                 }
                 tvFileDate.text = "Uploaded on $uploadDate"
 

@@ -76,6 +76,21 @@
             android:parentActivityName=".ui.admin.AdminDashboardActivity" />
 
         <activity
+            android:name=".ui.admin.CreateMRFCActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.MRFCListActivity" />
+
+        <activity
+            android:name=".ui.admin.EditMRFCActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.MRFCDetailActivity" />
+
+        <activity
+            android:name=".ui.admin.DocumentReviewActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
+        <activity
             android:name=".ui.admin.AttendanceActivity"
             android:exported="false"
             android:parentActivityName=".ui.admin.AdminDashboardActivity" />

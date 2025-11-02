@@ -40,6 +40,10 @@
                 android:id="@+id/nav_file_upload"
                 android:icon="@drawable/ic_upload"
                 android:title="Upload Files" />
+            <item
+                android:id="@+id/nav_document_review"
+                android:icon="@drawable/ic_check"
+                android:title="Review Documents" />
         </menu>
     </item>
 

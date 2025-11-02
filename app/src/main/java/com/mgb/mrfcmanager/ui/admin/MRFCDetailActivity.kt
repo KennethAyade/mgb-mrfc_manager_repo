@@ -2,6 +2,8 @@ package com.mgb.mrfcmanager.ui.admin
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.Toast
@@ -13,7 +15,7 @@ import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.MrfcApiService
-import com.mgb.mrfcmanager.data.remote.dto.CreateMrfcRequest
+import com.mgb.mrfcmanager.data.remote.dto.UpdateMrfcRequest
 import com.mgb.mrfcmanager.data.remote.dto.MrfcDto
 import com.mgb.mrfcmanager.data.repository.MrfcRepository
 import com.mgb.mrfcmanager.utils.TokenManager
@@ -189,7 +191,7 @@ class MRFCDetailActivity : AppCompatActivity() {
         }
 
         // Create update request with backend field names
-        val request = CreateMrfcRequest(
+        val request = UpdateMrfcRequest(
             name = name,
             municipality = municipality,
             province = currentMRFC?.province,
@@ -225,5 +227,36 @@ class MRFCDetailActivity : AppCompatActivity() {
         intent.putExtra("MRFC_ID", mrfcId)
         intent.putExtra("MRFC_NUMBER", currentMRFC?.name ?: "")
         startActivity(intent)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_mrfc_detail, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_edit -> {
+                navigateToEditMRFC()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun navigateToEditMRFC() {
+        val intent = Intent(this, EditMRFCActivity::class.java)
+        intent.putExtra("MRFC_ID", mrfcId)
+        startActivityForResult(intent, EditMRFCActivity.REQUEST_CODE_EDIT_MRFC)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == EditMRFCActivity.REQUEST_CODE_EDIT_MRFC && resultCode == RESULT_OK) {
+            // Refresh the MRFC data after editing
+            viewModel.loadMrfcById(mrfcId)
+            Toast.makeText(this, "MRFC updated successfully", Toast.LENGTH_SHORT).show()
+        }
     }
 }

@@ -16,7 +16,6 @@ import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.AuthApiService
 import com.mgb.mrfcmanager.data.repository.AuthRepository
 import com.mgb.mrfcmanager.ui.admin.AdminDashboardActivity
-import com.mgb.mrfcmanager.ui.user.UserDashboardActivity
 import com.mgb.mrfcmanager.viewmodel.LoginState
 import com.mgb.mrfcmanager.viewmodel.LoginViewModel
 import com.mgb.mrfcmanager.viewmodel.LoginViewModelFactory
@@ -124,16 +123,10 @@ class LoginActivity : AppCompatActivity() {
 
     private fun navigateToDashboard(role: String) {
         Log.d("LoginActivity", "Navigating to dashboard for role: $role")
-        val intent = when (role) {
-            "SUPER_ADMIN", "ADMIN" -> {
-                Log.d("LoginActivity", "Starting AdminDashboardActivity")
-                Intent(this, AdminDashboardActivity::class.java)
-            }
-            else -> {
-                Log.d("LoginActivity", "Starting UserDashboardActivity")
-                Intent(this, UserDashboardActivity::class.java)
-            }
-        }
+        // All users (USER, ADMIN, SUPER_ADMIN) now get AdminDashboardActivity
+        // which has sidebar navigation for MRFC and Meeting Management
+        val intent = Intent(this, AdminDashboardActivity::class.java)
+        Log.d("LoginActivity", "Starting AdminDashboardActivity for role: $role")
         startActivity(intent)
         finish()
         Log.d("LoginActivity", "Navigation completed")

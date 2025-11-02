@@ -128,7 +128,20 @@ class MRFCListActivity : AppCompatActivity() {
 
     private fun setupFAB() {
         findViewById<FloatingActionButton>(R.id.fabAddMRFC).setOnClickListener {
-            Toast.makeText(this, "Add MRFC - Coming Soon", Toast.LENGTH_SHORT).show()
+            startActivityForResult(
+                Intent(this, CreateMRFCActivity::class.java),
+                CreateMRFCActivity.REQUEST_CODE_CREATE_MRFC
+            )
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == CreateMRFCActivity.REQUEST_CODE_CREATE_MRFC && resultCode == RESULT_OK) {
+            // Refresh the list after creating a new MRFC
+            viewModel.loadAllMrfcs()
+            Toast.makeText(this, "MRFC created successfully", Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -2,66 +2,55 @@
  * ================================================
  * DOCUMENT MANAGEMENT CONTROLLER
  * ================================================
- * Handles document upload, download, and management for MRFCs
- * Note: Actual file upload integration with Cloudinary should be added
+ * Handles document upload, download, and management for proponent compliance documents
+ * Integrates with Cloudinary for file storage
+ * Categories: MTF_REPORT, AEPEP, CMVR, SDMP, PRODUCTION, SAFETY, OTHER
+ * Status: PENDING (awaiting review), ACCEPTED (approved), REJECTED (not accepted)
  */
 
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { Document, User, Mrfc, AuditLog } from '../models';
+import { Document, DocumentCategory, DocumentStatus, User, Mrfc, Proponent, Quarter, AuditLog, AuditAction } from '../models';
 import sequelize from '../config/database';
+import { uploadToCloudinary, deleteFromCloudinary, CLOUDINARY_FOLDERS } from '../config/cloudinary';
+import fs from 'fs/promises';
+import path from 'path';
+import crypto from 'crypto';
 
 /**
  * List documents with filtering
  * GET /api/v1/documents
+ * Query params: proponent_id, quarter_id, category, status, search, page, limit
  */
 export const listDocuments = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
-      mrfc_id,
-      file_type,
-      uploaded_after,
-      uploaded_before,
+      proponent_id,
+      quarter_id,
+      category,
+      status,
+      search,
       page = '1',
       limit = '20'
     } = req.query;
     const currentUser = (req as any).user;
 
-    // USER role must provide mrfc_id
-    if (currentUser?.role === 'USER' && !mrfc_id) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MRFC_ID_REQUIRED',
-          message: 'mrfc_id parameter is required for USER role'
-        }
-      });
-      return;
-    }
-
-    // Verify USER has access to requested MRFC
-    if (currentUser?.role === 'USER' && mrfc_id) {
-      const userMrfcIds = currentUser.mrfcAccess || [];
-      if (!userMrfcIds.includes(parseInt(mrfc_id as string))) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'MRFC_ACCESS_DENIED',
-            message: 'Access denied to this MRFC'
-          }
-        });
-        return;
-      }
-    }
-
     // Build filters
     const where: any = {};
-    if (mrfc_id) where.mrfc_id = mrfc_id;
-    if (file_type) where.file_type = file_type;
-    if (uploaded_after) where.uploaded_at = { [Op.gte]: uploaded_after };
-    if (uploaded_before) where.uploaded_at = { ...where.uploaded_at, [Op.lte]: uploaded_before };
+    if (proponent_id) where.proponent_id = proponent_id;
+    if (quarter_id) where.quarter_id = quarter_id;
+    if (category) where.category = category;
+    if (status) where.status = status;
 
-    // Query documents
+    // Search by filename
+    if (search) {
+      where[Op.or] = [
+        { file_name: { [Op.iLike]: `%${search}%` } },
+        { original_name: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    // Query documents with related data
     const pageNum = Math.max(1, parseInt(page as string));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
     const offset = (pageNum - 1) * limitNum;
@@ -72,12 +61,34 @@ export const listDocuments = async (req: Request, res: Response): Promise<void> 
         {
           model: User,
           as: 'uploader',
-          attributes: ['id', 'full_name']
+          attributes: ['id', 'full_name', 'email']
+        },
+        {
+          model: Proponent,
+          as: 'proponent',
+          attributes: ['id', 'name', 'company_name', 'mrfc_id'],
+          include: [
+            {
+              model: Mrfc,
+              as: 'mrfc',
+              attributes: ['id', 'name', 'municipality']
+            }
+          ]
+        },
+        {
+          model: Quarter,
+          as: 'quarter',
+          attributes: ['id', 'name', 'year', 'quarter_number']
+        },
+        {
+          model: User,
+          as: 'reviewer',
+          attributes: ['id', 'full_name', 'email']
         }
       ],
       limit: limitNum,
       offset,
-      order: [['uploaded_at', 'DESC']]
+      order: [['upload_date', 'DESC']]
     });
 
     res.json({
@@ -107,55 +118,123 @@ export const listDocuments = async (req: Request, res: Response): Promise<void> 
 };
 
 /**
- * Upload document
+ * Upload document with Cloudinary integration
  * POST /api/v1/documents/upload
- * Note: This is a placeholder. Actual file upload with Cloudinary integration should be added
+ * Body: proponent_id, quarter_id, category
+ * File: multipart/form-data (handled by multer middleware)
+ *
+ * Filename convention: {MRFCName}_{Category}_{Quarter}_{Year}.{ext}
+ * Example: "Cebu-MRFC_MTF-REPORT_Q1_2025.pdf"
  */
 export const uploadDocument = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { mrfc_id, description, filename, file_url } = req.body;
-    const currentUser = (req as any).user;
+  let tempFilePath: string | undefined;
 
-    // Verify MRFC exists
-    const mrfc = await Mrfc.findByPk(mrfc_id);
-    if (!mrfc) {
-      res.status(404).json({
+  try {
+    const { proponent_id, quarter_id, category } = req.body;
+    const currentUser = (req as any).user;
+    const file = (req as any).file; // From multer middleware
+
+    // Validate required fields
+    if (!proponent_id || !quarter_id || !category) {
+      res.status(400).json({
         success: false,
         error: {
-          code: 'MRFC_NOT_FOUND',
-          message: 'MRFC not found'
+          code: 'MISSING_REQUIRED_FIELDS',
+          message: 'proponent_id, quarter_id, and category are required'
         }
       });
       return;
     }
 
-    // Authorization check for USER role
-    if (currentUser?.role === 'USER') {
-      const userMrfcIds = currentUser.mrfcAccess || [];
-      if (!userMrfcIds.includes(mrfc_id)) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'MRFC_ACCESS_DENIED',
-            message: 'Access denied'
-          }
-        });
-        return;
-      }
+    // Validate file uploaded
+    if (!file) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_FILE_UPLOADED',
+          message: 'No file was uploaded'
+        }
+      });
+      return;
     }
 
-    // Create document record
-    // TODO: Integrate with Cloudinary for actual file upload
+    tempFilePath = file.path;
+
+    // Validate category
+    if (!Object.values(DocumentCategory).includes(category)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_CATEGORY',
+          message: `Category must be one of: ${Object.values(DocumentCategory).join(', ')}`
+        }
+      });
+      return;
+    }
+
+    // Fetch proponent with MRFC
+    const proponent = await Proponent.findByPk(proponent_id, {
+      include: [
+        {
+          model: Mrfc,
+          as: 'mrfc',
+          attributes: ['id', 'name', 'municipality']
+        }
+      ]
+    });
+
+    if (!proponent) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROPONENT_NOT_FOUND',
+          message: 'Proponent not found'
+        }
+      });
+      return;
+    }
+
+    // Fetch quarter
+    const quarter = await Quarter.findByPk(quarter_id);
+    if (!quarter) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'QUARTER_NOT_FOUND',
+          message: 'Quarter not found'
+        }
+      });
+      return;
+    }
+
+    // Generate standardized filename: {MRFCName}_{Category}_{Quarter}_{Year}.{ext}
+    const mrfcName = (proponent as any).mrfc?.name || 'Unknown-MRFC';
+    const sanitizedMrfcName = mrfcName.replace(/[^a-zA-Z0-9-]/g, '-');
+    const sanitizedCategory = category.replace(/_/g, '-');
+    const fileExtension = path.extname(file.originalname);
+    const generatedFileName = `${sanitizedMrfcName}_${sanitizedCategory}_Q${quarter.quarter_number}_${quarter.year}${fileExtension}`;
+
+    // Upload to Cloudinary
+    const cloudinaryResult = await uploadToCloudinary(
+      file.path,
+      CLOUDINARY_FOLDERS.DOCUMENTS,
+      'raw' // For PDFs and other document types
+    );
+
+    // Create document record in database
     const document = await sequelize.transaction(async (t) => {
       const newDocument = await Document.create(
         {
-          mrfc_id,
-          filename: filename || 'document.pdf',
-          original_filename: filename || 'document.pdf',
-          file_type: 'pdf',
-          file_size: 0,
-          file_path: file_url || '/uploads/placeholder.pdf',
-          description,
+          proponent_id,
+          quarter_id,
+          file_name: generatedFileName,
+          original_name: file.originalname,
+          file_type: file.mimetype,
+          file_size: file.size,
+          category,
+          file_url: cloudinaryResult.url,
+          file_cloudinary_id: cloudinaryResult.publicId,
+          status: DocumentStatus.PENDING,
           uploaded_by: currentUser?.userId
         },
         { transaction: t }
@@ -165,10 +244,18 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
       await AuditLog.create(
         {
           user_id: currentUser?.userId,
-          action: 'UPLOAD_DOCUMENT',
-          entity_type: 'DOCUMENT',
+          action: AuditAction.CREATE,
+          entity_type: 'documents',
           entity_id: newDocument.id,
-          details: { filename: newDocument.original_filename, mrfc_id }
+          new_values: {
+            action_type: 'UPLOAD_DOCUMENT',
+            filename: generatedFileName,
+            original_name: file.originalname,
+            proponent_id,
+            quarter_id,
+            category,
+            file_size: file.size
+          }
         },
         { transaction: t }
       );
@@ -176,13 +263,44 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
       return newDocument;
     });
 
+    // Clean up temporary file
+    if (tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (cleanupError) {
+        console.warn('Failed to delete temporary file:', cleanupError);
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Document uploaded successfully',
-      data: document
+      data: {
+        id: document.id,
+        file_name: document.file_name,
+        original_name: document.original_name,
+        file_url: document.file_url,
+        file_type: document.file_type,
+        file_size: document.file_size,
+        category: document.category,
+        status: document.status,
+        upload_date: document.upload_date,
+        proponent_id: document.proponent_id,
+        quarter_id: document.quarter_id
+      }
     });
   } catch (error: any) {
     console.error('Document upload error:', error);
+
+    // Clean up temporary file on error
+    if (tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (cleanupError) {
+        console.warn('Failed to delete temporary file after error:', cleanupError);
+      }
+    }
+
     res.status(500).json({
       success: false,
       error: {
@@ -202,18 +320,35 @@ export const getDocumentById = async (req: Request, res: Response): Promise<void
     const documentId = parseInt(req.params.id);
     const currentUser = (req as any).user;
 
-    // Find document
+    // Find document with all related data
     const document = await Document.findByPk(documentId, {
       include: [
         {
-          model: Mrfc,
-          as: 'mrfc',
-          attributes: ['id', 'mrfc_number', 'project_title']
+          model: Proponent,
+          as: 'proponent',
+          attributes: ['id', 'name', 'company_name', 'mrfc_id'],
+          include: [
+            {
+              model: Mrfc,
+              as: 'mrfc',
+              attributes: ['id', 'name', 'municipality', 'province']
+            }
+          ]
+        },
+        {
+          model: Quarter,
+          as: 'quarter',
+          attributes: ['id', 'name', 'year', 'quarter_number', 'start_date', 'end_date']
         },
         {
           model: User,
           as: 'uploader',
-          attributes: ['id', 'full_name']
+          attributes: ['id', 'full_name', 'email']
+        },
+        {
+          model: User,
+          as: 'reviewer',
+          attributes: ['id', 'full_name', 'email']
         }
       ]
     });
@@ -227,21 +362,6 @@ export const getDocumentById = async (req: Request, res: Response): Promise<void
         }
       });
       return;
-    }
-
-    // Authorization check for USER role
-    if (currentUser?.role === 'USER') {
-      const userMrfcIds = currentUser.mrfcAccess || [];
-      if (!userMrfcIds.includes(document.mrfc_id)) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'MRFC_ACCESS_DENIED',
-            message: 'Access denied'
-          }
-        });
-        return;
-      }
     }
 
     res.json({
@@ -263,7 +383,7 @@ export const getDocumentById = async (req: Request, res: Response): Promise<void
 /**
  * Download document file
  * GET /api/v1/documents/:id/download
- * Note: This is a placeholder. Actual file download from Cloudinary should be implemented
+ * Returns Cloudinary URL for file download
  */
 export const downloadDocument = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -283,39 +403,31 @@ export const downloadDocument = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Authorization check for USER role
-    if (currentUser?.role === 'USER') {
-      const userMrfcIds = currentUser.mrfcAccess || [];
-      if (!userMrfcIds.includes(document.mrfc_id)) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'MRFC_ACCESS_DENIED',
-            message: 'Access denied'
-          }
-        });
-        return;
-      }
-    }
-
-    // TODO: Implement actual file download from Cloudinary
-    // For now, return document metadata
-    res.json({
-      success: true,
-      message: 'Document download - Cloudinary integration pending',
-      data: {
-        file_path: document.file_path,
-        filename: document.original_filename
+    // Log download action
+    await AuditLog.create({
+      user_id: currentUser?.userId,
+      action: AuditAction.UPDATE,
+      entity_type: 'documents',
+      entity_id: documentId,
+      new_values: {
+        action_type: 'DOWNLOAD_DOCUMENT',
+        file_name: document.file_name,
+        original_name: document.original_name,
+        file_url: document.file_url
       }
     });
 
-    // Log download
-    await AuditLog.create({
-      user_id: currentUser?.userId,
-      action: 'DOWNLOAD_DOCUMENT',
-      entity_type: 'DOCUMENT',
-      entity_id: documentId,
-      details: { filename: document.original_filename }
+    // Return Cloudinary URL for download
+    res.json({
+      success: true,
+      message: 'Document download URL retrieved',
+      data: {
+        file_url: document.file_url,
+        file_name: document.file_name,
+        original_name: document.original_name,
+        file_type: document.file_type,
+        file_size: document.file_size
+      }
     });
   } catch (error: any) {
     console.error('Document download error:', error);
@@ -323,21 +435,23 @@ export const downloadDocument = async (req: Request, res: Response): Promise<voi
       success: false,
       error: {
         code: 'DOCUMENT_DOWNLOAD_FAILED',
-        message: error.message || 'Failed to download document'
+        message: error.message || 'Failed to retrieve download URL'
       }
     });
   }
 };
 
 /**
- * Update document metadata
+ * Update document metadata and approval workflow
  * PUT /api/v1/documents/:id
+ * Body: status (PENDING, ACCEPTED, REJECTED), remarks
+ * ADMIN only for approval actions
  */
 export const updateDocument = async (req: Request, res: Response): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id);
     const currentUser = (req as any).user;
-    const { description, original_filename } = req.body;
+    const { status, remarks } = req.body;
 
     // Find document
     const document = await Document.findByPk(documentId);
@@ -352,18 +466,56 @@ export const updateDocument = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // Validate status if provided
+    if (status && !Object.values(DocumentStatus).includes(status)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: `Status must be one of: ${Object.values(DocumentStatus).join(', ')}`
+        }
+      });
+      return;
+    }
+
+    // Prepare update data
+    const updateData: any = {};
+
+    // Status change (approval/rejection)
+    if (status && status !== document.status) {
+      updateData.status = status;
+
+      // If accepting or rejecting, record reviewer
+      if (status === DocumentStatus.ACCEPTED || status === DocumentStatus.REJECTED) {
+        updateData.reviewed_by = currentUser?.userId;
+        updateData.reviewed_at = new Date();
+      }
+    }
+
+    // Remarks (approval/rejection notes)
+    if (remarks !== undefined) {
+      updateData.remarks = remarks;
+    }
+
     // Update document
     await sequelize.transaction(async (t) => {
-      await document.update({ description, original_filename }, { transaction: t });
+      await document.update(updateData, { transaction: t });
 
       // Create audit log
       await AuditLog.create(
         {
           user_id: currentUser?.userId,
-          action: 'UPDATE_DOCUMENT',
-          entity_type: 'DOCUMENT',
+          action: AuditAction.UPDATE,
+          entity_type: 'documents',
           entity_id: documentId,
-          details: { filename: document.original_filename }
+          new_values: {
+            action_type: status === DocumentStatus.ACCEPTED ? 'APPROVE_DOCUMENT' :
+                         status === DocumentStatus.REJECTED ? 'REJECT_DOCUMENT' :
+                         'UPDATE_DOCUMENT',
+            file_name: document.file_name,
+            status: updateData.status,
+            remarks: updateData.remarks
+          }
         },
         { transaction: t }
       );
@@ -389,6 +541,7 @@ export const updateDocument = async (req: Request, res: Response): Promise<void>
 /**
  * Delete document
  * DELETE /api/v1/documents/:id
+ * Deletes both database record and file from Cloudinary
  */
 export const deleteDocument = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -410,18 +563,33 @@ export const deleteDocument = async (req: Request, res: Response): Promise<void>
 
     // Delete with transaction
     await sequelize.transaction(async (t) => {
-      // TODO: Delete file from Cloudinary
+      // Delete file from Cloudinary if cloudinary_id exists
+      if (document.file_cloudinary_id) {
+        try {
+          await deleteFromCloudinary(document.file_cloudinary_id);
+        } catch (cloudinaryError) {
+          console.error('Cloudinary deletion error:', cloudinaryError);
+          // Continue with database deletion even if Cloudinary deletion fails
+        }
+      }
 
+      // Delete database record
       await document.destroy({ transaction: t });
 
       // Create audit log
       await AuditLog.create(
         {
           user_id: currentUser?.userId,
-          action: 'DELETE_DOCUMENT',
-          entity_type: 'DOCUMENT',
+          action: AuditAction.DELETE,
+          entity_type: 'documents',
           entity_id: documentId,
-          details: { filename: document.original_filename, mrfc_id: document.mrfc_id }
+          old_values: {
+            file_name: document.file_name,
+            original_name: document.original_name,
+            proponent_id: document.proponent_id,
+            quarter_id: document.quarter_id,
+            cloudinary_id: document.file_cloudinary_id
+          }
         },
         { transaction: t }
       );
@@ -438,6 +606,334 @@ export const deleteDocument = async (req: Request, res: Response): Promise<void>
       error: {
         code: 'DOCUMENT_DELETION_FAILED',
         message: error.message || 'Failed to delete document'
+      }
+    });
+  }
+};
+
+/**
+ * Generate upload token for proponent
+ * POST /api/v1/documents/generate-upload-token
+ * Body: proponent_id, quarter_id, category, expires_in_hours (default: 48)
+ * ADMIN only
+ *
+ * Returns a shareable URL that proponents can use to upload documents
+ * without logging in. Token expires after specified hours.
+ */
+export const generateUploadToken = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { proponent_id, quarter_id, category, expires_in_hours = 48 } = req.body;
+    const currentUser = (req as any).user;
+
+    // Validate required fields
+    if (!proponent_id || !quarter_id || !category) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_REQUIRED_FIELDS',
+          message: 'proponent_id, quarter_id, and category are required'
+        }
+      });
+      return;
+    }
+
+    // Validate category
+    if (!Object.values(DocumentCategory).includes(category)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_CATEGORY',
+          message: `Category must be one of: ${Object.values(DocumentCategory).join(', ')}`
+        }
+      });
+      return;
+    }
+
+    // Verify proponent exists
+    const proponent = await Proponent.findByPk(proponent_id);
+    if (!proponent) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROPONENT_NOT_FOUND',
+          message: 'Proponent not found'
+        }
+      });
+      return;
+    }
+
+    // Verify quarter exists
+    const quarter = await Quarter.findByPk(quarter_id);
+    if (!quarter) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'QUARTER_NOT_FOUND',
+          message: 'Quarter not found'
+        }
+      });
+      return;
+    }
+
+    // Generate unique token
+    const token = crypto.randomBytes(32).toString('hex');
+
+    // Calculate expiration
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + expires_in_hours);
+
+    // Store token data (in production, this should be stored in a database table)
+    // For now, we'll encode it in the token itself using JWT-like approach
+    const tokenData = {
+      token,
+      proponent_id,
+      quarter_id,
+      category,
+      expires_at: expiresAt.toISOString(),
+      created_by: currentUser?.userId
+    };
+
+    // Base64 encode the token data for the URL
+    const encodedToken = Buffer.from(JSON.stringify(tokenData)).toString('base64url');
+
+    // Generate shareable URL
+    const baseUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    const uploadUrl = `${baseUrl}/api/v1/documents/upload-via-token/${encodedToken}`;
+
+    // Log token generation
+    await AuditLog.create({
+      user_id: currentUser?.userId,
+      action: AuditAction.CREATE,
+      entity_type: 'proponents',
+      entity_id: proponent_id,
+      new_values: {
+        action_type: 'GENERATE_UPLOAD_TOKEN',
+        proponent_id,
+        quarter_id,
+        category,
+        expires_at: expiresAt.toISOString(),
+        token: token.substring(0, 8) + '...' // Only log first 8 chars for security
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Upload token generated successfully',
+      data: {
+        token: encodedToken,
+        upload_url: uploadUrl,
+        proponent_id,
+        quarter_id,
+        category,
+        expires_at: expiresAt,
+        expires_in_hours
+      }
+    });
+  } catch (error: any) {
+    console.error('Token generation error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'TOKEN_GENERATION_FAILED',
+        message: error.message || 'Failed to generate upload token'
+      }
+    });
+  }
+};
+
+/**
+ * Upload document via token (no authentication required)
+ * POST /api/v1/documents/upload-via-token/:token
+ * File: multipart/form-data (handled by multer middleware)
+ *
+ * Allows proponents to upload documents using a pre-generated token
+ * without logging into the system. Token must not be expired.
+ */
+export const uploadViaToken = async (req: Request, res: Response): Promise<void> => {
+  let tempFilePath: string | undefined;
+
+  try {
+    const { token } = req.params;
+    const file = (req as any).file;
+
+    // Validate file uploaded
+    if (!file) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_FILE_UPLOADED',
+          message: 'No file was uploaded'
+        }
+      });
+      return;
+    }
+
+    tempFilePath = file.path;
+
+    // Decode and validate token
+    let tokenData: any;
+    try {
+      const decodedString = Buffer.from(token, 'base64url').toString('utf-8');
+      tokenData = JSON.parse(decodedString);
+    } catch (decodeError) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Invalid upload token format'
+        }
+      });
+      return;
+    }
+
+    // Check token expiration
+    const expiresAt = new Date(tokenData.expires_at);
+    if (expiresAt < new Date()) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'TOKEN_EXPIRED',
+          message: 'Upload token has expired'
+        }
+      });
+      return;
+    }
+
+    // Extract token data
+    const { proponent_id, quarter_id, category } = tokenData;
+
+    // Fetch proponent with MRFC for filename generation
+    const proponent = await Proponent.findByPk(proponent_id, {
+      include: [
+        {
+          model: Mrfc,
+          as: 'mrfc',
+          attributes: ['id', 'name', 'municipality']
+        }
+      ]
+    });
+
+    if (!proponent) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'PROPONENT_NOT_FOUND',
+          message: 'Proponent not found'
+        }
+      });
+      return;
+    }
+
+    // Fetch quarter
+    const quarter = await Quarter.findByPk(quarter_id);
+    if (!quarter) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'QUARTER_NOT_FOUND',
+          message: 'Quarter not found'
+        }
+      });
+      return;
+    }
+
+    // Generate standardized filename
+    const mrfcName = (proponent as any).mrfc?.name || 'Unknown-MRFC';
+    const sanitizedMrfcName = mrfcName.replace(/[^a-zA-Z0-9-]/g, '-');
+    const sanitizedCategory = category.replace(/_/g, '-');
+    const fileExtension = path.extname(file.originalname);
+    const generatedFileName = `${sanitizedMrfcName}_${sanitizedCategory}_Q${quarter.quarter_number}_${quarter.year}${fileExtension}`;
+
+    // Upload to Cloudinary
+    const cloudinaryResult = await uploadToCloudinary(
+      file.path,
+      CLOUDINARY_FOLDERS.DOCUMENTS,
+      'raw'
+    );
+
+    // Create document record
+    const document = await sequelize.transaction(async (t) => {
+      const newDocument = await Document.create(
+        {
+          proponent_id,
+          quarter_id,
+          file_name: generatedFileName,
+          original_name: file.originalname,
+          file_type: file.mimetype,
+          file_size: file.size,
+          category,
+          file_url: cloudinaryResult.url,
+          file_cloudinary_id: cloudinaryResult.publicId,
+          status: DocumentStatus.PENDING,
+          uploaded_by: null // No user authentication for token uploads
+        },
+        { transaction: t }
+      );
+
+      // Create audit log
+      await AuditLog.create(
+        {
+          user_id: tokenData.created_by, // Admin who generated the token
+          action: AuditAction.CREATE,
+          entity_type: 'documents',
+          entity_id: newDocument.id,
+          new_values: {
+            action_type: 'UPLOAD_DOCUMENT_VIA_TOKEN',
+            filename: generatedFileName,
+            original_name: file.originalname,
+            proponent_id,
+            quarter_id,
+            category,
+            file_size: file.size,
+            upload_method: 'TOKEN'
+          }
+        },
+        { transaction: t }
+      );
+
+      return newDocument;
+    });
+
+    // Clean up temporary file
+    if (tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (cleanupError) {
+        console.warn('Failed to delete temporary file:', cleanupError);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Document uploaded successfully via token',
+      data: {
+        id: document.id,
+        file_name: document.file_name,
+        original_name: document.original_name,
+        file_type: document.file_type,
+        file_size: document.file_size,
+        category: document.category,
+        status: document.status,
+        upload_date: document.upload_date
+      }
+    });
+  } catch (error: any) {
+    console.error('Token upload error:', error);
+
+    // Clean up temporary file on error
+    if (tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (cleanupError) {
+        console.warn('Failed to delete temporary file after error:', cleanupError);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'TOKEN_UPLOAD_FAILED',
+        message: error.message || 'Failed to upload document via token'
       }
     });
   }

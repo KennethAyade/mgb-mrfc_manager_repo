@@ -16,13 +16,13 @@ import AgendaItem from './AgendaItem';
 import MeetingMinutes from './MeetingMinutes';
 import MatterArising from './MatterArising';
 import Attendance from './Attendance';
-import Document from './Document';
+import Document, { DocumentCategory, DocumentStatus } from './Document';
 import VoiceRecording from './VoiceRecording';
 import Note from './Note';
 import Notification from './Notification';
 import UserMrfcAccess from './UserMrfcAccess';
 import ComplianceLog from './ComplianceLog';
-import AuditLog from './AuditLog';
+import AuditLog, { AuditAction } from './AuditLog';
 
 /**
  * ASSOCIATIONS / RELATIONSHIPS
@@ -387,7 +387,7 @@ MeetingMinutes.belongsTo(User, {
 });
 
 /**
- * Export all models
+ * Export all models and enums
  */
 export {
   User,
@@ -400,12 +400,15 @@ export {
   MatterArising,
   Attendance,
   Document,
+  DocumentCategory,
+  DocumentStatus,
   VoiceRecording,
   Note,
   Notification,
   UserMrfcAccess,
   ComplianceLog,
-  AuditLog
+  AuditLog,
+  AuditAction
 };
 
 /**

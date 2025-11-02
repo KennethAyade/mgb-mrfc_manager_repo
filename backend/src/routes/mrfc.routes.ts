@@ -335,6 +335,37 @@ router.put('/:id', authenticate, adminOnly, mrfcController.updateMrfc);
  * - All related documents should be archived, not deleted
  * - Audit log must record deletion
  */
+
+/**
+ * ================================================
+ * PUT /mrfcs/:id/compliance
+ * ================================================
+ * Update MRFC compliance percentage and status
+ * ADMIN only - allows manual compliance tracking
+ *
+ * REQUEST BODY:
+ * {
+ *   "compliance_percentage": 75.5,  // 0-100
+ *   "compliance_status": "PARTIAL", // COMPLIANT, NON_COMPLIANT, PARTIAL, NOT_ASSESSED
+ *   "remarks": "Updated based on Q3 2025 submissions"
+ * }
+ *
+ * RESPONSE (200):
+ * {
+ *   "success": true,
+ *   "message": "Compliance updated successfully",
+ *   "data": {
+ *     "id": 25,
+ *     "name": "Benguet MRFC",
+ *     "compliance_percentage": 75.5,
+ *     "compliance_status": "PARTIAL",
+ *     "compliance_updated_at": "2025-11-02T10:30:00Z",
+ *     "compliance_updated_by": 3
+ *   }
+ * }
+ */
+router.put('/:id/compliance', authenticate, adminOnly, mrfcController.updateCompliance);
+
 router.delete('/:id', authenticate, adminOnly, mrfcController.deleteMrfc);
 
 export default router;

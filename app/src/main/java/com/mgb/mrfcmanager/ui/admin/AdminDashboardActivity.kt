@@ -141,6 +141,9 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
             R.id.nav_file_upload -> {
                 startActivity(Intent(this, FileUploadActivity::class.java))
             }
+            R.id.nav_document_review -> {
+                startActivity(Intent(this, DocumentReviewActivity::class.java))
+            }
             R.id.nav_compliance -> {
                 startActivity(Intent(this, ComplianceDashboardActivity::class.java))
             }

@@ -7,6 +7,14 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
+// Enum for compliance status
+export enum ComplianceStatus {
+  COMPLIANT = 'COMPLIANT',
+  NON_COMPLIANT = 'NON_COMPLIANT',
+  PARTIAL = 'PARTIAL',
+  NOT_ASSESSED = 'NOT_ASSESSED'
+}
+
 // Define model attributes interface
 export interface MrfcAttributes {
   id: number;
@@ -20,12 +28,18 @@ export interface MrfcAttributes {
   address: string | null;
   is_active: boolean;
   created_by: number | null;
+  compliance_percentage: number | null;
+  compliance_status: ComplianceStatus;
+  compliance_updated_at: Date | null;
+  compliance_updated_by: number | null;
+  assigned_admin_id: number | null;
+  mrfc_code: string | null;
   created_at: Date;
   updated_at: Date;
 }
 
-// Define attributes for creation (id, timestamps are optional)
-export interface MrfcCreationAttributes extends Optional<MrfcAttributes, 'id' | 'province' | 'region' | 'contact_person' | 'contact_number' | 'email' | 'address' | 'is_active' | 'created_by' | 'created_at' | 'updated_at'> {}
+// Define attributes for creation (id, timestamps, and optional fields)
+export interface MrfcCreationAttributes extends Optional<MrfcAttributes, 'id' | 'province' | 'region' | 'contact_person' | 'contact_number' | 'email' | 'address' | 'is_active' | 'created_by' | 'compliance_percentage' | 'compliance_status' | 'compliance_updated_at' | 'compliance_updated_by' | 'assigned_admin_id' | 'mrfc_code' | 'created_at' | 'updated_at'> {}
 
 // Define the Mrfc model class
 export class Mrfc extends Model<MrfcAttributes, MrfcCreationAttributes> implements MrfcAttributes {
@@ -40,6 +54,12 @@ export class Mrfc extends Model<MrfcAttributes, MrfcCreationAttributes> implemen
   public address!: string | null;
   public is_active!: boolean;
   public created_by!: number | null;
+  public compliance_percentage!: number | null;
+  public compliance_status!: ComplianceStatus;
+  public compliance_updated_at!: Date | null;
+  public compliance_updated_by!: number | null;
+  public assigned_admin_id!: number | null;
+  public mrfc_code!: string | null;
   public created_at!: Date;
   public updated_at!: Date;
 
@@ -99,6 +119,43 @@ Mrfc.init(
         model: 'users',
         key: 'id',
       },
+    },
+    compliance_percentage: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      validate: {
+        min: 0,
+        max: 100
+      }
+    },
+    compliance_status: {
+      type: DataTypes.ENUM(...Object.values(ComplianceStatus)),
+      defaultValue: ComplianceStatus.NOT_ASSESSED,
+    },
+    compliance_updated_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    compliance_updated_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    assigned_admin_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    mrfc_code: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      unique: true,
     },
     created_at: {
       type: DataTypes.DATE,

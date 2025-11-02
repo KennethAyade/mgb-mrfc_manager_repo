@@ -2,6 +2,7 @@ package com.mgb.mrfcmanager.data.repository
 
 import com.mgb.mrfcmanager.data.remote.api.MrfcApiService
 import com.mgb.mrfcmanager.data.remote.dto.CreateMrfcRequest
+import com.mgb.mrfcmanager.data.remote.dto.UpdateMrfcRequest
 import com.mgb.mrfcmanager.data.remote.dto.MrfcDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -123,7 +124,7 @@ class MrfcRepository(private val mrfcApiService: MrfcApiService) {
     /**
      * Update existing MRFC
      */
-    suspend fun updateMrfc(id: Long, request: CreateMrfcRequest): Result<MrfcDto> {
+    suspend fun updateMrfc(id: Long, request: UpdateMrfcRequest): Result<MrfcDto> {
         return withContext(Dispatchers.IO) {
             try {
                 val response = mrfcApiService.updateMrfc(id, request)
