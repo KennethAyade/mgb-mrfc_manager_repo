@@ -119,10 +119,12 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     if (quarter_id) where.quarter_id = parseInt(quarter_id as string);
 
     // Handle mrfc_id filtering: 0 means general meetings (NULL), otherwise filter by specific MRFC
+    let requestingGeneralMeetings = false;
     if (mrfc_id !== undefined) {
       const mrfcIdNum = parseInt(mrfc_id as string);
       if (mrfcIdNum === 0) {
         where.mrfc_id = null; // General meetings
+        requestingGeneralMeetings = true;
       } else {
         where.mrfc_id = mrfcIdNum; // Specific MRFC
       }
@@ -131,12 +133,35 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     if (status) where.status = status;
 
     // Step 4: Apply user MRFC access filter for USER role
-    if (req.user?.role === 'USER') {
+    // BUT: Skip access filter for general meetings (accessible to all users)
+    if (req.user?.role === 'USER' && !requestingGeneralMeetings) {
       const userMrfcIds = req.user.mrfcAccess || [];
       if (userMrfcIds.length > 0) {
-        where.mrfc_id = { [Op.in]: userMrfcIds };
-      } else {
-        // User has no MRFC access, return empty result
+        // User is requesting MRFC-specific meetings - apply access filter
+        if (where.mrfc_id) {
+          // Verify user has access to the specific MRFC requested
+          if (!userMrfcIds.includes(where.mrfc_id)) {
+            return res.json({
+              success: true,
+              data: {
+                agendas: [],
+                pagination: {
+                  page: pageNum,
+                  limit: limitNum,
+                  total: 0,
+                  totalPages: 0,
+                  hasNext: false,
+                  hasPrev: false
+                }
+              }
+            });
+          }
+        } else {
+          // No specific MRFC requested - show only user's accessible MRFCs
+          where.mrfc_id = { [Op.in]: userMrfcIds };
+        }
+      } else if (!requestingGeneralMeetings) {
+        // User has no MRFC access and not requesting general meetings
         return res.json({
           success: true,
           data: {

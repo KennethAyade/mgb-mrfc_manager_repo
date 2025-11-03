@@ -146,8 +146,10 @@ class MeetingListActivity : AppCompatActivity() {
 
     private fun loadMeetings() {
         // Load meetings for this quarter
+        // For Meeting Management flow: always request general meetings (mrfcId = 0)
+        // Backend converts 0 to IS NULL filter for general meetings
         viewModel.loadAgendas(
-            mrfcId = mrfcId,
+            mrfcId = if (mrfcId == 0L) 0L else mrfcId,
             quarter = quarter,
             year = year
         )
@@ -282,10 +284,11 @@ class MeetingListActivity : AppCompatActivity() {
     }
 
     private fun openMeetingDetail(meeting: AgendaDto) {
-        // TODO: Create MeetingDetailActivity
+        // Navigate to MeetingDetailActivity for Meeting Management flow
+        // Quarter → Meeting → (Agenda/Attendance/Minutes tabs)
         val intent = Intent(this, MeetingDetailActivity::class.java).apply {
             putExtra("AGENDA_ID", meeting.id)
-            putExtra("MEETING_TITLE", "Meeting ${meeting.id}")
+            putExtra("MEETING_TITLE", "Meeting #${meeting.id}")
             putExtra("MRFC_ID", mrfcId)
         }
         startActivity(intent)

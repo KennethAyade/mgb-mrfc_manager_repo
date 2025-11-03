@@ -4,9 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
-import android.view.View
-import android.widget.GridLayout
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -48,8 +45,8 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
 
     /**
      * Configure UI based on user role
-     * Updates navigation header with user info
-     * Menu selection is handled in setupNavigationDrawer()
+     * SUPER_ADMIN sees all options including User Management
+     * ADMIN sees standard admin options
      */
     private fun setupRoleBasedUI() {
         val tokenManager = MRFCManagerApp.getTokenManager()
@@ -73,6 +70,17 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
             "USER" -> "User"
             else -> "User"
         }
+
+        // Hide User Management menu for USER role only
+        // SUPER_ADMIN and ADMIN both have access to User Management
+        if (userRole == "USER") {
+            val menu = navigationView.menu
+            val userManagementItem = menu.findItem(R.id.nav_user_management)
+            userManagementItem?.isVisible = false
+            Log.d("AdminDashboard", "User Management hidden for USER role")
+        } else {
+            Log.d("AdminDashboard", "User Management visible for $userRole")
+        }
     }
 
     private fun setupToolbar() {
@@ -83,23 +91,6 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
     private fun setupNavigationDrawer() {
         drawerLayout = findViewById(R.id.drawerLayout)
         navigationView = findViewById(R.id.navigationView)
-
-        // Load menu based on user role
-        val tokenManager = MRFCManagerApp.getTokenManager()
-        val userRole = tokenManager.getUserRole()
-
-        if (userRole == "USER") {
-            // Load simplified menu for regular users
-            navigationView.menu.clear()
-            navigationView.inflateMenu(R.menu.nav_drawer_menu_user)
-            Log.d("AdminDashboard", "Loaded simplified user menu")
-        } else {
-            // Load full admin menu for ADMIN and SUPER_ADMIN
-            navigationView.menu.clear()
-            navigationView.inflateMenu(R.menu.nav_drawer_menu)
-            Log.d("AdminDashboard", "Loaded full admin menu")
-        }
-
         navigationView.setNavigationItemSelectedListener(this)
 
         val toggle = ActionBarDrawerToggle(
@@ -111,65 +102,28 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
     }
 
     private fun setupDashboardCards() {
-        val tokenManager = MRFCManagerApp.getTokenManager()
-        val userRole = tokenManager.getUserRole()
+        // Quick Action Cards
+        findViewById<MaterialCardView>(R.id.cardSelectMRFC).setOnClickListener {
+            startActivity(Intent(this, MRFCListActivity::class.java))
+        }
 
-        if (userRole == "USER") {
-            // Show simplified user view
-            findViewById<LinearLayout>(R.id.layoutQuickStats).visibility = View.GONE
-            findViewById<TextView>(R.id.tvQuickActionsTitle).visibility = View.GONE
-            findViewById<GridLayout>(R.id.gridQuickActions).visibility = View.GONE
-            findViewById<LinearLayout>(R.id.layoutUserServices).visibility = View.VISIBLE
+        findViewById<MaterialCardView>(R.id.cardAttendance).setOnClickListener {
+            startActivity(Intent(this, AttendanceActivity::class.java))
+        }
 
-            // Setup user service card click listeners
-            findViewById<MaterialCardView>(R.id.cardMrfcManagement).setOnClickListener {
-                startActivity(Intent(this, MRFCListActivity::class.java))
-            }
+        findViewById<MaterialCardView>(R.id.cardFileUpload).setOnClickListener {
+            startActivity(Intent(this, FileUploadActivity::class.java))
+        }
 
-            findViewById<MaterialCardView>(R.id.cardMeetingManagement).setOnClickListener {
-                startActivity(Intent(this, MeetingQuarterSelection::class.java))
-            }
-        } else {
-            // Show admin view (existing cards)
-            findViewById<LinearLayout>(R.id.layoutQuickStats).visibility = View.VISIBLE
-            findViewById<TextView>(R.id.tvQuickActionsTitle).visibility = View.VISIBLE
-            findViewById<GridLayout>(R.id.gridQuickActions).visibility = View.VISIBLE
-            findViewById<LinearLayout>(R.id.layoutUserServices).visibility = View.GONE
-
-            // Setup admin quick action cards
-            findViewById<MaterialCardView>(R.id.cardSelectMRFC).setOnClickListener {
-                startActivity(Intent(this, MRFCListActivity::class.java))
-            }
-
-            findViewById<MaterialCardView>(R.id.cardAttendance).setOnClickListener {
-                startActivity(Intent(this, AttendanceActivity::class.java))
-            }
-
-            findViewById<MaterialCardView>(R.id.cardFileUpload).setOnClickListener {
-                startActivity(Intent(this, FileUploadActivity::class.java))
-            }
-
-            findViewById<MaterialCardView>(R.id.cardCompliance).setOnClickListener {
-                startActivity(Intent(this, ComplianceDashboardActivity::class.java))
-            }
+        findViewById<MaterialCardView>(R.id.cardCompliance).setOnClickListener {
+            startActivity(Intent(this, ComplianceDashboardActivity::class.java))
         }
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.nav_home -> {
-                // Already on dashboard/home
-            }
             R.id.nav_dashboard -> {
                 // Already on dashboard
-            }
-            R.id.nav_mrfc_management -> {
-                // User menu: MRFC Management
-                startActivity(Intent(this, MRFCListActivity::class.java))
-            }
-            R.id.nav_meeting_management -> {
-                // User menu: Meeting Management
-                startActivity(Intent(this, MeetingQuarterSelection::class.java))
             }
             R.id.nav_mrfc -> {
                 startActivity(Intent(this, MRFCListActivity::class.java))

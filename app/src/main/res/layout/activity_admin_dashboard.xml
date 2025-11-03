@@ -80,6 +80,7 @@
 
                 <!-- Quick Stats Row -->
                 <LinearLayout
+                    android:id="@+id/layoutQuickStats"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
@@ -156,6 +157,7 @@
 
                 <!-- Section Title -->
                 <TextView
+                    android:id="@+id/tvQuickActionsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/spacing_normal"
@@ -167,6 +169,7 @@
 
                 <!-- Quick Action Cards Grid -->
                 <GridLayout
+                    android:id="@+id/gridQuickActions"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:columnCount="2"
@@ -331,6 +334,123 @@
                     </com.google.android.material.card.MaterialCardView>
 
                 </GridLayout>
+
+                <!-- User View - Simplified Service Cards -->
+                <LinearLayout
+                    android:id="@+id/layoutUserServices"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <!-- Section Title -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_normal"
+                        android:layout_marginBottom="@dimen/spacing_normal"
+                        android:text="Services"
+                        android:textColor="@color/text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <!-- MRFC Management Card -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardMrfcManagement"
+                        style="@style/ModernCard"
+                        android:layout_width="match_parent"
+                        android:layout_height="160dp"
+                        android:layout_marginBottom="@dimen/spacing_normal"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:gravity="center"
+                            android:padding="24dp">
+
+                            <ImageView
+                                android:layout_width="64dp"
+                                android:layout_height="64dp"
+                                android:src="@drawable/ic_folder"
+                                app:tint="@color/accent"
+                                android:contentDescription="MRFC Management" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:text="MRFC Management"
+                                android:textColor="@color/text_primary"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:textAlignment="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="Manage proponents and quarterly reports"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp"
+                                android:textAlignment="center" />
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Meeting Management Card -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardMeetingManagement"
+                        style="@style/ModernCard"
+                        android:layout_width="match_parent"
+                        android:layout_height="160dp"
+                        android:layout_marginBottom="@dimen/spacing_normal"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:gravity="center"
+                            android:padding="24dp">
+
+                            <ImageView
+                                android:layout_width="64dp"
+                                android:layout_height="64dp"
+                                android:src="@drawable/ic_calendar"
+                                app:tint="@color/accent"
+                                android:contentDescription="Meeting Management" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:text="Meeting Management"
+                                android:textColor="@color/text_primary"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:textAlignment="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="Access agendas, notes, and documents"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp"
+                                android:textAlignment="center" />
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
 
             </LinearLayout>
 

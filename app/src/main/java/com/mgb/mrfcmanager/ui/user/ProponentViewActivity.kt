@@ -58,21 +58,18 @@ class ProponentViewActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        btnViewAgenda.setOnClickListener {
-            // Navigate to agenda view
-            val intent = Intent(this, AgendaViewActivity::class.java)
+        // Both buttons now navigate to quarter selection
+        // Following the flowchart: MRFC → Proponent → Quarter → Services
+        val navigateToQuarters = {
+            val intent = Intent(this, MRFCQuarterSelectionActivity::class.java)
             intent.putExtra("MRFC_ID", mrfcId)
             intent.putExtra("MRFC_NAME", mrfcName)
+            intent.putExtra("PROPONENT_NAME", tvProponentName.text.toString())
             startActivity(intent)
         }
 
-        btnViewDocuments.setOnClickListener {
-            // Navigate to document list
-            val intent = Intent(this, DocumentListActivity::class.java)
-            intent.putExtra("MRFC_ID", mrfcId)
-            intent.putExtra("MRFC_NAME", mrfcName)
-            startActivity(intent)
-        }
+        btnViewAgenda.setOnClickListener { navigateToQuarters() }
+        btnViewDocuments.setOnClickListener { navigateToQuarters() }
     }
 
     private fun loadProponentData() {

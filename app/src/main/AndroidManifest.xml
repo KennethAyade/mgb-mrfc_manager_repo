@@ -167,6 +167,17 @@
             android:exported="false"
             android:parentActivityName=".ui.user.UserDashboardActivity" />
 
+        <!-- New Navigation Flow Activities -->
+        <activity
+            android:name=".ui.user.MRFCQuarterSelectionActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.ProponentViewActivity" />
+
+        <activity
+            android:name=".ui.user.ServicesMenuActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MRFCManager" />
+
         <!-- Original MainActivity (kept for reference, can be removed) -->
         <activity
             android:name=".MainActivity"
