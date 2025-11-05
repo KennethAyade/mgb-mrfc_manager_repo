@@ -49,14 +49,15 @@ router.get('/meeting/:agendaId', authenticate, async (req: Request, res: Respons
     }
 
     // Authorization check for USER role
-    if (req.user?.role === 'USER') {
+    // General meetings (mrfc_id = null) are accessible to all users
+    if (req.user?.role === 'USER' && agenda.mrfc_id !== null) {
       const userMrfcIds = req.user.mrfcAccess || [];
       if (!userMrfcIds.includes(agenda.mrfc_id)) {
         return res.status(403).json({
           success: false,
           error: {
             code: 'MRFC_ACCESS_DENIED',
-            message: 'You do not have access to this meeting'
+            message: 'You do not have access to this MRFC-specific meeting'
           }
         });
       }
@@ -179,14 +180,15 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
     }
 
     // Authorization check for USER role
-    if (req.user?.role === 'USER') {
+    // General meetings (mrfc_id = null) are accessible to all users
+    if (req.user?.role === 'USER' && agenda.mrfc_id !== null) {
       const userMrfcIds = req.user.mrfcAccess || [];
       if (!userMrfcIds.includes(agenda.mrfc_id)) {
         return res.status(403).json({
           success: false,
           error: {
             code: 'MRFC_ACCESS_DENIED',
-            message: 'You do not have access to this meeting'
+            message: 'You do not have access to this MRFC-specific meeting'
           }
         });
       }

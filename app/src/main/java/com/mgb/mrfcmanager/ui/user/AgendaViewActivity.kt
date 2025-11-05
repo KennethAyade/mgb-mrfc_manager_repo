@@ -9,7 +9,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -22,18 +22,22 @@ import com.mgb.mrfcmanager.data.model.AgendaItem
 import com.mgb.mrfcmanager.data.model.MatterArising
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.AgendaApiService
+import com.mgb.mrfcmanager.data.remote.api.AgendaItemApiService
+import com.mgb.mrfcmanager.data.remote.api.MatterArisingApiService
 import com.mgb.mrfcmanager.data.remote.dto.AgendaDto
+import com.mgb.mrfcmanager.data.remote.dto.AgendaItemDto
+import com.mgb.mrfcmanager.data.remote.dto.MatterArisingDto
 import com.mgb.mrfcmanager.data.repository.AgendaRepository
+import com.mgb.mrfcmanager.data.repository.AgendaItemRepository
+import com.mgb.mrfcmanager.data.repository.MatterArisingRepository
 import com.mgb.mrfcmanager.utils.DemoData
 import com.mgb.mrfcmanager.utils.TokenManager
-import com.mgb.mrfcmanager.viewmodel.AgendaListState
-import com.mgb.mrfcmanager.viewmodel.AgendaViewModel
-import com.mgb.mrfcmanager.viewmodel.AgendaViewModelFactory
+import com.mgb.mrfcmanager.viewmodel.*
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-class AgendaViewActivity : AppCompatActivity() {
+class AgendaViewActivity : BaseActivity() {
 
     private lateinit var btnSelectQuarter: MaterialButton
     private lateinit var tvMeetingDate: TextView
@@ -55,8 +59,12 @@ class AgendaViewActivity : AppCompatActivity() {
     private lateinit var agendaAdapter: AgendaViewAdapter
     private val agendaItems = mutableListOf<AgendaItem>()
 
-    private lateinit var viewModel: AgendaViewModel
+    private lateinit var agendaViewModel: AgendaViewModel
+    private lateinit var agendaItemViewModel: AgendaItemViewModel
+    private lateinit var matterArisingViewModel: MatterArisingViewModel
+    
     private var currentAgendas: List<AgendaDto> = emptyList()
+    private var currentAgendaId: Long? = null
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val displayDateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
 
@@ -100,14 +108,29 @@ class AgendaViewActivity : AppCompatActivity() {
         // Use singleton TokenManager to prevent DataStore conflicts
         val tokenManager = MRFCManagerApp.getTokenManager()
         val retrofit = RetrofitClient.getInstance(tokenManager)
+        
+        // Setup Agenda ViewModel
         val agendaApiService = retrofit.create(AgendaApiService::class.java)
         val agendaRepository = AgendaRepository(agendaApiService)
-        val factory = AgendaViewModelFactory(agendaRepository)
-        viewModel = ViewModelProvider(this, factory)[AgendaViewModel::class.java]
+        val agendaFactory = AgendaViewModelFactory(agendaRepository)
+        agendaViewModel = ViewModelProvider(this, agendaFactory)[AgendaViewModel::class.java]
+        
+        // Setup Agenda Item ViewModel
+        val agendaItemApiService = retrofit.create(AgendaItemApiService::class.java)
+        val agendaItemRepository = AgendaItemRepository(agendaItemApiService)
+        val agendaItemFactory = AgendaItemViewModelFactory(agendaItemRepository)
+        agendaItemViewModel = ViewModelProvider(this, agendaItemFactory)[AgendaItemViewModel::class.java]
+        
+        // Setup Matter Arising ViewModel
+        val matterArisingApiService = retrofit.create(MatterArisingApiService::class.java)
+        val matterArisingRepository = MatterArisingRepository(matterArisingApiService)
+        val matterArisingFactory = MatterArisingViewModelFactory(matterArisingRepository)
+        matterArisingViewModel = ViewModelProvider(this, matterArisingFactory)[MatterArisingViewModel::class.java]
     }
 
     private fun observeAgendaState() {
-        viewModel.agendaListState.observe(this) { state ->
+        // Observe main agenda loading
+        agendaViewModel.agendaListState.observe(this) { state ->
             when (state) {
                 is AgendaListState.Loading -> {
                     showLoading(true)
@@ -128,15 +151,54 @@ class AgendaViewActivity : AppCompatActivity() {
                 }
             }
         }
+        
+        // Observe agenda items loading
+        agendaItemViewModel.itemsListState.observe(this) { state ->
+            when (state) {
+                is ItemsListState.Loading -> {
+                    // Already showing loading from main agenda
+                }
+                is ItemsListState.Success -> {
+                    displayAgendaItems(state.data)
+                }
+                is ItemsListState.Error -> {
+                    showError("Error loading agenda items: ${state.message}")
+                    agendaItems.clear()
+                    agendaAdapter.notifyDataSetChanged()
+                }
+                is ItemsListState.Idle -> {
+                    // Do nothing
+                }
+            }
+        }
+        
+        // Observe matters arising loading
+        matterArisingViewModel.mattersListState.observe(this) { state ->
+            when (state) {
+                is MattersListState.Loading -> {
+                    // Already showing loading from main agenda
+                }
+                is MattersListState.Success -> {
+                    displayMattersArising(state.data)
+                }
+                is MattersListState.Error -> {
+                    showError("Error loading matters arising: ${state.message}")
+                    mattersArising.clear()
+                    mattersArisingAdapter.notifyDataSetChanged()
+                    rvMattersArising.visibility = View.GONE
+                    tvNoMattersArising.visibility = View.VISIBLE
+                }
+                is MattersListState.Idle -> {
+                    // Do nothing
+                }
+            }
+        }
     }
 
     private fun showLoading(isLoading: Boolean) {
         progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
     }
 
-    private fun showError(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-    }
 
     private fun showEmptyState() {
         agendaItems.clear()
@@ -155,9 +217,12 @@ class AgendaViewActivity : AppCompatActivity() {
 
         if (agenda == null) {
             showEmptyState()
-            Toast.makeText(this, "No agenda found for $selectedQuarter", Toast.LENGTH_SHORT).show()
+            showToast("No agenda found for $selectedQuarter")
             return
         }
+
+        // Store current agenda ID for loading related data
+        currentAgendaId = agenda.id
 
         // Populate meeting info
         agenda.meetingDate?.let {
@@ -174,19 +239,55 @@ class AgendaViewActivity : AppCompatActivity() {
         // Populate location if available
         tvMeetingLocation.text = agenda.location ?: "MGB Conference Room"
 
-        // TODO: BACKEND - Agenda items should be fetched separately using AgendaItemApiService
-        // The new backend architecture separates agenda items from the main agenda
-        // For now, clear the items list
+        // Load agenda items and matters arising for this agenda
+        agendaItemViewModel.loadItemsByAgenda(agenda.id)
+        matterArisingViewModel.loadMattersByAgenda(agenda.id)
+    }
+    
+    private fun displayAgendaItems(items: List<AgendaItemDto>) {
         agendaItems.clear()
+        
+        // Convert DTOs to local model
+        items.forEach { dto ->
+            agendaItems.add(
+                AgendaItem(
+                    id = dto.id,
+                    title = dto.title,
+                    description = dto.description ?: ""
+                )
+            )
+        }
+        
         agendaAdapter.notifyDataSetChanged()
-
-        // TODO: BACKEND - Matters arising should be fetched separately using MatterArisingApiService
-        // The new backend architecture separates matters arising from the main agenda
-        // For now, clear the matters list
+    }
+    
+    private fun displayMattersArising(matters: List<MatterArisingDto>) {
         mattersArising.clear()
-        mattersArisingAdapter.notifyDataSetChanged()
-        rvMattersArising.visibility = View.GONE
-        tvNoMattersArising.visibility = View.VISIBLE
+        
+        if (matters.isEmpty()) {
+            rvMattersArising.visibility = View.GONE
+            tvNoMattersArising.visibility = View.VISIBLE
+        } else {
+            rvMattersArising.visibility = View.VISIBLE
+            tvNoMattersArising.visibility = View.GONE
+            
+            // Convert DTOs to local model
+            matters.forEach { dto ->
+                mattersArising.add(
+                    MatterArising(
+                        id = dto.id,
+                        agendaId = dto.agendaId,
+                        issue = dto.issue,
+                        status = dto.status,
+                        assignedTo = dto.assignedTo ?: "Unassigned",
+                        dateRaised = dto.dateRaised,
+                        remarks = dto.remarks ?: ""
+                    )
+                )
+            }
+            
+            mattersArisingAdapter.notifyDataSetChanged()
+        }
     }
 
     private fun setupRecyclerView() {
@@ -249,7 +350,7 @@ class AgendaViewActivity : AppCompatActivity() {
         val (quarter, year) = parseQuarterAndYear(selectedQuarter)
 
         // Load agenda from backend
-        viewModel.loadAgendasByMrfcAndQuarter(mrfcId, quarter, year)
+        agendaViewModel.loadAgendasByMrfcAndQuarter(mrfcId, quarter, year)
     }
 
     private fun parseQuarterAndYear(quarterString: String): Pair<String, Int> {

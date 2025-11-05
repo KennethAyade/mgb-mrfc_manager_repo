@@ -6,7 +6,6 @@ import android.view.View
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -22,13 +21,14 @@ import com.mgb.mrfcmanager.data.remote.api.UserApiService
 import com.mgb.mrfcmanager.data.remote.dto.UserDto
 import com.mgb.mrfcmanager.data.repository.UserRepository
 import com.mgb.mrfcmanager.ui.adapter.UserAdapter
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import com.mgb.mrfcmanager.viewmodel.DeleteUserState
 import com.mgb.mrfcmanager.viewmodel.UserListState
 import com.mgb.mrfcmanager.viewmodel.UserViewModel
 import com.mgb.mrfcmanager.viewmodel.UserViewModelFactory
 import kotlinx.coroutines.launch
 
-class UserManagementActivity : AppCompatActivity() {
+class UserManagementActivity : BaseActivity() {
 
     private lateinit var toolbar: MaterialToolbar
     private lateinit var recyclerView: RecyclerView
@@ -135,7 +135,7 @@ class UserManagementActivity : AppCompatActivity() {
                 }
                 is UserListState.Error -> {
                     progressBar.visibility = View.GONE
-                    Toast.makeText(this, state.message, Toast.LENGTH_LONG).show()
+                    showError(state.message, "Failed to Load Users")
                 }
             }
         }
@@ -152,12 +152,13 @@ class UserManagementActivity : AppCompatActivity() {
                 }
                 is DeleteUserState.Success -> {
                     progressBar.visibility = View.GONE
-                    Toast.makeText(this, "User deleted successfully", Toast.LENGTH_SHORT).show()
-                    loadUsers() // Reload list
+                    showSuccess("User deleted successfully") {
+                        loadUsers() // Reload list
+                    }
                 }
                 is DeleteUserState.Error -> {
                     progressBar.visibility = View.GONE
-                    Toast.makeText(this, "Delete failed: ${state.message}", Toast.LENGTH_LONG).show()
+                    showError(state.message, "Failed to Delete User")
                 }
             }
         }
@@ -168,7 +169,7 @@ class UserManagementActivity : AppCompatActivity() {
     }
 
     private fun onUserClick(user: UserDto) {
-        Toast.makeText(this, "User: ${user.username} (${user.role})", Toast.LENGTH_SHORT).show()
+        showToast("User: ${user.username} (${user.role})")
     }
 
     private fun onEditClick(user: UserDto) {

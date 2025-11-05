@@ -6,9 +6,11 @@ import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
@@ -19,6 +21,7 @@ import com.mgb.mrfcmanager.ui.admin.AdminDashboardActivity
 import com.mgb.mrfcmanager.viewmodel.LoginState
 import com.mgb.mrfcmanager.viewmodel.LoginViewModel
 import com.mgb.mrfcmanager.viewmodel.LoginViewModelFactory
+import com.mgb.mrfcmanager.util.ErrorHandler
 
 /**
  * Login Screen - Handles user authentication with backend API
@@ -104,6 +107,26 @@ class LoginActivity : AppCompatActivity() {
     private fun handleLogin() {
         val username = etUsername.text.toString().trim()
         val password = etPassword.text.toString()
+        
+        // Validation
+        when {
+            username.isEmpty() -> {
+                etUsername.error = "Username is required"
+                etUsername.requestFocus()
+                return
+            }
+            password.isEmpty() -> {
+                etPassword.error = "Password is required"
+                etPassword.requestFocus()
+                return
+            }
+            password.length < 6 -> {
+                etPassword.error = "Password must be at least 6 characters"
+                etPassword.requestFocus()
+                return
+            }
+        }
+        
         viewModel.login(username, password)
     }
 
@@ -118,7 +141,16 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showError(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        // Use centralized ErrorHandler with callback to clear password
+        ErrorHandler.showError(
+            context = this,
+            rawMessage = message,
+            onDismiss = {
+                // Clear password field for security
+                etPassword.text?.clear()
+                etPassword.requestFocus()
+            }
+        )
     }
 
     private fun navigateToDashboard(role: String) {

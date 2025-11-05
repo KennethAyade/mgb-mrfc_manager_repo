@@ -6,7 +6,7 @@ import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.ProgressBar
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
@@ -24,7 +24,7 @@ import com.mgb.mrfcmanager.viewmodel.MrfcViewModelFactory
  * Create MRFC Activity - Form for creating new MRFCs
  * Integrated with backend API
  */
-class CreateMRFCActivity : AppCompatActivity() {
+class CreateMRFCActivity : BaseActivity() {
 
     private lateinit var etMRFCName: TextInputEditText
     private lateinit var etMrfcCode: TextInputEditText
@@ -108,13 +108,14 @@ class CreateMRFCActivity : AppCompatActivity() {
                 }
                 is MrfcCreateState.Success -> {
                     showLoading(false)
-                    Toast.makeText(this, "MRFC created successfully", Toast.LENGTH_SHORT).show()
-                    setResult(RESULT_OK)
-                    finish()
+                    showSuccess("MRFC created successfully") {
+                        setResult(RESULT_OK)
+                        finish()
+                    }
                 }
                 is MrfcCreateState.Error -> {
                     showLoading(false)
-                    Toast.makeText(this, "Creation failed: ${state.message}", Toast.LENGTH_LONG).show()
+                    showError(state.message, "Failed to Create MRFC")
                 }
             }
         }
@@ -173,48 +174,44 @@ class CreateMRFCActivity : AppCompatActivity() {
         contactNumber: String
     ): Boolean {
         if (name.isEmpty()) {
-            Toast.makeText(this, "MRFC Name is required", Toast.LENGTH_SHORT).show()
+            etMRFCName.error = "MRFC Name is required"
             etMRFCName.requestFocus()
             return false
         }
 
         if (municipality.isEmpty()) {
-            Toast.makeText(this, "Municipality is required", Toast.LENGTH_SHORT).show()
+            etMunicipality.error = "Municipality is required"
             etMunicipality.requestFocus()
             return false
         }
 
         if (province.isEmpty()) {
-            Toast.makeText(this, "Province is required", Toast.LENGTH_SHORT).show()
+            etProvince.error = "Province is required"
             etProvince.requestFocus()
             return false
         }
 
         if (region.isEmpty()) {
-            Toast.makeText(this, "Region is required", Toast.LENGTH_SHORT).show()
+            etRegion.error = "Region is required"
             etRegion.requestFocus()
             return false
         }
 
         if (contactPerson.isEmpty()) {
-            Toast.makeText(this, "Contact Person is required", Toast.LENGTH_SHORT).show()
+            etContactPerson.error = "Contact Person is required"
             etContactPerson.requestFocus()
             return false
         }
 
         if (contactNumber.isEmpty()) {
-            Toast.makeText(this, "Contact Number is required", Toast.LENGTH_SHORT).show()
+            etContactNumber.error = "Contact Number is required"
             etContactNumber.requestFocus()
             return false
         }
 
         // Validate contact number format (Philippine format)
         if (!contactNumber.matches(Regex("^(\\+63|0)\\d{10}$"))) {
-            Toast.makeText(
-                this,
-                "Invalid contact number format. Use +639XXXXXXXXX or 09XXXXXXXXX",
-                Toast.LENGTH_SHORT
-            ).show()
+            etContactNumber.error = "Invalid format. Use +639XXXXXXXXX or 09XXXXXXXXX"
             etContactNumber.requestFocus()
             return false
         }
@@ -222,7 +219,7 @@ class CreateMRFCActivity : AppCompatActivity() {
         // Validate email if provided
         val email = etEmail.text.toString().trim()
         if (email.isNotEmpty() && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            Toast.makeText(this, "Invalid email format", Toast.LENGTH_SHORT).show()
+            etEmail.error = "Invalid email format"
             etEmail.requestFocus()
             return false
         }

@@ -37,5 +37,12 @@ class UserDashboardActivity : AppCompatActivity() {
             intent.putExtra("MRFC_NAME", "All MRFCs")
             startActivity(intent)
         }
+
+        // NEW: Meeting Management access for users
+        findViewById<MaterialCardView>(R.id.cardViewMeetingManagement).setOnClickListener {
+            val intent = Intent(this, com.mgb.mrfcmanager.ui.meeting.QuarterSelectionActivity::class.java)
+            intent.putExtra("MRFC_ID", 0L) // 0 = general meetings
+            startActivity(intent)
+        }
     }
 }

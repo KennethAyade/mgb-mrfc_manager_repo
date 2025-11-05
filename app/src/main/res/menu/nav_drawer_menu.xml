@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:showIn="navigation_view">
 
-    <!-- Main Section -->
+    <!-- Dashboard - Always Visible -->
     <group android:checkableBehavior="single">
         <item
             android:id="@+id/nav_dashboard"
@@ -11,8 +11,8 @@
             android:title="Dashboard" />
     </group>
 
-    <!-- Meeting Management Section -->
-    <item android:title="Meeting Management">
+    <!-- Master Data Section -->
+    <item android:title="Master Data">
         <menu>
             <item
                 android:id="@+id/nav_mrfc"
@@ -23,14 +23,40 @@
                 android:icon="@drawable/ic_people"
                 android:title="Proponents" />
             <item
+                android:id="@+id/nav_quarters"
+                android:icon="@drawable/ic_calendar"
+                android:title="Quarters" />
+        </menu>
+    </item>
+
+    <!-- Meetings Section -->
+    <item android:title="Meetings">
+        <menu>
+            <item
                 android:id="@+id/nav_meetings"
                 android:icon="@drawable/ic_calendar"
-                android:title="Meetings" />
+                android:title="All Meetings" />
+            <item
+                android:id="@+id/nav_agendas"
+                android:icon="@drawable/ic_document"
+                android:title="Agendas" />
+            <item
+                android:id="@+id/nav_attendance"
+                android:icon="@drawable/ic_check"
+                android:title="Attendance" />
+            <item
+                android:id="@+id/nav_minutes"
+                android:icon="@drawable/ic_document"
+                android:title="Minutes" />
+            <item
+                android:id="@+id/nav_matters_arising"
+                android:icon="@drawable/ic_warning"
+                android:title="Matters Arising" />
         </menu>
     </item>
 
     <!-- Documents Section -->
-    <item android:title="Documents &amp; Files">
+    <item android:title="Documents">
         <menu>
             <item
                 android:id="@+id/nav_documents"
@@ -47,40 +73,58 @@
         </menu>
     </item>
 
-    <!-- Monitoring Section -->
-    <item android:title="Monitoring &amp; Reports">
+    <!-- Reports Section -->
+    <item android:title="Reports">
         <menu>
             <item
                 android:id="@+id/nav_compliance"
                 android:icon="@drawable/ic_chart"
                 android:title="Compliance Dashboard" />
             <item
-                android:id="@+id/nav_reports"
+                android:id="@+id/nav_attendance_reports"
+                android:icon="@drawable/ic_chart"
+                android:title="Attendance Reports" />
+            <item
+                android:id="@+id/nav_meeting_reports"
+                android:icon="@drawable/ic_chart"
+                android:title="Meeting Reports" />
+            <item
+                android:id="@+id/nav_generate_reports"
                 android:icon="@drawable/ic_document"
-                android:title="Generate Reports" />
+                android:title="Generate Custom Report" />
         </menu>
     </item>
 
-    <!-- Admin Section (SUPER_ADMIN ONLY) -->
-    <item android:title="Administration">
+    <!-- Users & Access Section -->
+    <item android:title="Users &amp; Access">
         <menu>
             <item
                 android:id="@+id/nav_user_management"
                 android:icon="@drawable/ic_people"
                 android:title="User Management" />
+            <item
+                android:id="@+id/nav_mrfc_access"
+                android:icon="@drawable/ic_lock"
+                android:title="MRFC Access Control" />
         </menu>
     </item>
 
-    <!-- Bottom Section -->
+    <!-- Settings Section -->
+    <item android:title="Settings">
+        <menu>
+            <item
+                android:id="@+id/nav_settings"
+                android:icon="@drawable/ic_settings"
+                android:title="System Settings" />
+            <item
+                android:id="@+id/nav_notifications"
+                android:icon="@drawable/ic_notifications"
+                android:title="Notifications" />
+        </menu>
+    </item>
+
+    <!-- Bottom Actions - Separate Group with Divider -->
     <group android:checkableBehavior="single">
-        <item
-            android:id="@+id/nav_notifications"
-            android:icon="@drawable/ic_notifications"
-            android:title="Notifications" />
-        <item
-            android:id="@+id/nav_settings"
-            android:icon="@drawable/ic_settings"
-            android:title="Settings" />
         <item
             android:id="@+id/nav_logout"
             android:icon="@drawable/ic_logout"

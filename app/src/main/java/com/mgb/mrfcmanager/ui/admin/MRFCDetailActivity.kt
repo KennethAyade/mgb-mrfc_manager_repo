@@ -31,9 +31,14 @@ import com.mgb.mrfcmanager.viewmodel.MrfcViewModelFactory
 class MRFCDetailActivity : AppCompatActivity() {
 
     private lateinit var etMRFCName: TextInputEditText
+    private lateinit var etMrfcCode: TextInputEditText
     private lateinit var etMunicipality: TextInputEditText
+    private lateinit var etProvince: TextInputEditText
+    private lateinit var etRegion: TextInputEditText
+    private lateinit var etAddress: TextInputEditText
     private lateinit var etContactPerson: TextInputEditText
     private lateinit var etContactNumber: TextInputEditText
+    private lateinit var etEmail: TextInputEditText
     private lateinit var btnSave: MaterialButton
     private lateinit var btnViewProponents: MaterialButton
     private lateinit var progressBar: ProgressBar
@@ -65,9 +70,14 @@ class MRFCDetailActivity : AppCompatActivity() {
 
     private fun initializeViews() {
         etMRFCName = findViewById(R.id.etMRFCName)
+        etMrfcCode = findViewById(R.id.etMrfcCode)
         etMunicipality = findViewById(R.id.etMunicipality)
+        etProvince = findViewById(R.id.etProvince)
+        etRegion = findViewById(R.id.etRegion)
+        etAddress = findViewById(R.id.etAddress)
         etContactPerson = findViewById(R.id.etContactPerson)
         etContactNumber = findViewById(R.id.etContactNumber)
+        etEmail = findViewById(R.id.etEmail)
         btnSave = findViewById(R.id.btnSave)
         btnViewProponents = findViewById(R.id.btnViewProponents)
         progressBar = findViewById(R.id.progressBar)
@@ -145,10 +155,20 @@ class MRFCDetailActivity : AppCompatActivity() {
     private fun displayMrfcData(mrfc: MrfcDto) {
         currentMRFC = mrfc
 
+        // MRFC Information
         etMRFCName.setText(mrfc.name)
+        etMrfcCode.setText(mrfc.mrfcNumber ?: "MRFC-${mrfc.id}")
+
+        // Location
         etMunicipality.setText(mrfc.municipality)
+        etProvince.setText(mrfc.province ?: "")
+        etRegion.setText(mrfc.region ?: "")
+        etAddress.setText(mrfc.address ?: "")
+
+        // Contact Information
         etContactPerson.setText(mrfc.contactPerson)
         etContactNumber.setText(mrfc.contactNumber)
+        etEmail.setText(mrfc.email ?: "")
 
         supportActionBar?.title = mrfc.name
     }
@@ -164,42 +184,51 @@ class MRFCDetailActivity : AppCompatActivity() {
     }
 
     private fun saveMRFCData() {
+        // Get all field values
         val name = etMRFCName.text.toString().trim()
         val municipality = etMunicipality.text.toString().trim()
+        val province = etProvince.text.toString().trim()
+        val region = etRegion.text.toString().trim()
+        val address = etAddress.text.toString().trim()
         val contactPerson = etContactPerson.text.toString().trim()
         val contactNumber = etContactNumber.text.toString().trim()
+        val email = etEmail.text.toString().trim()
 
         // Validation
         if (name.isEmpty()) {
-            Toast.makeText(this, "MRFC Name is required", Toast.LENGTH_SHORT).show()
+            etMRFCName.error = "MRFC Name is required"
+            etMRFCName.requestFocus()
             return
         }
 
         if (municipality.isEmpty()) {
-            Toast.makeText(this, "Municipality is required", Toast.LENGTH_SHORT).show()
+            etMunicipality.error = "Municipality is required"
+            etMunicipality.requestFocus()
             return
         }
 
         if (contactPerson.isEmpty()) {
-            Toast.makeText(this, "Contact Person is required", Toast.LENGTH_SHORT).show()
+            etContactPerson.error = "Contact Person is required"
+            etContactPerson.requestFocus()
             return
         }
 
         if (contactNumber.isEmpty()) {
-            Toast.makeText(this, "Contact Number is required", Toast.LENGTH_SHORT).show()
+            etContactNumber.error = "Contact Number is required"
+            etContactNumber.requestFocus()
             return
         }
 
-        // Create update request with backend field names
+        // Create update request with ALL fields
         val request = UpdateMrfcRequest(
             name = name,
             municipality = municipality,
-            province = currentMRFC?.province,
-            region = currentMRFC?.region,
+            province = province.ifEmpty { null },
+            region = region.ifEmpty { null },
             contactPerson = contactPerson,
             contactNumber = contactNumber,
-            email = currentMRFC?.email,
-            address = currentMRFC?.address
+            email = email.ifEmpty { null },
+            address = address.ifEmpty { null }
         )
 
         // Call ViewModel to update MRFC
@@ -211,11 +240,15 @@ class MRFCDetailActivity : AppCompatActivity() {
         btnSave.isEnabled = !isLoading
         btnViewProponents.isEnabled = !isLoading
 
-        // Disable input fields while loading
+        // Disable input fields while loading (except MRFC Code which is always disabled)
         etMRFCName.isEnabled = !isLoading
         etMunicipality.isEnabled = !isLoading
+        etProvince.isEnabled = !isLoading
+        etRegion.isEnabled = !isLoading
+        etAddress.isEnabled = !isLoading
         etContactPerson.isEnabled = !isLoading
         etContactNumber.isEnabled = !isLoading
+        etEmail.isEnabled = !isLoading
     }
 
     private fun showError(message: String) {

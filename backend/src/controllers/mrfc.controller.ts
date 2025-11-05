@@ -26,12 +26,35 @@ export const listMrfcs = async (req: Request, res: Response): Promise<void> => {
       is_active = ''
     } = req.query;
 
+    const currentUser = (req as any).user;
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
     const offset = (pageNum - 1) * limitNum;
 
     // Build where clause
     const where: any = {};
+
+    // USER ROLE FILTERING: Only show MRFCs user has access to
+    if (currentUser?.role === 'USER') {
+      const userMrfcIds = currentUser.mrfcAccess || [];
+      if (userMrfcIds.length === 0) {
+        // User has no MRFC access - return empty result
+        res.json({
+          success: true,
+          data: {
+            mrfcs: [],
+            pagination: {
+              current_page: pageNum,
+              total_pages: 0,
+              total_items: 0,
+              items_per_page: limitNum
+            }
+          }
+        });
+        return;
+      }
+      where.id = { [Op.in]: userMrfcIds };
+    }
 
     if (search) {
       where[Op.or] = [

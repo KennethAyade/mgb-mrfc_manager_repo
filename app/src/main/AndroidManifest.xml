@@ -178,6 +178,27 @@
             android:exported="false"
             android:theme="@style/Theme.MRFCManager" />
 
+        <!-- Service Report Activities -->
+        <activity
+            android:name=".ui.user.MTFDisbursementActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.ServicesMenuActivity" />
+
+        <activity
+            android:name=".ui.user.AEPEPReportActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.ServicesMenuActivity" />
+
+        <activity
+            android:name=".ui.user.CMVRReportActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.ServicesMenuActivity" />
+
+        <activity
+            android:name=".ui.user.ResearchAccomplishmentsActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.ServicesMenuActivity" />
+
         <!-- Original MainActivity (kept for reference, can be removed) -->
         <activity
             android:name=".MainActivity"

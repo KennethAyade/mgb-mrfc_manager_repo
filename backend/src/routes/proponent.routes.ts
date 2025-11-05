@@ -79,81 +79,13 @@ const router = Router();
  * - 500: Database error
  */
 router.get('/', authenticate, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT PROPONENT LISTING LOGIC
-    // Step 1: Parse query parameters
-    // const { page = 1, limit = 20, search, is_active, sort_by = 'company_name', sort_order = 'ASC' } = req.query;
-
-    // Step 2: Validate parameters
-    // const pageNum = Math.max(1, parseInt(page as string));
-    // const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
-    // const offset = (pageNum - 1) * limitNum;
-
-    // Step 3: Build filter conditions
-    // const where: any = {};
-    // if (is_active !== undefined) where.is_active = is_active === 'true';
-    // if (search) {
-    //   where[Op.or] = [
-    //     { company_name: { [Op.like]: `%${search}%` } },
-    //     { contact_person: { [Op.like]: `%${search}%` } },
-    //     { contact_email: { [Op.like]: `%${search}%` } }
-    //   ];
-    // }
-
-    // Step 4: Query proponents with MRFC count
-    // const { count, rows: proponents } = await Proponent.findAndCountAll({
-    //   where,
-    //   attributes: {
-    //     include: [
-    //       [sequelize.fn('COUNT', sequelize.col('mrfcs.id')), 'mrfc_count']
-    //     ]
-    //   },
-    //   include: [{
-    //     model: MRFC,
-    //     as: 'mrfcs',
-    //     attributes: [],
-    //     required: false
-    //   }],
-    //   group: ['Proponent.id'],
-    //   limit: limitNum,
-    //   offset,
-    //   order: [[sort_by as string, sort_order as string]],
-    //   subQuery: false
-    // });
-
-    // Step 5: Return paginated results
-    // return res.json({
-    //   success: true,
-    //   data: {
-    //     proponents,
-    //     pagination: {
-    //       page: pageNum,
-    //       limit: limitNum,
-    //       total: count,
-    //       totalPages: Math.ceil(count / limitNum),
-    //       hasNext: pageNum * limitNum < count,
-    //       hasPrev: pageNum > 1
-    //     }
-    //   }
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Proponent listing endpoint not yet implemented. See comments in proponent.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Proponent listing error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'PROPONENT_LISTING_FAILED',
-        message: error.message || 'Failed to retrieve proponents'
-      }
-    });
-  }
+  res.status(501).json({
+    success: false,
+    error: {
+      code: 'NOT_IMPLEMENTED',
+      message: 'Proponent listing endpoint not yet implemented.'
+    }
+  });
 });
 
 /**
@@ -214,66 +146,13 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
  * - New proponents are active by default
  */
 router.post('/', authenticate, adminOnly, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT PROPONENT CREATION LOGIC
-    // Step 1: Check if company name exists
-    // const existing = await Proponent.findOne({ where: { company_name: req.body.company_name } });
-    // if (existing) {
-    //   return res.status(409).json({
-    //     success: false,
-    //     error: { code: 'COMPANY_EXISTS', message: 'Company name already exists' }
-    //   });
-    // }
-
-    // Step 2: Check if email exists
-    // const existingEmail = await Proponent.findOne({ where: { contact_email: req.body.contact_email } });
-    // if (existingEmail) {
-    //   return res.status(409).json({
-    //     success: false,
-    //     error: { code: 'EMAIL_EXISTS', message: 'Contact email already registered' }
-    //   });
-    // }
-
-    // Step 3: Create proponent
-    // const proponent = await Proponent.create({
-    //   ...req.body,
-    //   is_active: req.body.is_active !== false,
-    //   created_by: req.user?.userId
-    // });
-
-    // Step 4: Create audit log
-    // await AuditLog.create({
-    //   user_id: req.user?.userId,
-    //   action: 'CREATE_PROPONENT',
-    //   entity_type: 'PROPONENT',
-    //   entity_id: proponent.id,
-    //   details: { company_name: proponent.company_name }
-    // });
-
-    // Step 5: Return created proponent
-    // return res.status(201).json({
-    //   success: true,
-    //   message: 'Proponent created successfully',
-    //   data: proponent
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Proponent creation endpoint not yet implemented. See comments in proponent.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Proponent creation error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'PROPONENT_CREATION_FAILED',
-        message: error.message || 'Failed to create proponent'
-      }
-    });
-  }
+  res.status(501).json({
+    success: false,
+    error: {
+      code: 'NOT_IMPLEMENTED',
+      message: 'Proponent creation endpoint not yet implemented.'
+    }
+  });
 });
 
 /**
@@ -337,65 +216,13 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
  * - 500: Database error
  */
 router.get('/:id', authenticate, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT GET PROPONENT BY ID LOGIC
-    // Step 1: Parse and validate ID
-    // const proponentId = parseInt(req.params.id);
-    // if (isNaN(proponentId)) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     error: { code: 'INVALID_ID', message: 'Invalid proponent ID' }
-    //   });
-    // }
-
-    // Step 2: Find proponent with MRFCs
-    // const proponent = await Proponent.findByPk(proponentId, {
-    //   include: [{
-    //     model: MRFC,
-    //     as: 'mrfcs',
-    //     attributes: ['id', 'mrfc_number', 'project_title', 'status', 'date_received']
-    //   }]
-    // });
-
-    // Step 3: Check if exists
-    // if (!proponent) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'PROPONENT_NOT_FOUND', message: 'Proponent not found' }
-    //   });
-    // }
-
-    // Step 4: Calculate statistics
-    // const statistics = {
-    //   total_mrfcs: proponent.mrfcs.length,
-    //   pending_mrfcs: proponent.mrfcs.filter(m => m.status === 'PENDING').length,
-    //   approved_mrfcs: proponent.mrfcs.filter(m => m.status === 'APPROVED').length,
-    //   rejected_mrfcs: proponent.mrfcs.filter(m => m.status === 'REJECTED').length
-    // };
-
-    // Step 5: Return proponent data
-    // return res.json({
-    //   success: true,
-    //   data: { ...proponent.toJSON(), statistics }
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Get proponent by ID endpoint not yet implemented. See comments in proponent.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Get proponent error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'GET_PROPONENT_FAILED',
-        message: error.message || 'Failed to retrieve proponent'
-      }
-    });
-  }
+  res.status(501).json({
+    success: false,
+    error: {
+      code: 'NOT_IMPLEMENTED',
+      message: 'Get proponent by ID endpoint not yet implemented.'
+    }
+  });
 });
 
 /**
@@ -454,27 +281,13 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
  * - Cannot deactivate proponent with active MRFCs (optional check)
  */
 router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT PROPONENT UPDATE LOGIC
-    // See comments above for implementation steps
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Proponent update endpoint not yet implemented. See comments in proponent.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Proponent update error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'PROPONENT_UPDATE_FAILED',
-        message: error.message || 'Failed to update proponent'
-      }
-    });
-  }
+  res.status(501).json({
+    success: false,
+    error: {
+      code: 'NOT_IMPLEMENTED',
+      message: 'Proponent update endpoint not yet implemented.'
+    }
+  });
 });
 
 /**
@@ -517,67 +330,13 @@ router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) 
  * - Audit log must record deletion with details
  */
 router.delete('/:id', authenticate, adminOnly, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT PROPONENT DELETION LOGIC
-    // Step 1: Find proponent
-    // const proponent = await Proponent.findByPk(req.params.id);
-    // if (!proponent) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'PROPONENT_NOT_FOUND', message: 'Proponent not found' }
-    //   });
-    // }
-
-    // Step 2: Check for associated MRFCs
-    // const mrfcCount = await MRFC.count({ where: { proponent_id: proponent.id } });
-    // if (mrfcCount > 0) {
-    //   return res.status(409).json({
-    //     success: false,
-    //     error: {
-    //       code: 'HAS_ASSOCIATED_MRFCS',
-    //       message: `Cannot delete proponent with ${mrfcCount} associated MRFCs`
-    //     }
-    //   });
-    // }
-
-    // Step 3: Soft delete
-    // await proponent.update({
-    //   is_active: false,
-    //   deleted_at: new Date()
-    // });
-
-    // Step 4: Create audit log
-    // await AuditLog.create({
-    //   user_id: req.user?.userId,
-    //   action: 'DELETE_PROPONENT',
-    //   entity_type: 'PROPONENT',
-    //   entity_id: proponent.id,
-    //   details: { company_name: proponent.company_name }
-    // });
-
-    // Step 5: Return success
-    // return res.json({
-    //   success: true,
-    //   message: 'Proponent deleted successfully'
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Proponent deletion endpoint not yet implemented. See comments in proponent.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Proponent deletion error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'PROPONENT_DELETION_FAILED',
-        message: error.message || 'Failed to delete proponent'
-      }
-    });
-  }
+  res.status(501).json({
+    success: false,
+    error: {
+      code: 'NOT_IMPLEMENTED',
+      message: 'Proponent deletion endpoint not yet implemented.'
+    }
+  });
 });
 
 export default router;

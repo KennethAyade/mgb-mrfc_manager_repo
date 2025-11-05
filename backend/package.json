@@ -11,7 +11,9 @@
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "db:migrate": "node scripts/migrate.js",
-    "db:seed": "node scripts/seed.js"
+    "db:seed": "node scripts/seed.js",
+    "db:reset": "ts-node scripts/reset-database.ts",
+    "db:check-password": "ts-node scripts/check-password.ts"
   },
   "keywords": [
     "mrfc",

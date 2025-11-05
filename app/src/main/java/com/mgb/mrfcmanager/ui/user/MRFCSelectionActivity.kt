@@ -5,55 +5,134 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.model.MRFC
-import com.mgb.mrfcmanager.utils.DemoData
+import com.mgb.mrfcmanager.data.remote.RetrofitClient
+import com.mgb.mrfcmanager.data.remote.api.MrfcApiService
+import com.mgb.mrfcmanager.data.remote.dto.MrfcDto
+import com.mgb.mrfcmanager.data.repository.MrfcRepository
+import com.mgb.mrfcmanager.viewmodel.MrfcListState
+import com.mgb.mrfcmanager.viewmodel.MrfcViewModel
+import com.mgb.mrfcmanager.viewmodel.MrfcViewModelFactory
 
 class MRFCSelectionActivity : AppCompatActivity() {
 
     private lateinit var rvMRFCList: RecyclerView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var tvEmptyState: TextView
     private lateinit var mrfcAdapter: MRFCUserAdapter
+    private lateinit var viewModel: MrfcViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_mrfc_selection)
 
+        initializeViews()
         setupToolbar()
+        setupViewModel()
         setupRecyclerView()
+        observeViewModel()
         loadMRFCs()
+    }
+
+    private fun initializeViews() {
+        rvMRFCList = findViewById(R.id.rvMRFCList)
+        progressBar = findViewById(R.id.progressBar)
+        tvEmptyState = findViewById(R.id.tvEmptyState)
     }
 
     private fun setupToolbar() {
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.apply {
+            setDisplayHomeAsUpEnabled(true)
+            title = "Select MRFC"
+        }
         toolbar.setNavigationOnClickListener { onBackPressed() }
     }
 
-    private fun setupRecyclerView() {
-        rvMRFCList = findViewById(R.id.rvMRFCList)
-        rvMRFCList.layoutManager = LinearLayoutManager(this)
+    private fun setupViewModel() {
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+        val mrfcApiService = retrofit.create(MrfcApiService::class.java)
+        val mrfcRepository = MrfcRepository(mrfcApiService)
+        val factory = MrfcViewModelFactory(mrfcRepository)
+        viewModel = ViewModelProvider(this, factory)[MrfcViewModel::class.java]
+    }
 
+    private fun setupRecyclerView() {
+        rvMRFCList.layoutManager = LinearLayoutManager(this)
         mrfcAdapter = MRFCUserAdapter(emptyList()) { mrfc ->
             onMRFCSelected(mrfc)
         }
         rvMRFCList.adapter = mrfcAdapter
     }
 
+    private fun observeViewModel() {
+        viewModel.mrfcListState.observe(this) { state ->
+            when (state) {
+                is MrfcListState.Loading -> showLoading(true)
+                is MrfcListState.Success -> {
+                    showLoading(false)
+                    displayMRFCs(state.data)
+                }
+                is MrfcListState.Error -> {
+                    showLoading(false)
+                    showError(state.message)
+                }
+                is MrfcListState.Idle -> showLoading(false)
+            }
+        }
+    }
+
     private fun loadMRFCs() {
-        // TODO: BACKEND - Fetch only MRFCs assigned to the current user
-        val userMRFCs = DemoData.mrfcList.take(3) // Simulate user having access to first 3 MRFCs
-        mrfcAdapter.updateData(userMRFCs)
+        // Backend automatically filters by user's mrfcAccess array
+        viewModel.loadAllMrfcs(activeOnly = true)
+    }
+
+    private fun displayMRFCs(mrfcs: List<MrfcDto>) {
+        if (mrfcs.isEmpty()) {
+            rvMRFCList.visibility = View.GONE
+            tvEmptyState.visibility = View.VISIBLE
+            tvEmptyState.text = "No MRFCs assigned to you.\nPlease contact your administrator."
+        } else {
+            rvMRFCList.visibility = View.VISIBLE
+            tvEmptyState.visibility = View.GONE
+                // Convert MrfcDto to MRFC model for adapter
+                val mrfcList = mrfcs.map { dto ->
+                    MRFC(
+                        id = dto.id,
+                        name = dto.name,
+                        municipality = dto.municipality,
+                        contactPerson = dto.chairpersonName ?: "",
+                        contactNumber = dto.contactNumber ?: ""
+                    )
+                }
+            mrfcAdapter.updateData(mrfcList)
+        }
+    }
+
+    private fun showLoading(isLoading: Boolean) {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        rvMRFCList.visibility = if (isLoading) View.GONE else View.VISIBLE
+    }
+
+    private fun showError(message: String) {
+        Toast.makeText(this, "Error: $message", Toast.LENGTH_LONG).show()
+        tvEmptyState.visibility = View.VISIBLE
+        tvEmptyState.text = "Failed to load MRFCs.\n$message"
     }
 
     private fun onMRFCSelected(mrfc: MRFC) {
-        // Navigate to proponent view or MRFC details
         val intent = Intent(this, ProponentViewActivity::class.java)
         intent.putExtra("MRFC_ID", mrfc.id)
         intent.putExtra("MRFC_NAME", mrfc.name)

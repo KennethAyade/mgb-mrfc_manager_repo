@@ -87,66 +87,13 @@ const router = Router();
  * - Sorting by year and quarter_number by default
  */
 router.get('/', authenticate, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT QUARTER LISTING LOGIC
-    // Step 1: Parse query parameters
-    // const { year, is_active, sort_order = 'DESC' } = req.query;
-
-    // Step 2: Build filter conditions
-    // const where: any = {};
-    // if (year) where.year = parseInt(year as string);
-    // if (is_active !== undefined) where.is_active = is_active === 'true';
-
-    // Step 3: Query quarters with agenda count
-    // const quarters = await Quarter.findAll({
-    //   where,
-    //   attributes: {
-    //     include: [
-    //       [sequelize.fn('COUNT', sequelize.col('agendas.id')), 'agenda_count']
-    //     ]
-    //   },
-    //   include: [{
-    //     model: Agenda,
-    //     as: 'agendas',
-    //     attributes: [],
-    //     required: false
-    //   }],
-    //   group: ['Quarter.id'],
-    //   order: [['year', sort_order], ['quarter_number', sort_order]]
-    // });
-
-    // Step 4: Add dynamic status
-    // const today = new Date();
-    // const enrichedQuarters = quarters.map(q => {
-    //   let status = 'COMPLETED';
-    //   if (new Date(q.meeting_date) > today) status = 'UPCOMING';
-    //   else if (new Date(q.start_date) <= today && today <= new Date(q.end_date)) status = 'IN_PROGRESS';
-    //   return { ...q.toJSON(), status };
-    // });
-
-    // Step 5: Return quarters
-    // return res.json({
-    //   success: true,
-    //   data: { quarters: enrichedQuarters }
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Quarter listing endpoint not yet implemented. See comments in quarter.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Quarter listing error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'QUARTER_LISTING_FAILED',
-        message: error.message || 'Failed to retrieve quarters'
-      }
-    });
-  }
+  res.status(501).json({
+    success: false,
+    error: {
+      code: 'NOT_IMPLEMENTED',
+      message: 'Quarter listing endpoint not yet implemented.'
+    }
+  });
 });
 
 /**
@@ -216,90 +163,13 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
  * - Only one active quarter per quarter_number-year combination
  */
 router.post('/', authenticate, adminOnly, async (req: Request, res: Response) => {
-  try {
-    // TODO: IMPLEMENT QUARTER CREATION LOGIC
-    // Step 1: Validate quarter_number
-    // if (req.body.quarter_number < 1 || req.body.quarter_number > 4) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     error: {
-    //       code: 'INVALID_QUARTER_NUMBER',
-    //       message: 'Quarter number must be between 1 and 4'
-    //     }
-    //   });
-    // }
-
-    // Step 2: Check if quarter exists
-    // const existing = await Quarter.findOne({
-    //   where: {
-    //     quarter_number: req.body.quarter_number,
-    //     year: req.body.year
-    //   }
-    // });
-    // if (existing) {
-    //   return res.status(409).json({
-    //     success: false,
-    //     error: {
-    //       code: 'QUARTER_EXISTS',
-    //       message: `Quarter ${req.body.quarter_number} for year ${req.body.year} already exists`
-    //     }
-    //   });
-    // }
-
-    // Step 3: Validate date range
-    // const startDate = new Date(req.body.start_date);
-    // const endDate = new Date(req.body.end_date);
-    // const meetingDate = new Date(req.body.meeting_date);
-    // if (startDate >= endDate) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     error: {
-    //       code: 'INVALID_DATE_RANGE',
-    //       message: 'Start date must be before end date'
-    //     }
-    //   });
-    // }
-
-    // Step 4: Create quarter
-    // const quarter = await Quarter.create({
-    //   ...req.body,
-    //   is_active: req.body.is_active !== false,
-    //   created_by: req.user?.userId
-    // });
-
-    // Step 5: Create audit log
-    // await AuditLog.create({
-    //   user_id: req.user?.userId,
-    //   action: 'CREATE_QUARTER',
-    //   entity_type: 'QUARTER',
-    //   entity_id: quarter.id,
-    //   details: { quarter_number: quarter.quarter_number, year: quarter.year }
-    // });
-
-    // Step 6: Return created quarter
-    // return res.status(201).json({
-    //   success: true,
-    //   message: 'Quarter created successfully',
-    //   data: quarter
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Quarter creation endpoint not yet implemented. See comments in quarter.routes.ts for implementation details.'
-      }
-    });
-  } catch (error: any) {
-    console.error('Quarter creation error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'QUARTER_CREATION_FAILED',
-        message: error.message || 'Failed to create quarter'
-      }
-    });
-  }
+  res.status(501).json({
+    success: false,
+    error: {
+      code: 'NOT_IMPLEMENTED',
+      message: 'Quarter creation endpoint not yet implemented.'
+    }
+  });
 });
 
 export default router;

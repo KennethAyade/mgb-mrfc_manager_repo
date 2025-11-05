@@ -8,7 +8,7 @@ import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -29,12 +29,11 @@ import com.mgb.mrfcmanager.viewmodel.MrfcViewModelFactory
  * MRFC List Activity - Displays list of all MRFCs
  * Integrated with backend API
  */
-class MRFCListActivity : AppCompatActivity() {
+class MRFCListActivity : BaseActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var progressBar: ProgressBar
-    private lateinit var tvError: TextView
-    private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var tvEmptyState: TextView
     private lateinit var adapter: MRFCAdapter
     private lateinit var viewModel: MrfcViewModel
 
@@ -64,6 +63,7 @@ class MRFCListActivity : AppCompatActivity() {
     private fun initViews() {
         recyclerView = findViewById(R.id.rvMRFCList)
         progressBar = findViewById(R.id.progressBar)
+        tvEmptyState = findViewById(R.id.tvEmptyState)
     }
 
     private fun setupViewModel() {
@@ -99,20 +99,24 @@ class MRFCListActivity : AppCompatActivity() {
                 }
                 is MrfcListState.Loading -> {
                     showLoading(true)
-                    hideError()
+                    hideEmptyState()
                 }
                 is MrfcListState.Success -> {
                     showLoading(false)
-                    hideError()
                     adapter.updateData(state.data)
 
+                    // Show empty state if no data
                     if (state.data.isEmpty()) {
-                        showError("No MRFCs found")
+                        showEmptyState()
+                    } else {
+                        hideEmptyState()
                     }
                 }
                 is MrfcListState.Error -> {
                     showLoading(false)
-                    showError(state.message)
+                    hideEmptyState()
+                    // Only show error dialog for actual errors, not empty lists
+                    showError(state.message, "Error Loading MRFCs")
                 }
             }
         }
@@ -141,25 +145,26 @@ class MRFCListActivity : AppCompatActivity() {
         if (requestCode == CreateMRFCActivity.REQUEST_CODE_CREATE_MRFC && resultCode == RESULT_OK) {
             // Refresh the list after creating a new MRFC
             viewModel.loadAllMrfcs()
-            Toast.makeText(this, "MRFC created successfully", Toast.LENGTH_SHORT).show()
+            showSuccess("MRFC created successfully")
         }
     }
 
     private fun showLoading(isLoading: Boolean) {
         progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         recyclerView.visibility = if (isLoading) View.GONE else View.VISIBLE
+        if (isLoading) {
+            tvEmptyState.visibility = View.GONE
+        }
     }
 
-    private fun showError(message: String) {
-        // TODO: Add tvError to layout XML
-        // tvError.visibility = View.VISIBLE
-        // tvError.text = message
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    private fun showEmptyState() {
+        tvEmptyState.visibility = View.VISIBLE
+        recyclerView.visibility = View.GONE
     }
 
-    private fun hideError() {
-        // TODO: Add tvError to layout XML
-        // tvError.visibility = View.GONE
+    private fun hideEmptyState() {
+        tvEmptyState.visibility = View.GONE
+        recyclerView.visibility = View.VISIBLE
     }
 
     private fun onMRFCClicked(mrfc: MrfcDto) {
@@ -188,7 +193,7 @@ class MRFCAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_mrfc, parent, false)
-        return ViewHolder(view as MaterialButton)
+        return ViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
@@ -198,11 +203,36 @@ class MRFCAdapter(
 
     override fun getItemCount() = mrfcList.size
 
-    class ViewHolder(private val button: MaterialButton) : RecyclerView.ViewHolder(button) {
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvMrfcCode: TextView = itemView.findViewById(R.id.tvMrfcCode)
+        private val tvMrfcName: TextView = itemView.findViewById(R.id.tvMrfcName)
+        private val tvLocation: TextView = itemView.findViewById(R.id.tvLocation)
+        private val tvContactPerson: TextView = itemView.findViewById(R.id.tvContactPerson)
+
         fun bind(mrfc: MrfcDto, onItemClick: (MrfcDto) -> Unit) {
-            // Display MRFC number and location
-            button.text = "${mrfc.mrfcNumber}\n${mrfc.location}"
-            button.setOnClickListener { onItemClick(mrfc) }
+            // Display MRFC code (e.g., "MRFC-6015")
+            tvMrfcCode.text = if (mrfc.mrfcNumber.isNullOrEmpty()) {
+                "MRFC-${mrfc.id}"
+            } else {
+                mrfc.mrfcNumber
+            }
+
+            // Display MRFC name
+            tvMrfcName.text = mrfc.name
+
+            // Display location (Municipality, Province)
+            val location = if (!mrfc.province.isNullOrEmpty()) {
+                "${mrfc.municipality}, ${mrfc.province}"
+            } else {
+                mrfc.municipality
+            }
+            tvLocation.text = location
+
+            // Display contact person
+            tvContactPerson.text = mrfc.contactPerson ?: "No contact person"
+
+            // Set click listener
+            itemView.setOnClickListener { onItemClick(mrfc) }
         }
     }
 }
