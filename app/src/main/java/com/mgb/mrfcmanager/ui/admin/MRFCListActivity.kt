@@ -205,9 +205,13 @@ class MRFCAdapter(
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvMrfcCode: TextView = itemView.findViewById(R.id.tvMrfcCode)
+        private val tvStatusBadge: TextView = itemView.findViewById(R.id.tvStatusBadge)
         private val tvMrfcName: TextView = itemView.findViewById(R.id.tvMrfcName)
-        private val tvLocation: TextView = itemView.findViewById(R.id.tvLocation)
+        private val tvMunicipality: TextView = itemView.findViewById(R.id.tvMunicipality)
+        private val tvProvince: TextView = itemView.findViewById(R.id.tvProvince)
+        private val tvRegion: TextView = itemView.findViewById(R.id.tvRegion)
         private val tvContactPerson: TextView = itemView.findViewById(R.id.tvContactPerson)
+        private val tvContactEmail: TextView = itemView.findViewById(R.id.tvContactEmail)
 
         fun bind(mrfc: MrfcDto, onItemClick: (MrfcDto) -> Unit) {
             // Display MRFC code (e.g., "MRFC-6015")
@@ -217,19 +221,39 @@ class MRFCAdapter(
                 mrfc.mrfcNumber
             }
 
+            // Display status badge
+            val statusText = if (mrfc.isActive) "Active" else "Inactive"
+            tvStatusBadge.text = statusText
+            tvStatusBadge.setTextColor(
+                if (mrfc.isActive) {
+                    itemView.context.getColor(android.R.color.holo_green_dark)
+                } else {
+                    itemView.context.getColor(android.R.color.darker_gray)
+                }
+            )
+
             // Display MRFC name
             tvMrfcName.text = mrfc.name
 
-            // Display location (Municipality, Province)
-            val location = if (!mrfc.province.isNullOrEmpty()) {
-                "${mrfc.municipality}, ${mrfc.province}"
-            } else {
-                mrfc.municipality
-            }
-            tvLocation.text = location
+            // Display Municipality (non-nullable, but can be empty)
+            tvMunicipality.text = mrfc.municipality.ifEmpty { "Not specified" }
 
-            // Display contact person
-            tvContactPerson.text = mrfc.contactPerson ?: "No contact person"
+            // Display Province (nullable)
+            tvProvince.text = mrfc.province?.ifEmpty { "Not specified" } ?: "Not specified"
+
+            // Display Region (nullable)
+            tvRegion.text = mrfc.region?.ifEmpty { "Not specified" } ?: "Not specified"
+
+            // Display contact person (nullable)
+            tvContactPerson.text = mrfc.contactPerson?.ifEmpty { "Not specified" } ?: "Not specified"
+
+            // Display contact email (nullable, field is called 'email')
+            if (mrfc.email.isNullOrEmpty()) {
+                tvContactEmail.visibility = View.GONE
+            } else {
+                tvContactEmail.visibility = View.VISIBLE
+                tvContactEmail.text = mrfc.email
+            }
 
             // Set click listener
             itemView.setOnClickListener { onItemClick(mrfc) }

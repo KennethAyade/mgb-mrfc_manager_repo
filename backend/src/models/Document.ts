@@ -2,7 +2,7 @@
  * DOCUMENT MODEL
  * ==============
  * Represents compliance documents uploaded by proponents
- * Categories: MTF_REPORT, AEPEP, CMVR, SDMP, PRODUCTION, SAFETY, OTHER
+ * Categories: MTF_REPORT, AEPEP, NTE_DISBURSEMENT, OMVR, CMVR, RESEARCH_ACCOMPLISHMENTS, SDMP, PRODUCTION, SAFETY, OTHER
  * Status: PENDING (awaiting review), ACCEPTED (approved), REJECTED (not accepted)
  */
 
@@ -13,7 +13,10 @@ import sequelize from '../config/database';
 export enum DocumentCategory {
   MTF_REPORT = 'MTF_REPORT',
   AEPEP = 'AEPEP',
+  NTE_DISBURSEMENT = 'NTE_DISBURSEMENT',
+  OMVR = 'OMVR',
   CMVR = 'CMVR',
+  RESEARCH_ACCOMPLISHMENTS = 'RESEARCH_ACCOMPLISHMENTS',
   SDMP = 'SDMP',
   PRODUCTION = 'PRODUCTION',
   SAFETY = 'SAFETY',

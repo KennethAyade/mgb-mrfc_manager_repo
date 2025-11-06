@@ -71,6 +71,17 @@
             android:parentActivityName=".ui.admin.ProponentListActivity" />
 
         <activity
+            android:name=".ui.admin.DocumentListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.ProponentDetailActivity" />
+
+        <activity
+            android:name=".ui.admin.ProponentFormActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.ProponentListActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".ui.admin.FileUploadActivity"
             android:exported="false"
             android:parentActivityName=".ui.admin.AdminDashboardActivity" />

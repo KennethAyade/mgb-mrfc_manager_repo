@@ -2,92 +2,122 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardDocument"
+    style="@style/ModernCard"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="12dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
+    android:layout_margin="8dp"
     android:clickable="true"
     android:focusable="true"
-    app:cardBackgroundColor="@color/surface">
+    android:foreground="?attr/selectableItemBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="center_vertical">
+        android:padding="16dp">
 
-        <!-- File Type Icon -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardFileType"
+        <!-- File Icon -->
+        <ImageView
+            android:id="@+id/ivFileIcon"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="0dp"
-            app:cardBackgroundColor="@color/background">
+            android:src="@drawable/ic_file"
+            app:tint="@color/primary"
+            android:contentDescription="File Icon" />
 
-            <ImageView
-                android:id="@+id/ivFileIcon"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_file"
-                app:tint="@color/primary"
-                android:contentDescription="File icon" />
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Document Info -->
+        <!-- File Info -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginStart="12dp">
+            android:layout_marginStart="16dp"
+            android:orientation="vertical">
 
+            <!-- File Name -->
             <TextView
                 android:id="@+id/tvFileName"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="MTF_Report_Q2_2025.pdf"
-                android:textSize="14sp"
+                android:text="Document.pdf"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
-                android:maxLines="1"
+                android:maxLines="2"
                 android:ellipsize="end" />
 
+            <!-- Category -->
             <TextView
-                android:id="@+id/tvCategory"
+                android:id="@+id/tvFileCategory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="MTF Disbursement"
-                android:textSize="12sp"
+                android:text="📄 NTE Disbursement"
+                android:textSize="13sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp" />
 
+            <!-- Date and Size -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:id="@+id/tvFileDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nov 06, 2025"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" • "
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary" />
+
+                <TextView
+                    android:id="@+id/tvFileSize"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="2.5 MB"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary" />
+
+            </LinearLayout>
+
+            <!-- Status Badge -->
             <TextView
-                android:id="@+id/tvFileDate"
+                android:id="@+id/tvStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Uploaded on 2025-06-15"
-                android:textSize="11sp"
-                android:textColor="@color/text_hint"
-                android:layout_marginTop="4dp" />
+                android:text="✓ Accepted"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#4CAF50"
+                android:layout_marginTop="8dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:background="@drawable/badge_background" />
 
         </LinearLayout>
 
-        <!-- Download Icon -->
-        <ImageView
-            android:id="@+id/ivDownload"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_download"
-            app:tint="@color/primary"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Download" />
+        <!-- Download/View Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDownload"
+            style="@style/Widget.Material3.Button.Icon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center_vertical"
+            android:contentDescription="View Document"
+            app:icon="@drawable/ic_download"
+            app:iconTint="@color/primary"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp" />
 
     </LinearLayout>
 

@@ -44,6 +44,15 @@ class LoginActivity : AppCompatActivity() {
         setupViewModel()
         observeLoginState()
 
+        // Check if redirected due to session expiration
+        if (intent.getBooleanExtra("SESSION_EXPIRED", false)) {
+            ErrorHandler.showWarning(
+                context = this,
+                message = "Your session has expired. Please login again to continue.",
+                title = "Session Expired"
+            )
+        }
+
         btnLogin.setOnClickListener {
             handleLogin()
         }

@@ -1,40 +1,63 @@
 package com.mgb.mrfcmanager.ui.admin
 
+import android.content.Intent
 import android.os.Bundle
-import android.widget.RadioGroup
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.radiobutton.MaterialRadioButton
-import com.google.android.material.textfield.TextInputEditText
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import com.google.android.material.card.MaterialCardView
+import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
-import com.mgb.mrfcmanager.data.model.Proponent
-import com.mgb.mrfcmanager.utils.DemoData
+import com.mgb.mrfcmanager.data.remote.RetrofitClient
+import com.mgb.mrfcmanager.data.remote.api.ProponentApiService
+import com.mgb.mrfcmanager.data.remote.dto.ProponentDto
+import com.mgb.mrfcmanager.data.repository.ProponentRepository
+import com.mgb.mrfcmanager.data.repository.Result
+import com.mgb.mrfcmanager.viewmodel.ProponentDetailState
+import com.mgb.mrfcmanager.viewmodel.ProponentViewModel
+import com.mgb.mrfcmanager.viewmodel.ProponentViewModelFactory
+import kotlinx.coroutines.launch
 
 class ProponentDetailActivity : AppCompatActivity() {
 
-    private lateinit var etProponentName: TextInputEditText
-    private lateinit var etCompanyName: TextInputEditText
-    private lateinit var etNotes: TextInputEditText
-    private lateinit var rgStatus: RadioGroup
-    private lateinit var rbActive: MaterialRadioButton
-    private lateinit var rbInactive: MaterialRadioButton
-    private lateinit var btnSave: MaterialButton
-    private lateinit var btnDelete: MaterialButton
+    private lateinit var tvProponentName: TextView
+    private lateinit var tvCompanyName: TextView
+    private lateinit var tvStatus: TextView
+    private lateinit var cardStatus: MaterialCardView
+    private lateinit var tvPermitNumber: TextView
+    private lateinit var tvPermitType: TextView
+    private lateinit var tvContactPerson: TextView
+    private lateinit var tvContactNumber: TextView
+    private lateinit var tvEmail: TextView
+    private lateinit var tvAddress: TextView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var viewModel: ProponentViewModel
+    private lateinit var repository: ProponentRepository
 
     private var proponentId: Long = -1
     private var mrfcId: Long = -1
-    private var currentProponent: Proponent? = null
+    private var currentProponent: ProponentDto? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_proponent_detail)
 
+        proponentId = intent.getLongExtra("PROPONENT_ID", -1)
+        mrfcId = intent.getLongExtra("MRFC_ID", -1)
+
         setupToolbar()
         initializeViews()
+        setupViewModel()
+        observeProponent()
+        setupQuarterlyServices()
         loadProponentData()
-        setupListeners()
     }
 
     private fun setupToolbar() {
@@ -46,74 +69,192 @@ class ProponentDetailActivity : AppCompatActivity() {
     }
 
     private fun initializeViews() {
-        etProponentName = findViewById(R.id.etProponentName)
-        etCompanyName = findViewById(R.id.etCompanyName)
-        etNotes = findViewById(R.id.etNotes)
-        rgStatus = findViewById(R.id.rgStatus)
-        rbActive = findViewById(R.id.rbActive)
-        rbInactive = findViewById(R.id.rbInactive)
-        btnSave = findViewById(R.id.btnSave)
-        btnDelete = findViewById(R.id.btnDelete)
+        tvProponentName = findViewById(R.id.tvProponentName)
+        tvCompanyName = findViewById(R.id.tvCompanyName)
+        tvStatus = findViewById(R.id.tvStatus)
+        cardStatus = findViewById(R.id.cardStatus)
+        tvPermitNumber = findViewById(R.id.tvPermitNumber)
+        tvPermitType = findViewById(R.id.tvPermitType)
+        tvContactPerson = findViewById(R.id.tvContactPerson)
+        tvContactNumber = findViewById(R.id.tvContactNumber)
+        tvEmail = findViewById(R.id.tvEmail)
+        tvAddress = findViewById(R.id.tvAddress)
+        progressBar = findViewById(R.id.progressBar)
+    }
+
+    private fun setupViewModel() {
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+        val proponentApiService = retrofit.create(ProponentApiService::class.java)
+        repository = ProponentRepository(proponentApiService)
+        val factory = ProponentViewModelFactory(repository)
+        viewModel = ViewModelProvider(this, factory)[ProponentViewModel::class.java]
+    }
+
+    private fun observeProponent() {
+        viewModel.proponentDetailState.observe(this) { state ->
+            when (state) {
+                is ProponentDetailState.Loading -> showLoading(true)
+                is ProponentDetailState.Success -> {
+                    showLoading(false)
+                    currentProponent = state.data
+                    displayProponentData(state.data)
+                }
+                is ProponentDetailState.Error -> {
+                    showLoading(false)
+                    Toast.makeText(this, "Error: ${state.message}", Toast.LENGTH_LONG).show()
+                    finish()
+                }
+                is ProponentDetailState.Idle -> showLoading(false)
+            }
+        }
     }
 
     private fun loadProponentData() {
-        proponentId = intent.getLongExtra("PROPONENT_ID", -1)
-        mrfcId = intent.getLongExtra("MRFC_ID", -1)
-
         if (proponentId == -1L) {
-            Toast.makeText(this, "Error loading proponent data", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Invalid proponent ID", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
+        viewModel.loadProponentById(proponentId)
+    }
 
-        // TODO: BACKEND - Fetch from database
-        // For now: Load from demo data
-        currentProponent = DemoData.proponentList.find { it.id == proponentId }
+    private fun displayProponentData(proponent: ProponentDto) {
+        tvProponentName.text = proponent.name
+        tvCompanyName.text = proponent.companyName
+        tvStatus.text = proponent.status
 
-        currentProponent?.let { proponent ->
-            etProponentName.setText(proponent.name)
-            etCompanyName.setText(proponent.companyName)
+        // Set status color
+        val statusColor = when (proponent.status.uppercase()) {
+            "ACTIVE" -> R.color.status_success
+            "INACTIVE" -> R.color.status_error
+            "SUSPENDED" -> R.color.status_pending
+            else -> R.color.status_pending
+        }
+        cardStatus.setCardBackgroundColor(getColor(statusColor))
 
-            // Set status
-            when (proponent.status) {
-                "Active" -> rbActive.isChecked = true
-                "Inactive" -> rbInactive.isChecked = true
+        tvPermitNumber.text = proponent.permitNumber ?: "N/A"
+        tvPermitType.text = proponent.permitType ?: "N/A"
+        tvContactPerson.text = proponent.contactPerson ?: "N/A"
+        tvContactNumber.text = proponent.contactNumber ?: "N/A"
+        tvEmail.text = proponent.email ?: "N/A"
+        tvAddress.text = proponent.address ?: "N/A"
+
+        supportActionBar?.title = proponent.name
+    }
+
+    private fun setupQuarterlyServices() {
+        var selectedQuarter = 1
+
+        // Quarter selection buttons
+        val btnQuarter1 = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnQuarter1)
+        val btnQuarter2 = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnQuarter2)
+        val btnQuarter3 = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnQuarter3)
+        val btnQuarter4 = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnQuarter4)
+
+        val quarterButtons = listOf(btnQuarter1, btnQuarter2, btnQuarter3, btnQuarter4)
+
+        // Set Q1 as default selected
+        btnQuarter1.isPressed = true
+
+        // Quarter button click listeners
+        quarterButtons.forEachIndexed { index, button ->
+            button.setOnClickListener {
+                selectedQuarter = index + 1
+                Toast.makeText(this, "Selected Quarter ${selectedQuarter}", Toast.LENGTH_SHORT).show()
+                
+                // Update button states (visual feedback)
+                quarterButtons.forEach { it.isPressed = false }
+                button.isPressed = true
             }
+        }
 
-            supportActionBar?.title = proponent.name
+        // Service buttons - Open category-specific document viewers
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnFileUpload).setOnClickListener {
+            openFileUpload(selectedQuarter)
+        }
+
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewNTE).setOnClickListener {
+            openDocumentList("NTE_DISBURSEMENT", selectedQuarter)
+        }
+
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewAEPEP).setOnClickListener {
+            openDocumentList("AEPEP", selectedQuarter)
+        }
+
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewOMVR).setOnClickListener {
+            openDocumentList("OMVR", selectedQuarter)
+        }
+
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewResearch).setOnClickListener {
+            openDocumentList("RESEARCH_ACCOMPLISHMENTS", selectedQuarter)
         }
     }
 
-    private fun setupListeners() {
-        btnSave.setOnClickListener {
-            saveProponentData()
-        }
+    private fun showLoading(isLoading: Boolean) {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+    }
 
-        btnDelete.setOnClickListener {
-            showDeleteConfirmationDialog()
+    private fun openFileUpload(quarter: Int) {
+        // TODO: Convert quarter number to quarter_id (needs Quarter API)
+        val intent = Intent(this, FileUploadActivity::class.java).apply {
+            putExtra("PROPONENT_ID", proponentId)
+            putExtra("MRFC_ID", mrfcId)
+            // putExtra("QUARTER_ID", quarterId) // Will be implemented when Quarter API is ready
+        }
+        startActivity(intent)
+    }
+
+    private fun openDocumentList(category: String, quarter: Int) {
+        // TODO: Convert quarter number to quarter_id (needs Quarter API)
+        val intent = Intent(this, DocumentListActivity::class.java).apply {
+            putExtra(DocumentListActivity.EXTRA_PROPONENT_ID, proponentId)
+            // putExtra(DocumentListActivity.EXTRA_QUARTER_ID, quarterId) // Will be implemented when Quarter API is ready
+            putExtra(DocumentListActivity.EXTRA_CATEGORY, category)
+        }
+        startActivity(intent)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_proponent_detail, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_edit -> {
+                openEditForm()
+                true
+            }
+            R.id.action_delete -> {
+                showDeleteConfirmationDialog()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 
-    private fun saveProponentData() {
-        val name = etProponentName.text.toString().trim()
-        val companyName = etCompanyName.text.toString().trim()
-        val notes = etNotes.text.toString().trim()
-        val status = if (rbActive.isChecked) "Active" else "Inactive"
+    private fun openEditForm() {
+        val intent = Intent(this, ProponentFormActivity::class.java)
+        intent.putExtra("MRFC_ID", mrfcId)
+        intent.putExtra("PROPONENT_ID", proponentId)
+        startActivityForResult(intent, ProponentFormActivity.REQUEST_CODE_EDIT)
+    }
 
-        if (name.isEmpty() || companyName.isEmpty()) {
-            Toast.makeText(this, "Please fill in all required fields", Toast.LENGTH_SHORT).show()
-            return
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == RESULT_OK && requestCode == ProponentFormActivity.REQUEST_CODE_EDIT) {
+            // Reload proponent data after edit
+            viewModel.loadProponentById(proponentId)
+            setResult(RESULT_OK) // Propagate result to ProponentListActivity
         }
-
-        // TODO: BACKEND - Save to database
-        // For now: Just show success message
-        Toast.makeText(this, "Proponent details saved successfully", Toast.LENGTH_SHORT).show()
     }
 
     private fun showDeleteConfirmationDialog() {
         AlertDialog.Builder(this)
             .setTitle("Delete Proponent")
-            .setMessage("Are you sure you want to delete this proponent?")
+            .setMessage("Are you sure you want to delete '${currentProponent?.name}'? This action cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->
                 deleteProponent()
             }
@@ -122,9 +263,31 @@ class ProponentDetailActivity : AppCompatActivity() {
     }
 
     private fun deleteProponent() {
-        // TODO: BACKEND - Delete from database
-        // For now: Just show success message
-        Toast.makeText(this, "Proponent deleted successfully", Toast.LENGTH_SHORT).show()
-        finish()
+        showLoading(true)
+        lifecycleScope.launch {
+            when (val result = repository.deleteProponent(proponentId)) {
+                is Result.Success -> {
+                    showLoading(false)
+                    Toast.makeText(
+                        this@ProponentDetailActivity,
+                        "Proponent deleted successfully",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    setResult(RESULT_OK)
+                    finish()
+                }
+                is Result.Error -> {
+                    showLoading(false)
+                    Toast.makeText(
+                        this@ProponentDetailActivity,
+                        "Error: ${result.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                is Result.Loading -> {
+                    showLoading(true)
+                }
+            }
+        }
     }
 }

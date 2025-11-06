@@ -150,7 +150,23 @@ class ProponentListActivity : AppCompatActivity() {
 
     private fun setupFAB() {
         findViewById<FloatingActionButton>(R.id.fabAddProponent).setOnClickListener {
-            Toast.makeText(this, "Add Proponent - Coming Soon", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, ProponentFormActivity::class.java)
+            intent.putExtra("MRFC_ID", mrfcId)
+            startActivityForResult(intent, ProponentFormActivity.REQUEST_CODE_CREATE)
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == RESULT_OK) {
+            when (requestCode) {
+                ProponentFormActivity.REQUEST_CODE_CREATE,
+                ProponentFormActivity.REQUEST_CODE_EDIT -> {
+                    // Refresh list after create/edit
+                    viewModel.loadProponentsByMrfc(mrfcId)
+                }
+            }
         }
     }
 
@@ -160,22 +176,23 @@ class ProponentListActivity : AppCompatActivity() {
     }
 
     private fun showError(message: String) {
-        // TODO: Add tvError to layout XML
-        // tvError.visibility = View.VISIBLE
-        // tvError.text = message
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        // Show as Snackbar for better UX
+        com.google.android.material.snackbar.Snackbar.make(
+            findViewById(android.R.id.content),
+            message,
+            com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+        ).show()
     }
 
     private fun hideError() {
-        // TODO: Add tvError to layout XML
-        // tvError.visibility = View.GONE
+        // Snackbar auto-dismisses, no action needed
     }
 
     private fun onProponentClicked(proponent: ProponentDto) {
         val intent = Intent(this, ProponentDetailActivity::class.java)
         intent.putExtra("PROPONENT_ID", proponent.id)
         intent.putExtra("MRFC_ID", mrfcId)
-        startActivity(intent)
+        startActivityForResult(intent, ProponentFormActivity.REQUEST_CODE_EDIT)
     }
 }
 
@@ -215,19 +232,17 @@ class ProponentAdapter(
 
         fun bind(proponent: ProponentDto, number: Int, onItemClick: (ProponentDto) -> Unit) {
             tvProponentNumber.text = number.toString()
-            tvProponentName.text = proponent.fullName
-
-            // Use project title as "company name" for now
-            tvCompanyName.text = proponent.projectTitle
+            tvProponentName.text = proponent.name
+            tvCompanyName.text = proponent.companyName
 
             // Display status
             tvStatus.text = proponent.status
 
             // Set status color based on backend status
             val statusColor = when (proponent.status.uppercase()) {
-                "APPROVED" -> R.color.status_compliant
-                "REJECTED" -> R.color.status_non_compliant
-                "PENDING" -> R.color.status_pending
+                "ACTIVE" -> R.color.status_compliant
+                "INACTIVE" -> R.color.status_non_compliant
+                "SUSPENDED" -> R.color.status_pending
                 else -> R.color.status_pending
             }
             tvStatus.setTextColor(itemView.context.getColor(statusColor))

@@ -13,8 +13,9 @@
  * DELETE /proponents/:id     - Delete proponent (ADMIN only)
  */
 
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 import { authenticate, adminOnly } from '../middleware/auth';
+import * as proponentController from '../controllers/proponent.controller';
 
 const router = Router();
 
@@ -78,15 +79,7 @@ const router = Router();
  * - 400: Invalid query parameters
  * - 500: Database error
  */
-router.get('/', authenticate, async (req: Request, res: Response) => {
-  res.status(501).json({
-    success: false,
-    error: {
-      code: 'NOT_IMPLEMENTED',
-      message: 'Proponent listing endpoint not yet implemented.'
-    }
-  });
-});
+router.get('/', authenticate, proponentController.listProponents);
 
 /**
  * ================================================
@@ -145,15 +138,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
  * - TIN (Tax Identification Number) is optional but recommended
  * - New proponents are active by default
  */
-router.post('/', authenticate, adminOnly, async (req: Request, res: Response) => {
-  res.status(501).json({
-    success: false,
-    error: {
-      code: 'NOT_IMPLEMENTED',
-      message: 'Proponent creation endpoint not yet implemented.'
-    }
-  });
-});
+router.post('/', authenticate, adminOnly, proponentController.createProponent);
 
 /**
  * ================================================
@@ -215,15 +200,7 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
  * - 400: Invalid ID format
  * - 500: Database error
  */
-router.get('/:id', authenticate, async (req: Request, res: Response) => {
-  res.status(501).json({
-    success: false,
-    error: {
-      code: 'NOT_IMPLEMENTED',
-      message: 'Get proponent by ID endpoint not yet implemented.'
-    }
-  });
-});
+router.get('/:id', authenticate, proponentController.getProponentById);
 
 /**
  * ================================================
@@ -280,15 +257,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
  * - Email must remain unique
  * - Cannot deactivate proponent with active MRFCs (optional check)
  */
-router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) => {
-  res.status(501).json({
-    success: false,
-    error: {
-      code: 'NOT_IMPLEMENTED',
-      message: 'Proponent update endpoint not yet implemented.'
-    }
-  });
-});
+router.put('/:id', authenticate, adminOnly, proponentController.updateProponent);
 
 /**
  * ================================================
@@ -329,14 +298,6 @@ router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) 
  * - If cascade delete: Must also handle all related MRFCs
  * - Audit log must record deletion with details
  */
-router.delete('/:id', authenticate, adminOnly, async (req: Request, res: Response) => {
-  res.status(501).json({
-    success: false,
-    error: {
-      code: 'NOT_IMPLEMENTED',
-      message: 'Proponent deletion endpoint not yet implemented.'
-    }
-  });
-});
+router.delete('/:id', authenticate, adminOnly, proponentController.deleteProponent);
 
 export default router;

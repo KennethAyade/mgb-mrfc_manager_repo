@@ -20,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
@@ -103,26 +104,28 @@ class DocumentListActivity : AppCompatActivity() {
     }
 
     private fun initializeViews() {
-        ivFilter = findViewById(R.id.ivFilter)
-        etSearch = findViewById(R.id.etSearch)
-        chipGroupCategory = findViewById(R.id.chipGroupCategory)
-        chipAll = findViewById(R.id.chipAll)
-        chipPDF = findViewById(R.id.chipPDF)
-        chipExcel = findViewById(R.id.chipExcel)
-        chipWord = findViewById(R.id.chipWord)
-        chipGroupQuarter = findViewById(R.id.chipGroupQuarter)
-        chipAllQuarters = findViewById(R.id.chipAllQuarters)
-        chipQ1 = findViewById(R.id.chipQ1)
-        chipQ2 = findViewById(R.id.chipQ2)
-        chipQ3 = findViewById(R.id.chipQ3)
-        chipQ4 = findViewById(R.id.chipQ4)
-        chipQ4_2024 = findViewById(R.id.chipQ4_2024)
+        // Filter views removed - using simpler layout
+        // ivFilter = findViewById(R.id.ivFilter)
+        // etSearch = findViewById(R.id.etSearch)
+        // chipGroupCategory = findViewById(R.id.chipGroupCategory)
+        // chipAll = findViewById(R.id.chipAll)
+        // chipPDF = findViewById(R.id.chipPDF)
+        // chipExcel = findViewById(R.id.chipExcel)
+        // chipWord = findViewById(R.id.chipWord)
+        // chipGroupQuarter = findViewById(R.id.chipGroupQuarter)
+        // chipAllQuarters = findViewById(R.id.chipAllQuarters)
+        // chipQ1 = findViewById(R.id.chipQ1)
+        // chipQ2 = findViewById(R.id.chipQ2)
+        // chipQ3 = findViewById(R.id.chipQ3)
+        // chipQ4 = findViewById(R.id.chipQ4)
+        // chipQ4_2024 = findViewById(R.id.chipQ4_2024)
         rvDocuments = findViewById(R.id.rvDocuments)
-        layoutEmptyState = findViewById(R.id.layoutEmptyState)
+        // layoutEmptyState = findViewById(R.id.layoutEmptyState)
         progressBar = findViewById(R.id.progressBar)
         // TODO: Add swipeRefresh to layout XML
         // swipeRefresh = findViewById(R.id.swipeRefresh)
 
+        /* Filters removed for now
         ivFilter.setOnClickListener {
             // Reset all filters
             currentFileTypeFilter = "All"
@@ -132,6 +135,7 @@ class DocumentListActivity : AppCompatActivity() {
             filterDocuments()
             Toast.makeText(this, "Filters reset", Toast.LENGTH_SHORT).show()
         }
+        */
     }
 
     private fun setupViewModel() {
@@ -408,12 +412,12 @@ class DocumentListActivity : AppCompatActivity() {
         override fun getItemCount() = documents.size
 
         class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            private val cardFileType: MaterialCardView = itemView.findViewById(R.id.cardFileType)
+            // private val cardFileType: MaterialCardView = itemView.findViewById(R.id.cardFileType)
             private val ivFileIcon: ImageView = itemView.findViewById(R.id.ivFileIcon)
             private val tvFileName: TextView = itemView.findViewById(R.id.tvFileName)
-            private val tvCategory: TextView = itemView.findViewById(R.id.tvCategory)
+            private val tvCategory: TextView = itemView.findViewById(R.id.tvFileCategory)
             private val tvFileDate: TextView = itemView.findViewById(R.id.tvFileDate)
-            private val ivDownload: ImageView = itemView.findViewById(R.id.ivDownload)
+            private val btnDownload: MaterialButton = itemView.findViewById(R.id.btnDownload)
 
             fun bind(
                 document: DocumentDto,
@@ -450,14 +454,14 @@ class DocumentListActivity : AppCompatActivity() {
                 }
 
                 ivFileIcon.setImageResource(iconRes)
-                cardFileType.setCardBackgroundColor(itemView.context.getColor(bgColor))
-                ivFileIcon.setColorFilter(itemView.context.getColor(android.R.color.white))
+                // cardFileType.setCardBackgroundColor(itemView.context.getColor(bgColor))
+                // ivFileIcon.setColorFilter(itemView.context.getColor(android.R.color.white))
 
                 itemView.setOnClickListener {
                     onDocumentClick(document)
                 }
 
-                ivDownload.setOnClickListener {
+                btnDownload.setOnClickListener {
                     onDownloadClick(document)
                 }
             }

@@ -10,8 +10,14 @@ enum class DocumentCategory {
     MTF_REPORT,
     @Json(name = "AEPEP")
     AEPEP,
+    @Json(name = "NTE_DISBURSEMENT")
+    NTE_DISBURSEMENT,
+    @Json(name = "OMVR")
+    OMVR,
     @Json(name = "CMVR")
     CMVR,
+    @Json(name = "RESEARCH_ACCOMPLISHMENTS")
+    RESEARCH_ACCOMPLISHMENTS,
     @Json(name = "SDMP")
     SDMP,
     @Json(name = "PRODUCTION")
@@ -23,8 +29,11 @@ enum class DocumentCategory {
 
     fun getDisplayName(): String = when (this) {
         MTF_REPORT -> "MTF Report"
-        AEPEP -> "AEPEP"
+        AEPEP -> "AEPEP Report"
+        NTE_DISBURSEMENT -> "NTE Disbursement"
+        OMVR -> "OMVR"
         CMVR -> "CMVR"
+        RESEARCH_ACCOMPLISHMENTS -> "Research Accomplishments"
         SDMP -> "SDMP"
         PRODUCTION -> "Production Report"
         SAFETY -> "Safety Report"
@@ -33,12 +42,28 @@ enum class DocumentCategory {
 
     fun getDescription(): String = when (this) {
         MTF_REPORT -> "Monitoring Task Force Report"
-        AEPEP -> "Annual Environment Protection and Enhancement Program"
+        AEPEP -> "Annual Environmental Protection and Enhancement Program"
+        NTE_DISBURSEMENT -> "Notice to Explain Disbursement Reports"
+        OMVR -> "On-site Monitoring & Verification Report"
         CMVR -> "Comprehensive Monitoring and Violation Report"
+        RESEARCH_ACCOMPLISHMENTS -> "Research and Development Accomplishments"
         SDMP -> "Social Development Management Program"
         PRODUCTION -> "Production and Shipment Reports"
         SAFETY -> "Safety and Health Reports"
         OTHER -> "Other Documents"
+    }
+    
+    fun getIcon(): String = when (this) {
+        MTF_REPORT -> "📊"
+        AEPEP -> "🌱"
+        NTE_DISBURSEMENT -> "📄"
+        OMVR -> "📋"
+        CMVR -> "✅"
+        RESEARCH_ACCOMPLISHMENTS -> "🔬"
+        SDMP -> "🤝"
+        PRODUCTION -> "⚒️"
+        SAFETY -> "🦺"
+        OTHER -> "📁"
     }
 }
 

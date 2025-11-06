@@ -20,7 +20,7 @@ class ProponentRepository(private val proponentApiService: ProponentApiService) 
         status: String? = null,
         activeOnly: Boolean = true,
         page: Int = 1,
-        limit: Int = 50
+        limit: Int = 100
     ): Result<List<ProponentDto>> {
         return withContext(Dispatchers.IO) {
             try {
@@ -28,14 +28,14 @@ class ProponentRepository(private val proponentApiService: ProponentApiService) 
                     page = page,
                     limit = limit,
                     mrfcId = mrfcId,
-                    status = status,
                     isActive = if (activeOnly) true else null
                 )
 
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body?.success == true && body.data != null) {
-                        Result.Success(body.data)
+                        // Extract proponents list from ProponentListResponse
+                        Result.Success(body.data.proponents)
                     } else {
                         Result.Error(
                             message = body?.error?.message ?: "Failed to fetch proponents",
@@ -126,7 +126,7 @@ class ProponentRepository(private val proponentApiService: ProponentApiService) 
     /**
      * Update existing proponent
      */
-    suspend fun updateProponent(id: Long, request: CreateProponentRequest): Result<ProponentDto> {
+    suspend fun updateProponent(id: Long, request: com.mgb.mrfcmanager.data.remote.dto.UpdateProponentRequest): Result<ProponentDto> {
         return withContext(Dispatchers.IO) {
             try {
                 val response = proponentApiService.updateProponent(id, request)

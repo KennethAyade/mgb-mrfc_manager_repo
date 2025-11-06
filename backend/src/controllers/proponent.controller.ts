@@ -1,443 +1,504 @@
 /**
  * ================================================
- * PROPONENT MANAGEMENT CONTROLLER
+ * PROPONENT CONTROLLER
  * ================================================
- * Handles proponent (mining company) CRUD operations
+ * Handles business logic for proponent (mining company) operations
  */
 
 import { Request, Response } from 'express';
-import { Op } from 'sequelize';
-import { Proponent, Mrfc, AuditLog } from '../models';
-import sequelize from '../config/database';
+import { Op, Sequelize } from 'sequelize';
+import Proponent, { ProponentStatus } from '../models/Proponent';
+import Mrfc from '../models/Mrfc';
+import Joi from 'joi';
 
 /**
- * List all proponents with pagination and filtering
+ * LIST ALL PROPONENTS
  * GET /api/v1/proponents
  */
 export const listProponents = async (req: Request, res: Response): Promise<void> => {
   try {
-    const {
-      page = '1',
-      limit = '20',
-      search,
-      is_active,
-      sort_by = 'company_name',
-      sort_order = 'ASC'
-    } = req.query;
+    // Parse and validate query parameters
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const search = req.query.search as string || '';
+    const mrfcId = req.query.mrfc_id ? parseInt(req.query.mrfc_id as string) : undefined;
+    const isActive = req.query.is_active === 'true' ? true : req.query.is_active === 'false' ? false : undefined;
+    const sortBy = (req.query.sort_by as string) || 'company_name';
+    const sortOrder = (req.query.sort_order as string)?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
-    // Validate and parse parameters
-    const pageNum = Math.max(1, parseInt(page as string));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
-    const offset = (pageNum - 1) * limitNum;
-
-    // Build filter conditions
+    // Build WHERE clause
     const where: any = {};
-    if (is_active !== undefined) where.is_active = is_active === 'true';
+
+    // Filter by MRFC
+    if (mrfcId) {
+      where.mrfc_id = mrfcId;
+    }
+
+    // Filter by status
+    if (isActive !== undefined) {
+      where.status = isActive ? ProponentStatus.ACTIVE : { [Op.ne]: ProponentStatus.ACTIVE };
+    }
 
     // Search filter
-    if (search) {
+    if (search.trim()) {
       where[Op.or] = [
-        { company_name: { [Op.like]: `%${search}%` } },
-        { contact_person: { [Op.like]: `%${search}%` } },
-        { contact_email: { [Op.like]: `%${search}%` } }
+        { company_name: { [Op.iLike]: `%${search}%` } },
+        { name: { [Op.iLike]: `%${search}%` } },
+        { contact_person: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } }
       ];
     }
 
-    // Query proponents with MRFC count
+    // Calculate pagination
+    const offset = (page - 1) * limit;
+
+    // Determine sort field
+    const orderField = sortBy === 'created_at' ? 'created_at' : 
+                       sortBy === 'contact_person' ? 'contact_person' :
+                       'company_name';
+
+    // Fetch proponents with pagination
     const { count, rows: proponents } = await Proponent.findAndCountAll({
       where,
-      attributes: {
-        include: [[sequelize.fn('COUNT', sequelize.col('mrfcs.id')), 'mrfc_count']]
-      },
+      limit,
+      offset,
+      order: [[orderField, sortOrder]],
       include: [
         {
           model: Mrfc,
-          as: 'mrfcs',
-          attributes: [],
-          required: false
+          as: 'mrfc',
+          attributes: ['id', 'name', 'municipality']
         }
-      ],
-      group: ['Proponent.id'],
-      limit: limitNum,
-      offset,
-      order: [[sort_by as string, sort_order as string]],
-      subQuery: false
+      ]
     });
 
-    res.json({
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(count / limit);
+
+    res.status(200).json({
       success: true,
       data: {
-        proponents,
+        proponents: proponents.map(p => ({
+          id: p.id,
+          mrfc_id: p.mrfc_id,
+          name: p.name,
+          company_name: p.company_name,
+          permit_number: p.permit_number,
+          permit_type: p.permit_type,
+          status: p.status,
+          contact_person: p.contact_person,
+          contact_number: p.contact_number,
+          email: p.email,
+          address: p.address,
+          created_at: p.created_at,
+          updated_at: p.updated_at
+        })),
         pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total: Array.isArray(count) ? count.length : count,
-          totalPages: Math.ceil((Array.isArray(count) ? count.length : count) / limitNum),
-          hasNext: pageNum * limitNum < (Array.isArray(count) ? count.length : count),
-          hasPrev: pageNum > 1
+          page,
+          limit,
+          total: count,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
         }
       }
     });
   } catch (error: any) {
-    console.error('Proponent listing error:', error);
+    console.error('Error listing proponents:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'PROPONENT_LISTING_FAILED',
-        message: error.message || 'Failed to retrieve proponents'
+        code: 'SERVER_ERROR',
+        message: 'Failed to fetch proponents',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       }
     });
   }
 };
 
 /**
- * Create new proponent
- * POST /api/v1/proponents
- */
-export const createProponent = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const {
-      company_name,
-      contact_person,
-      contact_email,
-      contact_phone,
-      address,
-      tin,
-      business_permit,
-      is_active
-    } = req.body;
-    const currentUser = (req as any).user;
-
-    // Check if company name exists
-    const existing = await Proponent.findOne({ where: { company_name } });
-    if (existing) {
-      res.status(409).json({
-        success: false,
-        error: {
-          code: 'COMPANY_EXISTS',
-          message: 'Company name already exists'
-        }
-      });
-      return;
-    }
-
-    // Check if email exists
-    const existingEmail = await Proponent.findOne({ where: { contact_email } });
-    if (existingEmail) {
-      res.status(409).json({
-        success: false,
-        error: {
-          code: 'EMAIL_EXISTS',
-          message: 'Contact email already registered'
-        }
-      });
-      return;
-    }
-
-    // Create proponent with transaction
-    const proponent = await sequelize.transaction(async (t) => {
-      const newProponent = await Proponent.create(
-        {
-          company_name,
-          contact_person,
-          contact_email,
-          contact_phone,
-          address,
-          tin,
-          business_permit,
-          is_active: is_active !== false,
-          created_by: currentUser?.userId
-        },
-        { transaction: t }
-      );
-
-      // Create audit log
-      await AuditLog.create(
-        {
-          user_id: currentUser?.userId,
-          action: 'CREATE_PROPONENT',
-          entity_type: 'PROPONENT',
-          entity_id: newProponent.id,
-          details: { company_name: newProponent.company_name }
-        },
-        { transaction: t }
-      );
-
-      return newProponent;
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Proponent created successfully',
-      data: proponent
-    });
-  } catch (error: any) {
-    console.error('Proponent creation error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'PROPONENT_CREATION_FAILED',
-        message: error.message || 'Failed to create proponent'
-      }
-    });
-  }
-};
-
-/**
- * Get proponent by ID
+ * GET PROPONENT BY ID
  * GET /api/v1/proponents/:id
  */
 export const getProponentById = async (req: Request, res: Response): Promise<void> => {
   try {
     const proponentId = parseInt(req.params.id);
 
-    // Validate ID
     if (isNaN(proponentId)) {
       res.status(400).json({
         success: false,
         error: {
           code: 'INVALID_ID',
-          message: 'Invalid proponent ID'
+          message: 'Invalid proponent ID format'
         }
       });
       return;
     }
 
-    // Find proponent with MRFCs
     const proponent = await Proponent.findByPk(proponentId, {
       include: [
         {
           model: Mrfc,
-          as: 'mrfcs',
-          attributes: ['id', 'mrfc_number', 'project_title', 'status', 'date_received']
+          as: 'mrfc',
+          attributes: ['id', 'name', 'municipality', 'contact_person', 'contact_number']
         }
       ]
     });
 
-    // Check if exists
     if (!proponent) {
       res.status(404).json({
         success: false,
         error: {
-          code: 'PROPONENT_NOT_FOUND',
+          code: 'NOT_FOUND',
           message: 'Proponent not found'
         }
       });
       return;
     }
 
-    // Calculate statistics
-    const mrfcs = proponent.mrfcs || [];
-    const statistics = {
-      total_mrfcs: mrfcs.length,
-      pending_mrfcs: mrfcs.filter((m: any) => m.status === 'PENDING').length,
-      approved_mrfcs: mrfcs.filter((m: any) => m.status === 'APPROVED').length,
-      rejected_mrfcs: mrfcs.filter((m: any) => m.status === 'REJECTED').length
-    };
-
-    res.json({
+    res.status(200).json({
       success: true,
       data: {
-        ...proponent.toJSON(),
-        statistics
+        id: proponent.id,
+        mrfc_id: proponent.mrfc_id,
+        name: proponent.name,
+        company_name: proponent.company_name,
+        permit_number: proponent.permit_number,
+        permit_type: proponent.permit_type,
+        status: proponent.status,
+        contact_person: proponent.contact_person,
+        contact_number: proponent.contact_number,
+        email: proponent.email,
+        address: proponent.address,
+        created_at: proponent.created_at,
+        updated_at: proponent.updated_at
       }
     });
   } catch (error: any) {
-    console.error('Get proponent error:', error);
+    console.error('Error fetching proponent:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'GET_PROPONENT_FAILED',
-        message: error.message || 'Failed to retrieve proponent'
+        code: 'SERVER_ERROR',
+        message: 'Failed to fetch proponent details',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       }
     });
   }
 };
 
 /**
- * Update proponent information
+ * CREATE PROPONENT
+ * POST /api/v1/proponents
+ */
+export const createProponent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Validation schema
+    const schema = Joi.object({
+      mrfc_id: Joi.number().integer().positive().required(),
+      name: Joi.string().max(200).required(),
+      company_name: Joi.string().max(200).required(),
+      permit_number: Joi.string().max(50).optional().allow(null, ''),
+      permit_type: Joi.string().max(50).optional().allow(null, ''),
+      status: Joi.string().valid(...Object.values(ProponentStatus)).default(ProponentStatus.ACTIVE),
+      contact_person: Joi.string().max(100).optional().allow(null, ''),
+      contact_number: Joi.string().max(20).optional().allow(null, ''),
+      email: Joi.string().email().max(100).optional().allow(null, ''),
+      address: Joi.string().optional().allow(null, '')
+    });
+
+    const { error, value } = schema.validate(req.body);
+
+    if (error) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid input data',
+          details: error.details.map(d => d.message)
+        }
+      });
+      return;
+    }
+
+    // Check if MRFC exists
+    const mrfc = await Mrfc.findByPk(value.mrfc_id);
+    if (!mrfc) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'MRFC_NOT_FOUND',
+          message: 'The specified MRFC does not exist'
+        }
+      });
+      return;
+    }
+
+    // Check for duplicate company name
+    const existingCompany = await Proponent.findOne({
+      where: { company_name: value.company_name }
+    });
+
+    if (existingCompany) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'DUPLICATE_COMPANY',
+          message: 'A proponent with this company name already exists'
+        }
+      });
+      return;
+    }
+
+    // Check for duplicate email if provided
+    if (value.email) {
+      const existingEmail = await Proponent.findOne({
+        where: { email: value.email }
+      });
+
+      if (existingEmail) {
+        res.status(409).json({
+          success: false,
+          error: {
+            code: 'DUPLICATE_EMAIL',
+            message: 'A proponent with this email already exists'
+          }
+        });
+        return;
+      }
+    }
+
+    // Create proponent
+    const proponent = await Proponent.create({
+      mrfc_id: value.mrfc_id,
+      name: value.name,
+      company_name: value.company_name,
+      permit_number: value.permit_number || null,
+      permit_type: value.permit_type || null,
+      status: value.status || ProponentStatus.ACTIVE,
+      contact_person: value.contact_person || null,
+      contact_number: value.contact_number || null,
+      email: value.email || null,
+      address: value.address || null
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Proponent created successfully',
+      data: {
+        id: proponent.id,
+        mrfc_id: proponent.mrfc_id,
+        name: proponent.name,
+        company_name: proponent.company_name,
+        permit_number: proponent.permit_number,
+        permit_type: proponent.permit_type,
+        status: proponent.status,
+        contact_person: proponent.contact_person,
+        contact_number: proponent.contact_number,
+        email: proponent.email,
+        address: proponent.address,
+        created_at: proponent.created_at,
+        updated_at: proponent.updated_at
+      }
+    });
+  } catch (error: any) {
+    console.error('Error creating proponent:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Failed to create proponent',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      }
+    });
+  }
+};
+
+/**
+ * UPDATE PROPONENT
  * PUT /api/v1/proponents/:id
  */
 export const updateProponent = async (req: Request, res: Response): Promise<void> => {
   try {
     const proponentId = parseInt(req.params.id);
-    const currentUser = (req as any).user;
-    const {
-      company_name,
-      contact_person,
-      contact_email,
-      contact_phone,
-      address,
-      tin,
-      business_permit,
-      is_active
-    } = req.body;
+
+    if (isNaN(proponentId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_ID',
+          message: 'Invalid proponent ID format'
+        }
+      });
+      return;
+    }
+
+    // Validation schema
+    const schema = Joi.object({
+      name: Joi.string().max(200).optional(),
+      company_name: Joi.string().max(200).optional(),
+      permit_number: Joi.string().max(50).optional().allow(null, ''),
+      permit_type: Joi.string().max(50).optional().allow(null, ''),
+      status: Joi.string().valid(...Object.values(ProponentStatus)).optional(),
+      contact_person: Joi.string().max(100).optional().allow(null, ''),
+      contact_number: Joi.string().max(20).optional().allow(null, ''),
+      email: Joi.string().email().max(100).optional().allow(null, ''),
+      address: Joi.string().optional().allow(null, '')
+    });
+
+    const { error, value } = schema.validate(req.body);
+
+    if (error) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid input data',
+          details: error.details.map(d => d.message)
+        }
+      });
+      return;
+    }
 
     // Find proponent
     const proponent = await Proponent.findByPk(proponentId);
+
     if (!proponent) {
       res.status(404).json({
         success: false,
         error: {
-          code: 'PROPONENT_NOT_FOUND',
+          code: 'NOT_FOUND',
           message: 'Proponent not found'
         }
       });
       return;
     }
 
-    // Check if new company name already exists
-    if (company_name && company_name !== proponent.company_name) {
-      const existing = await Proponent.findOne({
-        where: { company_name, id: { [Op.ne]: proponentId } }
+    // Check for duplicate company name if updating
+    if (value.company_name && value.company_name !== proponent.company_name) {
+      const existingCompany = await Proponent.findOne({
+        where: { 
+          company_name: value.company_name,
+          id: { [Op.ne]: proponentId }
+        }
       });
-      if (existing) {
+
+      if (existingCompany) {
         res.status(409).json({
           success: false,
           error: {
-            code: 'COMPANY_EXISTS',
-            message: 'Company name already exists'
+            code: 'DUPLICATE_COMPANY',
+            message: 'A proponent with this company name already exists'
           }
         });
         return;
       }
     }
 
-    // Check if new email already exists
-    if (contact_email && contact_email !== proponent.contact_email) {
+    // Check for duplicate email if updating
+    if (value.email && value.email !== proponent.email) {
       const existingEmail = await Proponent.findOne({
-        where: { contact_email, id: { [Op.ne]: proponentId } }
+        where: { 
+          email: value.email,
+          id: { [Op.ne]: proponentId }
+        }
       });
+
       if (existingEmail) {
         res.status(409).json({
           success: false,
           error: {
-            code: 'EMAIL_EXISTS',
-            message: 'Contact email already registered'
+            code: 'DUPLICATE_EMAIL',
+            message: 'A proponent with this email already exists'
           }
         });
         return;
       }
     }
 
-    // Update proponent with transaction
-    await sequelize.transaction(async (t) => {
-      await proponent.update(
-        {
-          company_name,
-          contact_person,
-          contact_email,
-          contact_phone,
-          address,
-          tin,
-          business_permit,
-          is_active
-        },
-        { transaction: t }
-      );
+    // Update proponent
+    await proponent.update(value);
 
-      // Create audit log
-      await AuditLog.create(
-        {
-          user_id: currentUser?.userId,
-          action: 'UPDATE_PROPONENT',
-          entity_type: 'PROPONENT',
-          entity_id: proponentId,
-          details: { company_name: proponent.company_name }
-        },
-        { transaction: t }
-      );
-    });
-
-    // Return updated proponent
-    const updatedProponent = await Proponent.findByPk(proponentId);
-
-    res.json({
+    res.status(200).json({
       success: true,
       message: 'Proponent updated successfully',
-      data: updatedProponent
+      data: {
+        id: proponent.id,
+        mrfc_id: proponent.mrfc_id,
+        name: proponent.name,
+        company_name: proponent.company_name,
+        permit_number: proponent.permit_number,
+        permit_type: proponent.permit_type,
+        status: proponent.status,
+        contact_person: proponent.contact_person,
+        contact_number: proponent.contact_number,
+        email: proponent.email,
+        address: proponent.address,
+        created_at: proponent.created_at,
+        updated_at: proponent.updated_at
+      }
     });
   } catch (error: any) {
-    console.error('Proponent update error:', error);
+    console.error('Error updating proponent:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'PROPONENT_UPDATE_FAILED',
-        message: error.message || 'Failed to update proponent'
+        code: 'SERVER_ERROR',
+        message: 'Failed to update proponent',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       }
     });
   }
 };
 
 /**
- * Delete proponent (soft delete)
+ * DELETE PROPONENT
  * DELETE /api/v1/proponents/:id
  */
 export const deleteProponent = async (req: Request, res: Response): Promise<void> => {
   try {
     const proponentId = parseInt(req.params.id);
-    const currentUser = (req as any).user;
+
+    if (isNaN(proponentId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_ID',
+          message: 'Invalid proponent ID format'
+        }
+      });
+      return;
+    }
 
     // Find proponent
     const proponent = await Proponent.findByPk(proponentId);
+
     if (!proponent) {
       res.status(404).json({
         success: false,
         error: {
-          code: 'PROPONENT_NOT_FOUND',
+          code: 'NOT_FOUND',
           message: 'Proponent not found'
         }
       });
       return;
     }
 
-    // Check for associated MRFCs
-    const mrfcCount = await Mrfc.count({ where: { proponent_id: proponentId } });
-    if (mrfcCount > 0) {
-      res.status(409).json({
-        success: false,
-        error: {
-          code: 'HAS_ASSOCIATED_MRFCS',
-          message: `Cannot delete proponent with ${mrfcCount} associated MRFCs`
-        }
-      });
-      return;
-    }
+    // Soft delete: Set status to INACTIVE
+    await proponent.update({ status: ProponentStatus.INACTIVE });
 
-    // Soft delete with transaction
-    await sequelize.transaction(async (t) => {
-      await proponent.update(
-        {
-          is_active: false,
-          deleted_at: new Date()
-        },
-        { transaction: t }
-      );
-
-      // Create audit log
-      await AuditLog.create(
-        {
-          user_id: currentUser?.userId,
-          action: 'DELETE_PROPONENT',
-          entity_type: 'PROPONENT',
-          entity_id: proponentId,
-          details: { company_name: proponent.company_name }
-        },
-        { transaction: t }
-      );
-    });
-
-    res.json({
+    res.status(200).json({
       success: true,
-      message: 'Proponent deleted successfully'
+      message: 'Proponent deleted successfully (set to INACTIVE)'
     });
   } catch (error: any) {
-    console.error('Proponent deletion error:', error);
+    console.error('Error deleting proponent:', error);
     res.status(500).json({
       success: false,
       error: {
-        code: 'PROPONENT_DELETION_FAILED',
-        message: error.message || 'Failed to delete proponent'
+        code: 'SERVER_ERROR',
+        message: 'Failed to delete proponent',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       }
     });
   }
