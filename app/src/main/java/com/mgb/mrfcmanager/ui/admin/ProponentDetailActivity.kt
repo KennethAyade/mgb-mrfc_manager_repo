@@ -154,18 +154,36 @@ class ProponentDetailActivity : AppCompatActivity() {
 
         val quarterButtons = listOf(btnQuarter1, btnQuarter2, btnQuarter3, btnQuarter4)
 
+        // Helper function to update button selection visual state
+        fun updateQuarterButtonStates(selectedButton: com.google.android.material.button.MaterialButton) {
+            val selectedColor = getColor(R.color.primary)
+            val unselectedColor = getColor(R.color.background_light)
+            val selectedTextColor = getColor(android.R.color.white)
+            val unselectedTextColor = getColor(R.color.text_primary)
+            
+            quarterButtons.forEach { button ->
+                if (button == selectedButton) {
+                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(selectedColor)
+                    button.setTextColor(selectedTextColor)
+                    button.strokeWidth = 0
+                } else {
+                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(unselectedColor)
+                    button.setTextColor(unselectedTextColor)
+                    button.strokeWidth = 2
+                    button.strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.border))
+                }
+            }
+        }
+
         // Set Q1 as default selected
-        btnQuarter1.isPressed = true
+        updateQuarterButtonStates(btnQuarter1)
 
         // Quarter button click listeners
         quarterButtons.forEachIndexed { index, button ->
             button.setOnClickListener {
                 selectedQuarter = index + 1
-                Toast.makeText(this, "Selected Quarter ${selectedQuarter}", Toast.LENGTH_SHORT).show()
-                
-                // Update button states (visual feedback)
-                quarterButtons.forEach { it.isPressed = false }
-                button.isPressed = true
+                updateQuarterButtonStates(button)
+                Toast.makeText(this, "Quarter ${selectedQuarter} selected", Toast.LENGTH_SHORT).show()
             }
         }
 
