@@ -8,9 +8,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 
 /**
  * Manages JWT tokens using DataStore with in-memory caching
@@ -43,21 +45,47 @@ class TokenManager(private val context: Context) {
         private val FULL_NAME_KEY = stringPreferencesKey("full_name")
     }
 
+    @Volatile
+    private var isInitialized = false
+
     init {
-        // Load cached values from DataStore on init
-        try {
-            runBlocking {
-                val prefs = context.dataStore.data.first()
-                cachedAccessToken = prefs[ACCESS_TOKEN_KEY]
-                cachedRefreshToken = prefs[REFRESH_TOKEN_KEY]
-                cachedUserId = prefs[USER_ID_KEY]
-                cachedUserRole = prefs[USER_ROLE_KEY]
-                cachedUsername = prefs[USERNAME_KEY]
-                cachedFullName = prefs[FULL_NAME_KEY]
-                Log.d("TokenManager", "Loaded cached tokens - hasToken: ${cachedAccessToken != null}, role: $cachedUserRole")
+        // Load cached values from DataStore on init (asynchronously to avoid blocking main thread)
+        // Note: Cache will be empty until first load completes, but saves are instant
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                loadTokensFromDataStore()
+                isInitialized = true
+                Log.d("TokenManager", "TokenManager initialized successfully")
+            } catch (e: Exception) {
+                Log.e("TokenManager", "Error initializing TokenManager", e)
+                isInitialized = true // Mark as initialized even on error to prevent hanging
             }
-        } catch (e: Exception) {
-            Log.e("TokenManager", "Error loading cached tokens", e)
+        }
+    }
+
+    /**
+     * Load tokens from DataStore (internal helper)
+     */
+    private suspend fun loadTokensFromDataStore() {
+        val prefs = context.dataStore.data.first()
+        cachedAccessToken = prefs[ACCESS_TOKEN_KEY]
+        cachedRefreshToken = prefs[REFRESH_TOKEN_KEY]
+        cachedUserId = prefs[USER_ID_KEY]
+        cachedUserRole = prefs[USER_ROLE_KEY]
+        cachedUsername = prefs[USERNAME_KEY]
+        cachedFullName = prefs[FULL_NAME_KEY]
+        Log.d("TokenManager", "Loaded cached tokens - hasToken: ${cachedAccessToken != null}, role: $cachedUserRole")
+    }
+
+    /**
+     * Ensure tokens are loaded from DataStore (wait if still loading)
+     * Call this before checking login status on app startup
+     */
+    suspend fun ensureInitialized() {
+        if (!isInitialized) {
+            Log.d("TokenManager", "Waiting for TokenManager initialization...")
+            loadTokensFromDataStore()
+            isInitialized = true
         }
     }
 

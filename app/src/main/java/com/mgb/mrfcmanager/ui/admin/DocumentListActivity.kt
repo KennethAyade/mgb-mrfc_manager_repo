@@ -1,8 +1,8 @@
 package com.mgb.mrfcmanager.ui.admin
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
+import androidx.core.net.toUri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,7 +12,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
@@ -72,7 +72,7 @@ class DocumentListActivity : AppCompatActivity() {
         // Convert category name to enum
         category = try {
             DocumentCategory.valueOf(categoryName)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
 
@@ -104,7 +104,7 @@ class DocumentListActivity : AppCompatActivity() {
 
         // Set category info
         category?.let {
-            tvCategoryTitle.text = "${it.getIcon()} ${it.getDisplayName()}"
+            tvCategoryTitle.text = getString(R.string.category_title_format, it.getIcon(), it.getDisplayName())
             tvCategoryDescription.text = it.getDescription()
         }
     }
@@ -122,7 +122,10 @@ class DocumentListActivity : AppCompatActivity() {
         adapter = DocumentListAdapter(documents) { document ->
             onDocumentClicked(document)
         }
-        rvDocuments.layoutManager = LinearLayoutManager(this)
+        // Use GridLayoutManager with column count based on screen width
+        // Phone: 1 column, 7" Tablet: 2 columns, 10" Tablet: 3 columns
+        val columnCount = resources.getInteger(R.integer.list_grid_columns)
+        rvDocuments.layoutManager = GridLayoutManager(this, columnCount)
         rvDocuments.adapter = adapter
     }
 
@@ -150,8 +153,13 @@ class DocumentListActivity : AppCompatActivity() {
                         state.data
                     }
                     
+                    val oldSize = documents.size
                     documents.addAll(filteredDocs)
-                    adapter.notifyDataSetChanged()
+                    if (oldSize == 0) {
+                        adapter.notifyItemRangeInserted(0, documents.size)
+                    } else {
+                        adapter.notifyDataSetChanged()
+                    }
 
                     if (documents.isEmpty()) {
                         showEmptyState()
@@ -183,12 +191,12 @@ class DocumentListActivity : AppCompatActivity() {
         // Open document in browser or PDF viewer
         try {
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse(document.fileUrl)
+                data = document.fileUrl.toUri()
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(this, "Cannot open document: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_cannot_open_document, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -219,8 +227,8 @@ class DocumentListActivity : AppCompatActivity() {
         tvEmptyState.visibility = View.VISIBLE
         rvDocuments.visibility = View.GONE
         
-        val categoryText = category?.getDisplayName() ?: "this category"
-        tvEmptyState.text = "No $categoryText documents uploaded yet.\n\nTap the + button to upload a document."
+        val categoryText = category?.getDisplayName() ?: getString(R.string.this_category)
+        tvEmptyState.text = getString(R.string.empty_documents_message, categoryText)
     }
 
     private fun hideEmptyState() {
@@ -261,15 +269,17 @@ class DocumentListActivity : AppCompatActivity() {
                 tvFileName.text = document.originalName
 
                 // Category with icon
-                tvFileCategory.text = "${document.category.getIcon()} ${document.category.getDisplayName()}"
+                val context = itemView.context
+                tvFileCategory.text = context.getString(R.string.category_title_format, 
+                    document.category.getIcon(), document.category.getDisplayName())
 
                 // Format date
                 val uploadDate = try {
-                    val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                    val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
                     val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
                     val date = format.parse(document.createdAt)
                     date?.let { displayFormat.format(it) } ?: document.createdAt
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     document.createdAt
                 }
                 tvFileDate.text = uploadDate

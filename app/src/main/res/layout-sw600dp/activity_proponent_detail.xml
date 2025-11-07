@@ -1,0 +1,531 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_light"
+    android:fitsSystemWindows="true">
+
+    <!-- AppBar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fitsSystemWindows="true">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/toolbar_height"
+            android:background="@color/denr_green"
+            app:title="Proponent Details"
+            app:titleTextColor="@android:color/white"
+            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge"
+            app:navigationIcon="@drawable/ic_back" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Main Content with Horizontal Layout for Tablets -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="@dimen/spacing_normal">
+
+            <!-- Two-Column Layout for Info Cards -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:baselineAligned="false"
+                android:layout_marginBottom="@dimen/spacing_normal">
+
+                <!-- Left Column -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="@dimen/spacing_small">
+
+                    <!-- Basic Information Card -->
+                    <com.google.android.material.card.MaterialCardView
+                        style="@style/ModernCard"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/spacing_normal">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="@dimen/spacing_normal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Basic Information"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_large"
+                                android:textStyle="bold"
+                                android:layout_marginBottom="@dimen/spacing_normal" />
+
+                            <!-- Proponent Name -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Proponent Name"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="@dimen/text_size_small" />
+
+                            <TextView
+                                android:id="@+id/tvProponentName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="N/A"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_normal"
+                                android:textStyle="bold"
+                                android:layout_marginTop="@dimen/spacing_tiny"
+                                android:layout_marginBottom="@dimen/spacing_small" />
+
+                            <!-- Company Name -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Company Name"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="@dimen/text_size_small" />
+
+                            <TextView
+                                android:id="@+id/tvCompanyName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="N/A"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_normal"
+                                android:layout_marginTop="@dimen/spacing_tiny"
+                                android:layout_marginBottom="@dimen/spacing_small" />
+
+                            <!-- Status -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Status"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="@dimen/text_size_small" />
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/cardStatus"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/spacing_tiny"
+                                app:cardCornerRadius="@dimen/card_corner_radius">
+
+                                <TextView
+                                    android:id="@+id/tvStatus"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="ACTIVE"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/text_size_small"
+                                    android:textStyle="bold"
+                                    android:paddingStart="@dimen/spacing_normal"
+                                    android:paddingEnd="@dimen/spacing_normal"
+                                    android:paddingTop="@dimen/spacing_small"
+                                    android:paddingBottom="@dimen/spacing_small" />
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Permit Information Card -->
+                    <com.google.android.material.card.MaterialCardView
+                        style="@style/ModernCard"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/spacing_normal">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="@dimen/spacing_normal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Permit Information"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_large"
+                                android:textStyle="bold"
+                                android:layout_marginBottom="@dimen/spacing_normal" />
+
+                            <!-- Permit Number -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Permit Number"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="@dimen/text_size_small" />
+
+                            <TextView
+                                android:id="@+id/tvPermitNumber"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="N/A"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_normal"
+                                android:layout_marginTop="@dimen/spacing_tiny"
+                                android:layout_marginBottom="@dimen/spacing_small" />
+
+                            <!-- Permit Type -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Permit Type"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="@dimen/text_size_small" />
+
+                            <TextView
+                                android:id="@+id/tvPermitType"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="N/A"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_normal"
+                                android:layout_marginTop="@dimen/spacing_tiny" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
+
+                <!-- Right Column -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="@dimen/spacing_small">
+
+                    <!-- Contact Information Card -->
+                    <com.google.android.material.card.MaterialCardView
+                        style="@style/ModernCard"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/spacing_normal">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="@dimen/spacing_normal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Contact Information"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_large"
+                                android:textStyle="bold"
+                                android:layout_marginBottom="@dimen/spacing_normal" />
+
+                            <!-- Contact Person -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Contact Person"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="@dimen/text_size_small" />
+
+                            <TextView
+                                android:id="@+id/tvContactPerson"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="N/A"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_normal"
+                                android:layout_marginTop="@dimen/spacing_tiny"
+                                android:layout_marginBottom="@dimen/spacing_small" />
+
+                            <!-- Contact Number -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Contact Number"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="@dimen/text_size_small" />
+
+                            <TextView
+                                android:id="@+id/tvContactNumber"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="N/A"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_normal"
+                                android:layout_marginTop="@dimen/spacing_tiny"
+                                android:layout_marginBottom="@dimen/spacing_small" />
+
+                            <!-- Email -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Email Address"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="@dimen/text_size_small" />
+
+                            <TextView
+                                android:id="@+id/tvEmail"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="N/A"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_normal"
+                                android:layout_marginTop="@dimen/spacing_tiny"
+                                android:layout_marginBottom="@dimen/spacing_small" />
+
+                            <!-- Address -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Address"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="@dimen/text_size_small" />
+
+                            <TextView
+                                android:id="@+id/tvAddress"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="N/A"
+                                android:textColor="@color/text_primary"
+                                android:textSize="@dimen/text_size_normal"
+                                android:layout_marginTop="@dimen/spacing_tiny" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Quarterly Services Card (Full Width) -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/ModernCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/spacing_normal">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/spacing_normal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Select Quarter"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_size_large"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="@dimen/spacing_normal" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Choose a quarter to access related services and documents"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_size_small"
+                        android:layout_marginBottom="@dimen/spacing_normal" />
+
+                    <!-- Quarter Selection Grid -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:weightSum="4"
+                        android:layout_marginBottom="@dimen/spacing_normal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnQuarter1"
+                            style="@style/Widget.Material3.Button.ElevatedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/button_height"
+                            android:layout_weight="1"
+                            android:layout_margin="@dimen/spacing_tiny"
+                            android:text="Q1"
+                            android:textSize="@dimen/text_size_medium"
+                            app:cornerRadius="@dimen/card_corner_radius" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnQuarter2"
+                            style="@style/Widget.Material3.Button.ElevatedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/button_height"
+                            android:layout_weight="1"
+                            android:layout_margin="@dimen/spacing_tiny"
+                            android:text="Q2"
+                            android:textSize="@dimen/text_size_medium"
+                            app:cornerRadius="@dimen/card_corner_radius" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnQuarter3"
+                            style="@style/Widget.Material3.Button.ElevatedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/button_height"
+                            android:layout_weight="1"
+                            android:layout_margin="@dimen/spacing_tiny"
+                            android:text="Q3"
+                            android:textSize="@dimen/text_size_medium"
+                            app:cornerRadius="@dimen/card_corner_radius" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnQuarter4"
+                            style="@style/Widget.Material3.Button.ElevatedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="@dimen/button_height"
+                            android:layout_weight="1"
+                            android:layout_margin="@dimen/spacing_tiny"
+                            android:text="Q4"
+                            android:textSize="@dimen/text_size_medium"
+                            app:cornerRadius="@dimen/card_corner_radius" />
+
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider"
+                        android:layout_marginTop="@dimen/spacing_small"
+                        android:layout_marginBottom="@dimen/spacing_normal" />
+
+                    <!-- Services Title -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Quarterly Services"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_size_large"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="@dimen/spacing_normal" />
+
+                    <!-- Service Buttons in 2-Column Grid for Tablets -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:baselineAligned="false">
+
+                        <!-- Left Column -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginEnd="@dimen/spacing_small">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnFileUpload"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="@dimen/spacing_small"
+                                android:text="File Upload"
+                                android:textAlignment="textStart"
+                                android:padding="@dimen/spacing_normal"
+                                android:textSize="@dimen/text_size_normal"
+                                app:cornerRadius="@dimen/card_corner_radius"
+                                app:icon="@drawable/ic_file"
+                                app:iconGravity="start" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnViewAEPEP"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="@dimen/spacing_small"
+                                android:text="View AEPEP Report"
+                                android:textAlignment="textStart"
+                                android:padding="@dimen/spacing_normal"
+                                android:textSize="@dimen/text_size_normal"
+                                app:cornerRadius="@dimen/card_corner_radius"
+                                app:icon="@drawable/ic_file"
+                                app:iconGravity="start" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnViewResearch"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="View Research Accomplishments"
+                                android:textAlignment="textStart"
+                                android:padding="@dimen/spacing_normal"
+                                android:textSize="@dimen/text_size_normal"
+                                app:cornerRadius="@dimen/card_corner_radius"
+                                app:icon="@drawable/ic_file"
+                                app:iconGravity="start" />
+
+                        </LinearLayout>
+
+                        <!-- Right Column -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="@dimen/spacing_small">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnViewNTE"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="@dimen/spacing_small"
+                                android:text="View NTE Disbursement"
+                                android:textAlignment="textStart"
+                                android:padding="@dimen/spacing_normal"
+                                android:textSize="@dimen/text_size_normal"
+                                app:cornerRadius="@dimen/card_corner_radius"
+                                app:icon="@drawable/ic_file"
+                                app:iconGravity="start" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnViewOMVR"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="View OMVR"
+                                android:textAlignment="textStart"
+                                android:padding="@dimen/spacing_normal"
+                                android:textSize="@dimen/text_size_normal"
+                                app:cornerRadius="@dimen/card_corner_radius"
+                                app:icon="@drawable/ic_file"
+                                app:iconGravity="start" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Loading Indicator -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

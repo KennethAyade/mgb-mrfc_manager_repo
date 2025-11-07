@@ -156,6 +156,13 @@ class AuthRepository(
     }
 
     /**
+     * Ensure TokenManager is initialized (call on app startup)
+     */
+    suspend fun ensureInitialized() {
+        tokenManager.ensureInitialized()
+    }
+
+    /**
      * Check if user is logged in
      */
     fun isLoggedIn(): Boolean {
