@@ -1,0 +1,43 @@
+# MGB MRFC Manager - Environment Variables Template
+# Copy these to Render environment variables dashboard
+
+# =============================================
+# NODE ENVIRONMENT
+# =============================================
+NODE_ENV=production
+
+# =============================================
+# DATABASE CONFIGURATION
+# =============================================
+# Use Render PostgreSQL Internal Database URL
+DATABASE_URL=<your_render_postgresql_internal_url>
+
+# =============================================
+# JWT CONFIGURATION
+# =============================================
+# Generate using: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+JWT_SECRET=<generate_a_64_character_random_string>
+
+# =============================================
+# CLOUDINARY CONFIGURATION
+# =============================================
+CLOUDINARY_CLOUD_NAME=drxjbb7np
+CLOUDINARY_API_KEY=<your_cloudinary_api_key>
+CLOUDINARY_API_SECRET=<your_cloudinary_api_secret>
+CLOUDINARY_FOLDER_DOCUMENTS=mgb-mrfc/documents
+CLOUDINARY_FOLDER_ATTENDANCE=mgb-mrfc/attendance
+CLOUDINARY_FOLDER_RECORDINGS=mgb-mrfc/recordings
+
+# =============================================
+# SUPER ADMIN CONFIGURATION
+# =============================================
+SUPER_ADMIN_USERNAME=superadmin
+SUPER_ADMIN_PASSWORD=<your_secure_password>
+SUPER_ADMIN_EMAIL=admin@mgb.gov.ph
+SUPER_ADMIN_FULL_NAME=Super Administrator
+
+# =============================================
+# SERVER PORT (Render sets this automatically)
+# =============================================
+PORT=3000
+
