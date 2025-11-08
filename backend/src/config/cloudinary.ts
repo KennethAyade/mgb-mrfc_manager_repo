@@ -91,6 +91,111 @@ export const deleteFromCloudinary = async (
 };
 
 /**
+ * Generate an authenticated URL for downloading a private file
+ * @param publicId Cloudinary public_id of the file (without extension)
+ * @param resourceType Type of file (image, video, raw)
+ * @returns Signed URL that bypasses authentication
+ */
+export const getAuthenticatedUrl = (
+  publicId: string,
+  resourceType: 'image' | 'video' | 'raw' = 'raw'
+): string => {
+  try {
+    // Remove file extension from public_id if present
+    const cleanPublicId = publicId.replace(/\.(pdf|jpg|jpeg|png|mp4|mov)$/i, '');
+    
+    // Generate a signed URL that expires in 1 hour
+    const signedUrl = cloudinary.url(cleanPublicId, {
+      resource_type: resourceType,
+      type: 'upload',
+      sign_url: true,
+      secure: true,
+      expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
+    });
+
+    console.log(`📍 Generated authenticated URL for: ${cleanPublicId}`);
+    return signedUrl;
+  } catch (error) {
+    console.error('Error generating authenticated URL:', error);
+    throw new Error('Failed to generate authenticated URL');
+  }
+};
+
+/**
+ * Download a file from Cloudinary using direct URL
+ * @param fileUrl The direct Cloudinary URL from database
+ * @returns Buffer containing the file data
+ */
+export const downloadFromCloudinaryUrl = async (
+  fileUrl: string
+): Promise<Buffer> => {
+  try {
+    const https = await import('https');
+    
+    console.log(`📥 Downloading from Cloudinary with API authentication`);
+    console.log(`📍 URL: ${fileUrl.substring(0, 80)}...`);
+    
+    return new Promise((resolve, reject) => {
+      https.get(fileUrl, (response) => {
+        if (response.statusCode !== 200) {
+          console.error(`❌ Cloudinary returned status: ${response.statusCode}`);
+          reject(new Error(`Cloudinary returned status ${response.statusCode}`));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => {
+          console.log(`✅ Downloaded ${Buffer.concat(chunks).length} bytes`);
+          resolve(Buffer.concat(chunks));
+        });
+        response.on('error', reject);
+      }).on('error', reject);
+    });
+  } catch (error) {
+    console.error('Cloudinary download error:', error);
+    throw new Error('Failed to download file from storage');
+  }
+};
+
+/**
+ * Download a file from Cloudinary using Admin API (bypasses access restrictions)
+ * @param publicId Cloudinary public_id of the file
+ * @param resourceType Type of file (image, video, raw)
+ * @returns Buffer containing the file data
+ */
+export const downloadFromCloudinary = async (
+  publicId: string,
+  resourceType: 'image' | 'video' | 'raw' = 'raw'
+): Promise<Buffer> => {
+  try {
+    const https = await import('https');
+    
+    // Generate authenticated URL
+    const authenticatedUrl = getAuthenticatedUrl(publicId, resourceType);
+    
+    console.log(`📥 Downloading from Cloudinary via signed URL`);
+    
+    return new Promise((resolve, reject) => {
+      https.get(authenticatedUrl, (response) => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Cloudinary returned status ${response.statusCode}`));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => resolve(Buffer.concat(chunks)));
+        response.on('error', reject);
+      }).on('error', reject);
+    });
+  } catch (error) {
+    console.error('Cloudinary download error:', error);
+    throw new Error('Failed to download file from storage');
+  }
+};
+
+/**
  * Test Cloudinary connection
  */
 export const testCloudinaryConnection = async (): Promise<void> => {

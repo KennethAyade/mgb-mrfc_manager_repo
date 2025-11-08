@@ -12,7 +12,7 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { Document, DocumentCategory, DocumentStatus, User, Mrfc, Proponent, Quarter, AuditLog, AuditAction } from '../models';
 import sequelize from '../config/database';
-import { uploadToCloudinary, deleteFromCloudinary, CLOUDINARY_FOLDERS } from '../config/cloudinary';
+import { uploadToCloudinary, deleteFromCloudinary, downloadFromCloudinaryUrl, CLOUDINARY_FOLDERS } from '../config/cloudinary';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -644,12 +644,8 @@ export const streamDocument = async (req: Request, res: Response): Promise<void>
       }
     });
 
-    // Use the secure_url that was saved during upload
-    // This is the direct Cloudinary CDN URL
-    const cloudinaryUrl = document.file_url;
-
-    console.log(`📥 Attempting download from Cloudinary CDN`);
-    console.log(`📍 URL: ${cloudinaryUrl}`);
+    console.log(`📥 Streaming document: ${document.original_name}`);
+    console.log(`📍 Cloudinary Public ID: ${document.file_cloudinary_id}`);
 
     // Set response headers before streaming
     res.setHeader('Content-Type', document.file_type || 'application/pdf');
@@ -658,55 +654,32 @@ export const streamDocument = async (req: Request, res: Response): Promise<void>
       res.setHeader('Content-Length', document.file_size.toString());
     }
 
-    const https = await import('https');
+    try {
+      // Download file from Cloudinary using the direct URL
+      // This matches the exact flow from your error logs
+      console.log(`📥 Fetching file via Cloudinary Admin API with authentication`);
+      const fileBuffer = await downloadFromCloudinaryUrl(document.file_url);
 
-    // Try direct download from the secure_url
-    https.get(cloudinaryUrl, (cloudinaryRes) => {
-      if (cloudinaryRes.statusCode !== 200) {
-        console.error(`❌ Cloudinary returned status: ${cloudinaryRes.statusCode}`);
-        res.status(cloudinaryRes.statusCode || 500).json({
-          success: false,
-          error: {
-            code: 'CLOUDINARY_ERROR',
-            message: `Failed to fetch file from storage (HTTP ${cloudinaryRes.statusCode})`
-          }
-        });
-        return;
-      }
+      console.log(`📤 Sending file to client`);
 
-      console.log(`✅ Streaming file (${document.file_size} bytes)`);
+      // Send the buffer to client
+      res.send(fileBuffer);
 
-      // Pipe the response from Cloudinary to our response
-      cloudinaryRes.pipe(res);
+      console.log(`✅ Stream complete: ${document.original_name}`);
 
-      cloudinaryRes.on('end', () => {
-        console.log(`✅ Stream complete: ${document.original_name}`);
-      });
-
-      cloudinaryRes.on('error', (error) => {
-        console.error(`❌ Stream error:`, error);
-        if (!res.headersSent) {
-          res.status(500).json({
-            success: false,
-            error: {
-              code: 'STREAM_ERROR',
-              message: 'Error streaming file'
-            }
-          });
-        }
-      });
-    }).on('error', (error) => {
-      console.error(`❌ Failed to fetch from Cloudinary:`, error);
+    } catch (downloadError: any) {
+      console.error(`❌ Cloudinary download error:`, downloadError.message);
+      
       if (!res.headersSent) {
         res.status(500).json({
           success: false,
           error: {
-            code: 'FETCH_ERROR',
+            code: 'CLOUDINARY_ERROR',
             message: 'Failed to fetch file from storage'
           }
         });
       }
-    });
+    }
 
   } catch (error: any) {
     console.error('Document stream error:', error);
