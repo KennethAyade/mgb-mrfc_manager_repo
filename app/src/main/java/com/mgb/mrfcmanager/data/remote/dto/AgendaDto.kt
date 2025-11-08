@@ -87,22 +87,29 @@ data class AgendaItemDto(
 
 /**
  * Quarter DTO for quarter references
+ * Represents a quarterly period for MRFC meetings and document submissions
  */
 data class QuarterDto(
     @Json(name = "id")
     val id: Long,
 
-    @Json(name = "quarter")
-    val quarter: String, // Q1, Q2, Q3, Q4
+    @Json(name = "name")
+    val name: String, // "Q1 2025", "Q2 2025", etc.
 
     @Json(name = "year")
     val year: Int,
+
+    @Json(name = "quarter_number")
+    val quarterNumber: Int, // 1, 2, 3, or 4
 
     @Json(name = "start_date")
     val startDate: String,
 
     @Json(name = "end_date")
-    val endDate: String
+    val endDate: String,
+
+    @Json(name = "is_current")
+    val isCurrent: Boolean = false
 )
 
 /**

@@ -10,10 +10,6 @@ enum class DocumentCategory {
     MTF_REPORT,
     @Json(name = "AEPEP")
     AEPEP,
-    @Json(name = "NTE_DISBURSEMENT")
-    NTE_DISBURSEMENT,
-    @Json(name = "OMVR")
-    OMVR,
     @Json(name = "CMVR")
     CMVR,
     @Json(name = "RESEARCH_ACCOMPLISHMENTS")
@@ -28,10 +24,8 @@ enum class DocumentCategory {
     OTHER;
 
     fun getDisplayName(): String = when (this) {
-        MTF_REPORT -> "MTF Report"
+        MTF_REPORT -> "MTF Disbursement"
         AEPEP -> "AEPEP Report"
-        NTE_DISBURSEMENT -> "NTE Disbursement"
-        OMVR -> "OMVR"
         CMVR -> "CMVR"
         RESEARCH_ACCOMPLISHMENTS -> "Research Accomplishments"
         SDMP -> "SDMP"
@@ -41,10 +35,8 @@ enum class DocumentCategory {
     }
 
     fun getDescription(): String = when (this) {
-        MTF_REPORT -> "Monitoring Task Force Report"
+        MTF_REPORT -> "Monitoring Task Force Disbursement Report"
         AEPEP -> "Annual Environmental Protection and Enhancement Program"
-        NTE_DISBURSEMENT -> "Notice to Explain Disbursement Reports"
-        OMVR -> "On-site Monitoring & Verification Report"
         CMVR -> "Comprehensive Monitoring and Violation Report"
         RESEARCH_ACCOMPLISHMENTS -> "Research and Development Accomplishments"
         SDMP -> "Social Development Management Program"
@@ -56,8 +48,6 @@ enum class DocumentCategory {
     fun getIcon(): String = when (this) {
         MTF_REPORT -> "📊"
         AEPEP -> "🌱"
-        NTE_DISBURSEMENT -> "📄"
-        OMVR -> "📋"
         CMVR -> "✅"
         RESEARCH_ACCOMPLISHMENTS -> "🔬"
         SDMP -> "🤝"
@@ -125,14 +115,14 @@ data class DocumentDto(
     @Json(name = "file_url")
     val fileUrl: String,
 
-    @Json(name = "public_id")
-    val publicId: String,
+    @Json(name = "file_cloudinary_id")
+    val fileCloudinaryId: String? = null,
 
     @Json(name = "file_size")
-    val fileSize: Long,
+    val fileSize: Long? = null,
 
-    @Json(name = "mime_type")
-    val mimeType: String,
+    @Json(name = "file_type")
+    val fileType: String? = null,
 
     @Json(name = "status")
     val status: DocumentStatus = DocumentStatus.PENDING,
@@ -146,11 +136,8 @@ data class DocumentDto(
     @Json(name = "reviewed_at")
     val reviewedAt: String? = null,
 
-    @Json(name = "rejection_reason")
-    val rejectionReason: String? = null,
-
-    @Json(name = "description")
-    val description: String? = null,
+    @Json(name = "remarks")
+    val remarks: String? = null,
 
     @Json(name = "created_at")
     val createdAt: String,
@@ -160,6 +147,7 @@ data class DocumentDto(
 ) {
     val fileSizeDisplay: String
         get() = when {
+            fileSize == null -> "Unknown"
             fileSize < 1024 -> "$fileSize B"
             fileSize < 1024 * 1024 -> "${fileSize / 1024} KB"
             else -> "${fileSize / (1024 * 1024)} MB"
@@ -208,8 +196,8 @@ data class UpdateDocumentRequest(
     @Json(name = "status")
     val status: DocumentStatus,
 
-    @Json(name = "rejection_reason")
-    val rejectionReason: String? = null
+    @Json(name = "remarks")
+    val remarks: String? = null
 )
 
 /**

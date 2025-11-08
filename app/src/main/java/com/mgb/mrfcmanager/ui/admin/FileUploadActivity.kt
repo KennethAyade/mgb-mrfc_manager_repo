@@ -149,6 +149,16 @@ class FileUploadActivity : AppCompatActivity() {
                 }
             }
         }
+        
+        // Observe upload progress
+        viewModel.uploadProgress.observe(this) { progress ->
+            updateProgressBar(progress)
+        }
+    }
+    
+    private fun updateProgressBar(progress: Int) {
+        progressBar.progress = progress
+        tvProgress.text = "$progress%"
     }
 
     private fun observeDocumentListState() {

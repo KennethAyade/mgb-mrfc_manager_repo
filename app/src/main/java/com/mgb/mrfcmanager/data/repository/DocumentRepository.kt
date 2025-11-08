@@ -119,15 +119,28 @@ class DocumentRepository(private val apiService: DocumentApiService) {
         mrfcId: Long? = null,
         proponentId: Long? = null,
         quarterId: Long? = null,
-        description: String? = null
+        description: String? = null,
+        onProgress: ((Int) -> Unit)? = null
     ): Result<DocumentUploadResponse> {
         return withContext(Dispatchers.IO) {
             try {
                 // Determine MIME type from file extension
                 val mimeType = getMimeType(file.name)
 
-                // Create file part
-                val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
+                // Create file part with progress tracking
+                val requestFile = if (onProgress != null) {
+                    com.mgb.mrfcmanager.utils.ProgressRequestBody(
+                        file,
+                        mimeType.toMediaTypeOrNull(),
+                        object : com.mgb.mrfcmanager.utils.ProgressRequestBody.UploadProgressListener {
+                            override fun onProgressUpdate(percentage: Int, bytesUploaded: Long, totalBytes: Long) {
+                                onProgress(percentage)
+                            }
+                        }
+                    )
+                } else {
+                    file.asRequestBody(mimeType.toMediaTypeOrNull())
+                }
                 val filePart = MultipartBody.Part.createFormData("file", file.name, requestFile)
 
                 // Create other parts - category is required, others are optional

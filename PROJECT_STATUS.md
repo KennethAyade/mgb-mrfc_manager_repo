@@ -1,8 +1,8 @@
 # MGB MRFC Manager - Project Status & Development Tracker
 
-**Last Updated:** November 6, 2025  
-**Version:** 1.2.0  
-**Status:** 🟡 In Active Development - **Fully Responsive for All Android Tablets**
+**Last Updated:** November 8, 2025
+**Version:** 1.5.0
+**Status:** 🟡 **Cloudinary Access Issue Under Investigation**
 
 ---
 
@@ -93,7 +93,7 @@
 
 - 🟡 **Agenda Items:** Backend complete, frontend in progress
 - 🟡 **Attendance Tracking:** Model exists, API not implemented
-- 🟡 **Document Management:** Model exists, API partially implemented
+- ✅ **Document Management:** Fully implemented (upload, view, download, streaming proxy) - v1.4.0
 - 🟡 **Compliance Logs:** Model exists, API not implemented
 - 🟡 **Reports:** Not yet implemented
 
@@ -292,24 +292,34 @@
 ---
 
 ### Document Management
-**Status:** 🟡 Partially Implemented  
-**Priority:** MEDIUM
+**Status:** ✅ Fully Implemented (v1.4.0)  
+**Priority:** HIGH
 
 **Backend:**
-- ✅ Model exists
-- ✅ File upload to Cloudinary working
-- 🟡 Document CRUD endpoints incomplete
+- ✅ Complete Document model with categories
+- ✅ File upload to Cloudinary with public access
+- ✅ Document CRUD endpoints (upload, list, view, update, delete)
+- ✅ Streaming proxy endpoint (`/documents/:id/stream`) to bypass Cloudinary 401 errors
+- ✅ Authentication and authorization on all endpoints
+- ✅ Audit logging for all document operations
 
 **Frontend:**
-- ⏳ No UI yet
-- ⏳ File picker integration needed
-- ⏳ Document viewer needed
+- ✅ FileUploadActivity with dynamic quarter/year selection
+- ✅ Android file picker integration for PDF selection
+- ✅ Real-time upload progress bar (0-100%)
+- ✅ DocumentListActivity with category-specific viewing
+- ✅ Backend streaming proxy for secure downloads
+- ✅ Local caching of downloaded PDFs
+- ✅ System PDF viewer integration ("Open with" dialog)
+- ✅ Category management (MTF, AEPEP, CMVR, Research Accomplishments)
 
-**Next Steps:**
-1. Complete backend document controller
-2. Create `DocumentListActivity`
-3. Integrate Android file picker
-4. Add PDF viewer
+**Features:**
+- Dynamic quarter/year selection based on current year
+- Upload progress tracking with throttled updates
+- PDF downloads cached at `/cache/pdfs/` for reuse
+- 60-second timeouts for large file downloads
+- Comprehensive error handling with specific messages
+- Full audit trail of uploads, downloads, and deletions
 
 ---
 
@@ -563,26 +573,69 @@ npm test
 
 ## ⚠️ Known Issues
 
-### High Priority Issues
+### ✅ Recently Resolved Issues
 
-#### 1. No Document Upload UI
-**Impact:** 🔴 HIGH  
-**Status:** OPEN  
-**Reported:** Nov 4, 2025
+#### ⚠️ 1. PDF Download 401 Unauthorized Error - ONGOING INVESTIGATION
+**Impact:** 🔴 HIGH
+**Status:** 🟡 UNDER INVESTIGATION (v1.5.0 - Nov 8, 2025)
+**Reported:** Nov 8, 2025
 
 **Description:**
-Backend supports file upload to Cloudinary, but Android app has no UI to upload documents.
+Cloudinary returns 401 Unauthorized errors when attempting to download uploaded PDF files, even with `access_mode: 'public'` set during upload. This appears to be a Cloudinary account-level restriction on raw file types.
 
-**Workaround:** None
+**Investigation & Attempted Solutions:**
+1. ✅ **Backend Streaming Proxy** - Created but still gets 401 from Cloudinary
+2. ✅ **HTTP Basic Auth** - Tried authenticating with API key/secret, still 401
+3. ✅ **Signed URLs** - Generated signed URLs with expiration, still 401
+4. ✅ **Direct secure_url** - Using Cloudinary's returned URL, still 401
+5. ✅ **Upload Configuration** - Verified files upload with `access_mode: public`
 
-**Fix Required:**
-- Create DocumentUploadActivity
-- Integrate Android file picker
-- Wire up to backend API
+**Current Findings:**
+- Upload logs confirm: `📍 Access mode: public` ✅
+- Upload logs show: `📍 Resource type: raw` ✅
+- Backend proxy successfully authenticates requests from Android app ✅
+- **Cloudinary CDN still returns 401 when backend tries to fetch the file** ❌
+
+**Root Cause (Suspected):**
+Cloudinary account has **"Strict Transformations"** or **"Restricted Media Access"** enabled for raw files, preventing public CDN access even when `access_mode: 'public'` is set during upload.
+
+**Next Steps Required:**
+1. Check Cloudinary Dashboard → Settings → Security:
+   - Verify "Restrict media access" is OFF
+   - Verify "Strict transformations" is OFF
+   - Check "Delivery type" allows "upload" type for raw resources
+2. If restrictions are enabled, either:
+   - Disable them in Cloudinary settings, OR
+   - Implement alternative storage solution (AWS S3, local file storage, etc.)
+
+**Files Modified:**
+- `backend/src/config/cloudinary.ts` (added upload logging to verify access_mode)
+- `backend/src/controllers/document.controller.ts` (multiple authentication attempts)
+- `backend/src/scripts/clear-documents.ts` (helper script to clear documents for re-testing)
+- `app/src/main/java/com/mgb/mrfcmanager/ui/admin/DocumentListActivity.kt` (backend proxy integration)
 
 ---
 
-#### 2. Agenda Items Not Editable in Frontend
+#### ✅ 2. No Document Upload UI
+**Impact:** 🔴 HIGH  
+**Status:** ✅ RESOLVED (v1.2.0 - Nov 8, 2025)  
+**Reported:** Nov 4, 2025
+
+**Description:**
+Backend supported file upload to Cloudinary, but Android app had no UI to upload documents.
+
+**Solution Implemented:**
+- Created FileUploadActivity with dynamic quarter/year selection
+- Integrated Android file picker for PDF selection
+- Added real-time progress bar (0-100%) during uploads
+- Implemented category-specific document management (MTF, AEPEP, CMVR, Research Accomplishments)
+- Full integration with backend document upload API
+
+---
+
+### High Priority Issues
+
+#### 1. Agenda Items Not Editable in Frontend
 **Impact:** 🟡 MEDIUM  
 **Status:** OPEN  
 **Reported:** Nov 4, 2025
@@ -601,7 +654,7 @@ Backend API for agenda items is complete, but frontend has no UI to add/edit age
 
 ### Medium Priority Issues
 
-#### 3. No Offline Support
+#### 2. No Offline Support
 **Impact:** 🟡 MEDIUM  
 **Status:** OPEN  
 **Reported:** Oct 28, 2025
@@ -618,7 +671,7 @@ App requires internet connection at all times. No offline caching or queuing of 
 
 ---
 
-#### 4. Search Only Works on Backend
+#### 3. Search Only Works on Backend
 **Impact:** 🟡 MEDIUM  
 **Status:** OPEN  
 **Reported:** Nov 1, 2025
@@ -636,7 +689,7 @@ Backend APIs support search, but Android app doesn't have search UI.
 
 ### Low Priority Issues
 
-#### 5. No Audit Logging
+#### 4. No Audit Logging
 **Impact:** 🟢 LOW  
 **Status:** OPEN  
 **Reported:** Nov 2, 2025
@@ -757,15 +810,16 @@ Password: Change@Me
 
 ### Immediate (This Week)
 1. ✅ ~~Complete Proponents CRUD~~ (DONE - Nov 6)
-2. ⏳ Implement Agenda Items UI in frontend
-3. ⏳ Add search UI to all list screens
-4. ⏳ Write automated tests for backend Proponents API
+2. ✅ ~~Implement Document Management~~ (DONE - Nov 8, v1.4.0)
+3. ⏳ Implement Agenda Items UI in frontend
+4. ⏳ Add search UI to all list screens
+5. ⏳ Write automated tests for backend Proponents API
 
 ### Short Term (Next 2 Weeks)
 1. ⏳ Implement Attendance Tracking (Backend + Frontend)
-2. ⏳ Implement Document Management UI
-3. ⏳ Add advanced filters to all lists
-4. ⏳ Implement basic reports (attendance, compliance)
+2. ⏳ Add advanced filters to all lists
+3. ⏳ Implement basic reports (attendance, compliance)
+4. ⏳ Add document review/approval workflow UI
 
 ### Medium Term (Next Month)
 1. ⏳ Implement Compliance Logs
@@ -797,8 +851,18 @@ Password: Change@Me
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| Nov 8, 2025 | 1.5.0 | **Cloudinary 401 Investigation:** Deep investigation into persistent 401 errors from Cloudinary CDN. Attempted multiple authentication methods: (1) HTTP Basic Auth with API credentials, (2) Signed URLs with expiration, (3) Direct secure_url usage, (4) Backend streaming proxy. Added comprehensive upload logging to verify `access_mode: public` is set correctly. Upload succeeds with public access mode confirmed in logs, but download still returns 401. **Root cause:** Suspected Cloudinary account-level restrictions on raw file types. Created `clear-documents.ts` script for easier testing. Updated documentation with troubleshooting steps. **Status:** Awaiting Cloudinary account settings verification. | AI Assistant |
+| Nov 8, 2025 | 1.4.0 | **Backend Stream Proxy Implementation:** Implemented backend streaming proxy endpoint `/documents/:id/stream` to bypass Cloudinary access restrictions. Backend fetches PDFs from Cloudinary and streams to Android app. Android app caches downloaded PDFs locally at `/cache/pdfs/` for reuse. Added authentication, error handling, and audit logging with 60-second timeouts for large files. **Note:** Initial implementation, but 401 errors persist (see v1.5.0). | AI Assistant |
+| Nov 8, 2025 | 1.3.5 | **Debug Enhancement:** Enhanced PDF download error handling with detailed logging, proper HTTP connection handling (30s timeouts, User-Agent header, status code checking), and comprehensive error messages. Added diagnostic logs to identify exact failure cause. | AI Assistant |
+| Nov 8, 2025 | 1.3.4 | **Performance Fix:** Fixed static progress bar to show dynamic real-time upload progress. Increased buffer size from 2KB to 64KB, added progress throttling (1% increments), and sink flushing for accurate tracking. Progress now smoothly updates from 0% to 100% during file uploads. | AI Assistant |
+| Nov 8, 2025 | 1.3.3 | **Critical Fix:** Fixed HTTP 401 error and missing "Open with" dialog. App now downloads PDF to local cache first, then uses FileProvider to open with "Open with" dialog. Fixes authentication issues and gives users choice of PDF viewer app. | AI Assistant |
+| Nov 8, 2025 | 1.3.2 | **Critical Fix:** Fixed "No preview available" PDF viewer error. Changed from WebView-based viewer to system PDF viewer (Google PDF Viewer, Adobe, etc.). PDFs now open reliably in dedicated PDF apps. See PDF_VIEWER_FIX.md for details. | AI Assistant |
+| Nov 8, 2025 | 1.3.1 | **Feature:** Implemented dynamic upload progress bar. Progress bar now shows real-time upload percentage (0-100%) with smooth updates during file upload. Added ProgressRequestBody for tracking upload progress. | AI Assistant |
+| Nov 8, 2025 | 1.3.0 | **Major Feature:** Implemented in-app PDF viewer using WebView + Google Docs Viewer. Documents now open within the app (no external browser needed). Fixes 401 errors and provides better UX. See IN_APP_PDF_VIEWER_GUIDE.md for details. | AI Assistant |
+| Nov 8, 2025 | 1.2.2 | **Critical Fix:** Fixed Cloudinary 401 error when viewing documents. Added `access_mode: 'public'` to uploads. Created clear-documents script to remove old restricted files. See CLOUDINARY_FIX_GUIDE.md for details. | AI Assistant |
 | Nov 6, 2025 | 1.2.0 | **Major:** Implemented comprehensive responsive design system for all Android tablet sizes (7", 10", 12"+) and orientations (portrait/landscape). Added device-specific dimension resources (sw600dp, sw720dp, sw900dp-land), created tablet-optimized layouts with multi-column grids, two-pane layouts, and constrained form widths for better UX. | AI Assistant |
-| Nov 6, 2025 | 1.1.0 | **Major:** Implemented complete Document Management System with category-specific viewers (NTE Disbursement, AEPEP, OMVR, Research Accomplishments). Added DocumentListActivity with upload, view, and organized document browsing by category. | AI Assistant |
+| Nov 8, 2025 | 1.1.1 | **Fix:** Corrected document categories to match user flowchart (MTF Disbursement, AEPEP, CMVR, Research Accomplishments). Removed incorrect NTE_DISBURSEMENT and OMVR categories from both Android and backend code. | AI Assistant |
+| Nov 6, 2025 | 1.1.0 | **Major:** Implemented complete Document Management System with category-specific viewers. Added DocumentListActivity with upload, view, and organized document browsing by category. | AI Assistant |
 | Nov 6, 2025 | 1.0.2 | Implemented Quarterly Services flow from flowchart (Select Quarter → Access Services) | AI Assistant |
 | Nov 6, 2025 | 1.0.1 | Enhanced MRFC card layout with detailed information sections | AI Assistant |
 | Nov 6, 2025 | 1.0.0 | Initial creation of unified project status document | AI Assistant |

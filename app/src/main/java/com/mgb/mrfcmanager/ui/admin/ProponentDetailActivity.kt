@@ -17,13 +17,17 @@ import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.ProponentApiService
+import com.mgb.mrfcmanager.data.remote.api.QuarterApiService
 import com.mgb.mrfcmanager.data.remote.dto.ProponentDto
+import com.mgb.mrfcmanager.data.remote.dto.QuarterDto
 import com.mgb.mrfcmanager.data.repository.ProponentRepository
+import com.mgb.mrfcmanager.data.repository.QuarterRepository
 import com.mgb.mrfcmanager.data.repository.Result
 import com.mgb.mrfcmanager.viewmodel.ProponentDetailState
 import com.mgb.mrfcmanager.viewmodel.ProponentViewModel
 import com.mgb.mrfcmanager.viewmodel.ProponentViewModelFactory
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 class ProponentDetailActivity : AppCompatActivity() {
 
@@ -40,10 +44,12 @@ class ProponentDetailActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var viewModel: ProponentViewModel
     private lateinit var repository: ProponentRepository
+    private lateinit var quarterRepository: QuarterRepository
 
     private var proponentId: Long = -1
     private var mrfcId: Long = -1
     private var currentProponent: ProponentDto? = null
+    private var quarters: List<QuarterDto> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,6 +95,34 @@ class ProponentDetailActivity : AppCompatActivity() {
         repository = ProponentRepository(proponentApiService)
         val factory = ProponentViewModelFactory(repository)
         viewModel = ViewModelProvider(this, factory)[ProponentViewModel::class.java]
+        
+        // Initialize quarter repository
+        val quarterApiService = retrofit.create(QuarterApiService::class.java)
+        quarterRepository = QuarterRepository(quarterApiService)
+        
+        // Load quarters for current year
+        loadQuarters()
+    }
+    
+    private fun loadQuarters() {
+        lifecycleScope.launch {
+            val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+            when (val result = quarterRepository.getQuarters(year = currentYear)) {
+                is Result.Success -> {
+                    quarters = result.data
+                }
+                is Result.Error -> {
+                    Toast.makeText(
+                        this@ProponentDetailActivity,
+                        "Failed to load quarters: ${result.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                is Result.Loading -> {
+                    // Loading state
+                }
+            }
+        }
     }
 
     private fun observeProponent() {
@@ -192,16 +226,16 @@ class ProponentDetailActivity : AppCompatActivity() {
             openFileUpload(selectedQuarter)
         }
 
-        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewNTE).setOnClickListener {
-            openDocumentList("NTE_DISBURSEMENT", selectedQuarter)
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewMTF).setOnClickListener {
+            openDocumentList("MTF_REPORT", selectedQuarter)
         }
 
         findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewAEPEP).setOnClickListener {
             openDocumentList("AEPEP", selectedQuarter)
         }
 
-        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewOMVR).setOnClickListener {
-            openDocumentList("OMVR", selectedQuarter)
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewCMVR).setOnClickListener {
+            openDocumentList("CMVR", selectedQuarter)
         }
 
         findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewResearch).setOnClickListener {
@@ -214,20 +248,48 @@ class ProponentDetailActivity : AppCompatActivity() {
     }
 
     private fun openFileUpload(quarter: Int) {
-        // TODO: Convert quarter number to quarter_id (needs Quarter API)
+        // Dynamically find quarter ID from loaded quarters
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+        val matchingQuarter = quarters.find { 
+            it.quarterNumber == quarter && it.year == currentYear 
+        }
+        
+        if (matchingQuarter == null) {
+            Toast.makeText(
+                this,
+                "Quarter $quarter not found for year $currentYear",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        
         val intent = Intent(this, FileUploadActivity::class.java).apply {
             putExtra("PROPONENT_ID", proponentId)
             putExtra("MRFC_ID", mrfcId)
-            // putExtra("QUARTER_ID", quarterId) // Will be implemented when Quarter API is ready
+            putExtra("QUARTER_ID", matchingQuarter.id)
         }
         startActivity(intent)
     }
 
     private fun openDocumentList(category: String, quarter: Int) {
-        // TODO: Convert quarter number to quarter_id (needs Quarter API)
+        // Dynamically find quarter ID from loaded quarters
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+        val matchingQuarter = quarters.find { 
+            it.quarterNumber == quarter && it.year == currentYear 
+        }
+        
+        if (matchingQuarter == null) {
+            Toast.makeText(
+                this,
+                "Quarter $quarter not found for year $currentYear",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        
         val intent = Intent(this, DocumentListActivity::class.java).apply {
             putExtra(DocumentListActivity.EXTRA_PROPONENT_ID, proponentId)
-            // putExtra(DocumentListActivity.EXTRA_QUARTER_ID, quarterId) // Will be implemented when Quarter API is ready
+            putExtra(DocumentListActivity.EXTRA_QUARTER_ID, matchingQuarter.id)
             putExtra(DocumentListActivity.EXTRA_CATEGORY, category)
         }
         startActivity(intent)

@@ -228,7 +228,7 @@ class DocumentReviewActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val request = UpdateDocumentRequest(
                 status = DocumentStatus.ACCEPTED,
-                rejectionReason = null
+                remarks = null
             )
 
             when (val result = viewModel.updateDocument(document.id, request)) {
@@ -252,7 +252,7 @@ class DocumentReviewActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val request = UpdateDocumentRequest(
                 status = DocumentStatus.REJECTED,
-                rejectionReason = reason
+                remarks = reason
             )
 
             when (val result = viewModel.updateDocument(document.id, request)) {
@@ -348,18 +348,18 @@ class DocumentReviewActivity : AppCompatActivity() {
                 tvStatus.text = document.status.getDisplayName()
                 tvStatus.setTextColor(document.status.getColor())
 
-                // Description
-                if (document.description.isNullOrEmpty()) {
+                // Description (using remarks field)
+                if (document.remarks.isNullOrEmpty()) {
                     tvDescription.visibility = View.GONE
                 } else {
                     tvDescription.visibility = View.VISIBLE
-                    tvDescription.text = document.description
+                    tvDescription.text = document.remarks
                 }
 
                 // Rejection reason
-                if (document.isRejected && !document.rejectionReason.isNullOrEmpty()) {
+                if (document.isRejected && !document.remarks.isNullOrEmpty()) {
                     tvRejectionReason.visibility = View.VISIBLE
-                    tvRejectionReason.text = "Reason: ${document.rejectionReason}"
+                    tvRejectionReason.text = "Reason: ${document.remarks}"
                 } else {
                     tvRejectionReason.visibility = View.GONE
                 }

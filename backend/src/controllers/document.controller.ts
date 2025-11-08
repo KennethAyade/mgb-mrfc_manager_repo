@@ -118,6 +118,158 @@ export const listDocuments = async (req: Request, res: Response): Promise<void> 
 };
 
 /**
+ * Get documents by MRFC ID
+ * GET /api/v1/documents/mrfc/:mrfc_id
+ * Query params: category, status
+ */
+export const getDocumentsByMrfc = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { mrfc_id } = req.params;
+    const { category, status } = req.query;
+
+    // Build filters
+    const where: any = {};
+    if (category) where.category = category;
+    if (status) where.status = status;
+
+    // Find all proponents for this MRFC
+    const proponents = await Proponent.findAll({
+      where: { mrfc_id: parseInt(mrfc_id) },
+      attributes: ['id']
+    });
+
+    const proponentIds = proponents.map(p => p.id);
+
+    // If no proponents found, return empty array
+    if (proponentIds.length === 0) {
+      res.json({
+        success: true,
+        data: []
+      });
+      return;
+    }
+
+    // Add proponent filter
+    where.proponent_id = { [Op.in]: proponentIds };
+
+    // Query documents
+    const documents = await Document.findAll({
+      where,
+      include: [
+        {
+          model: User,
+          as: 'uploader',
+          attributes: ['id', 'full_name', 'email']
+        },
+        {
+          model: Proponent,
+          as: 'proponent',
+          attributes: ['id', 'name', 'company_name', 'mrfc_id'],
+          include: [
+            {
+              model: Mrfc,
+              as: 'mrfc',
+              attributes: ['id', 'name', 'municipality']
+            }
+          ]
+        },
+        {
+          model: Quarter,
+          as: 'quarter',
+          attributes: ['id', 'name', 'year', 'quarter_number']
+        },
+        {
+          model: User,
+          as: 'reviewer',
+          attributes: ['id', 'full_name', 'email']
+        }
+      ],
+      order: [['upload_date', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data: documents
+    });
+  } catch (error: any) {
+    console.error('Get documents by MRFC error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DOCUMENT_RETRIEVAL_FAILED',
+        message: error.message || 'Failed to retrieve documents by MRFC'
+      }
+    });
+  }
+};
+
+/**
+ * Get documents by Proponent ID
+ * GET /api/v1/documents/proponent/:proponent_id
+ * Query params: category, status
+ */
+export const getDocumentsByProponent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { proponent_id } = req.params;
+    const { category, status } = req.query;
+
+    // Build filters
+    const where: any = { proponent_id: parseInt(proponent_id) };
+    if (category) where.category = category;
+    if (status) where.status = status;
+
+    // Query documents
+    const documents = await Document.findAll({
+      where,
+      include: [
+        {
+          model: User,
+          as: 'uploader',
+          attributes: ['id', 'full_name', 'email']
+        },
+        {
+          model: Proponent,
+          as: 'proponent',
+          attributes: ['id', 'name', 'company_name', 'mrfc_id'],
+          include: [
+            {
+              model: Mrfc,
+              as: 'mrfc',
+              attributes: ['id', 'name', 'municipality']
+            }
+          ]
+        },
+        {
+          model: Quarter,
+          as: 'quarter',
+          attributes: ['id', 'name', 'year', 'quarter_number']
+        },
+        {
+          model: User,
+          as: 'reviewer',
+          attributes: ['id', 'full_name', 'email']
+        }
+      ],
+      order: [['upload_date', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data: documents
+    });
+  } catch (error: any) {
+    console.error('Get documents by proponent error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DOCUMENT_RETRIEVAL_FAILED',
+        message: error.message || 'Failed to retrieve documents by proponent'
+      }
+    });
+  }
+};
+
+/**
  * Upload document with Cloudinary integration
  * POST /api/v1/documents/upload
  * Body: proponent_id, quarter_id, category
@@ -130,7 +282,7 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
   let tempFilePath: string | undefined;
 
   try {
-    const { proponent_id, quarter_id, category } = req.body;
+    const { proponent_id, quarter_id, category, description } = req.body;
     const currentUser = (req as any).user;
     const file = (req as any).file; // From multer middleware
 
@@ -194,7 +346,7 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Fetch quarter
+    // Fetch quarter (required)
     const quarter = await Quarter.findByPk(quarter_id);
     if (!quarter) {
       res.status(404).json({
@@ -438,6 +590,135 @@ export const downloadDocument = async (req: Request, res: Response): Promise<voi
         message: error.message || 'Failed to retrieve download URL'
       }
     });
+  }
+};
+
+/**
+ * Stream document file directly (proxy download)
+ * GET /api/v1/documents/:id/stream
+ * Streams the file from Cloudinary through backend to bypass access restrictions
+ */
+export const streamDocument = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const documentId = parseInt(req.params.id);
+    const currentUser = (req as any).user;
+
+    // Find document
+    const document = await Document.findByPk(documentId);
+    if (!document) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'DOCUMENT_NOT_FOUND',
+          message: 'Document not found'
+        }
+      });
+      return;
+    }
+
+    console.log(`📥 Streaming document: ${document.original_name}`);
+    console.log(`📍 Cloudinary Public ID: ${document.file_cloudinary_id}`);
+
+    // Validate that file has cloudinary_id
+    if (!document.file_cloudinary_id) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'MISSING_CLOUDINARY_ID',
+          message: 'Document is missing Cloudinary reference'
+        }
+      });
+      return;
+    }
+
+    // Log download action
+    await AuditLog.create({
+      user_id: currentUser?.userId,
+      action: AuditAction.UPDATE,
+      entity_type: 'documents',
+      entity_id: documentId,
+      new_values: {
+        action_type: 'STREAM_DOCUMENT',
+        file_name: document.file_name,
+        original_name: document.original_name
+      }
+    });
+
+    // Use the secure_url that was saved during upload
+    // This is the direct Cloudinary CDN URL
+    const cloudinaryUrl = document.file_url;
+
+    console.log(`📥 Attempting download from Cloudinary CDN`);
+    console.log(`📍 URL: ${cloudinaryUrl}`);
+
+    // Set response headers before streaming
+    res.setHeader('Content-Type', document.file_type || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(document.original_name)}"`);
+    if (document.file_size) {
+      res.setHeader('Content-Length', document.file_size.toString());
+    }
+
+    const https = await import('https');
+
+    // Try direct download from the secure_url
+    https.get(cloudinaryUrl, (cloudinaryRes) => {
+      if (cloudinaryRes.statusCode !== 200) {
+        console.error(`❌ Cloudinary returned status: ${cloudinaryRes.statusCode}`);
+        res.status(cloudinaryRes.statusCode || 500).json({
+          success: false,
+          error: {
+            code: 'CLOUDINARY_ERROR',
+            message: `Failed to fetch file from storage (HTTP ${cloudinaryRes.statusCode})`
+          }
+        });
+        return;
+      }
+
+      console.log(`✅ Streaming file (${document.file_size} bytes)`);
+
+      // Pipe the response from Cloudinary to our response
+      cloudinaryRes.pipe(res);
+
+      cloudinaryRes.on('end', () => {
+        console.log(`✅ Stream complete: ${document.original_name}`);
+      });
+
+      cloudinaryRes.on('error', (error) => {
+        console.error(`❌ Stream error:`, error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            error: {
+              code: 'STREAM_ERROR',
+              message: 'Error streaming file'
+            }
+          });
+        }
+      });
+    }).on('error', (error) => {
+      console.error(`❌ Failed to fetch from Cloudinary:`, error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'FETCH_ERROR',
+            message: 'Failed to fetch file from storage'
+          }
+        });
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Document stream error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'DOCUMENT_STREAM_FAILED',
+          message: error.message || 'Failed to stream document'
+        }
+      });
+    }
   }
 };
 

@@ -94,6 +94,48 @@ router.get('/', authenticate, documentController.listDocuments);
 
 /**
  * ================================================
+ * GET /documents/mrfc/:mrfc_id
+ * ================================================
+ * Get all documents for a specific MRFC (across all proponents)
+ *
+ * URL PARAMETERS:
+ * - mrfc_id: number (MRFC ID)
+ *
+ * QUERY PARAMETERS:
+ * - category: string (filter by document category)
+ * - status: string (filter by document status)
+ *
+ * RESPONSE (200):
+ * {
+ *   "success": true,
+ *   "data": [...]
+ * }
+ */
+router.get('/mrfc/:mrfc_id', authenticate, documentController.getDocumentsByMrfc);
+
+/**
+ * ================================================
+ * GET /documents/proponent/:proponent_id
+ * ================================================
+ * Get all documents for a specific proponent
+ *
+ * URL PARAMETERS:
+ * - proponent_id: number (Proponent ID)
+ *
+ * QUERY PARAMETERS:
+ * - category: string (filter by document category)
+ * - status: string (filter by document status)
+ *
+ * RESPONSE (200):
+ * {
+ *   "success": true,
+ *   "data": [...]
+ * }
+ */
+router.get('/proponent/:proponent_id', authenticate, documentController.getDocumentsByProponent);
+
+/**
+ * ================================================
  * POST /documents/upload
  * ================================================
  * Upload compliance document for a proponent
@@ -279,6 +321,25 @@ router.get('/:id', authenticate, documentController.getDocumentById);
  * - Frontend can use URL to download file
  */
 router.get('/:id/download', authenticate, documentController.downloadDocument);
+
+/**
+ * ================================================
+ * GET /documents/:id/stream
+ * ================================================
+ * Stream document file directly (proxy download)
+ * Authentication Required: YES
+ *
+ * RESPONSE:
+ * - Streams the PDF/document file directly
+ * - Sets Content-Type and Content-Disposition headers
+ * - Bypasses Cloudinary 401 Unauthorized errors
+ *
+ * BUSINESS RULES:
+ * - Fetches file from Cloudinary with backend's authenticated connection
+ * - Acts as a proxy to stream the file to the client
+ * - Logs stream action in audit log
+ */
+router.get('/:id/stream', authenticate, documentController.streamDocument);
 
 /**
  * ================================================

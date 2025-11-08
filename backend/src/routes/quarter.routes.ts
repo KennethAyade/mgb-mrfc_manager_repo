@@ -12,6 +12,8 @@
 
 import { Router, Request, Response } from 'express';
 import { authenticate, adminOnly } from '../middleware/auth';
+import { Quarter } from '../models';
+import { Op } from 'sequelize';
 
 const router = Router();
 
@@ -87,13 +89,37 @@ const router = Router();
  * - Sorting by year and quarter_number by default
  */
 router.get('/', authenticate, async (req: Request, res: Response) => {
-  res.status(501).json({
-    success: false,
-    error: {
-      code: 'NOT_IMPLEMENTED',
-      message: 'Quarter listing endpoint not yet implemented.'
-    }
-  });
+  try {
+    const { year, is_current, sort_order = 'DESC' } = req.query;
+
+    // Build filters
+    const where: any = {};
+    if (year) where.year = parseInt(year as string);
+    if (is_current !== undefined) where.is_current = is_current === 'true';
+
+    // Query quarters
+    const quarters = await Quarter.findAll({
+      where,
+      order: [
+        ['year', sort_order as string],
+        ['quarter_number', sort_order as string]
+      ]
+    });
+
+    res.json({
+      success: true,
+      data: quarters
+    });
+  } catch (error: any) {
+    console.error('Quarter listing error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'QUARTER_LISTING_FAILED',
+        message: error.message || 'Failed to retrieve quarters'
+      }
+    });
+  }
 });
 
 /**

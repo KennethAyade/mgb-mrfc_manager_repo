@@ -484,12 +484,12 @@
                             android:layout_marginStart="@dimen/spacing_small">
 
                             <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnViewNTE"
+                                android:id="@+id/btnViewMTF"
                                 style="@style/Widget.Material3.Button.OutlinedButton"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginBottom="@dimen/spacing_small"
-                                android:text="View NTE Disbursement"
+                                android:text="View MTF Disbursement"
                                 android:textAlignment="textStart"
                                 android:padding="@dimen/spacing_normal"
                                 android:textSize="@dimen/text_size_normal"
@@ -498,11 +498,11 @@
                                 app:iconGravity="start" />
 
                             <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnViewOMVR"
+                                android:id="@+id/btnViewCMVR"
                                 style="@style/Widget.Material3.Button.OutlinedButton"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="View OMVR"
+                                android:text="View CMVR"
                                 android:textAlignment="textStart"
                                 android:padding="@dimen/spacing_normal"
                                 android:textSize="@dimen/text_size_normal"

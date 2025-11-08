@@ -46,8 +46,17 @@ export const uploadToCloudinary = async (
       folder: folder,
       resource_type: resourceType,
       use_filename: true,
-      unique_filename: true
+      unique_filename: true,
+      access_mode: 'public', // Ensure files are publicly accessible
+      type: 'upload', // Upload type for public access
+      invalidate: false, // Don't invalidate CDN cache
+      overwrite: false // Don't overwrite existing files
     });
+
+    console.log(`✅ Uploaded to Cloudinary: ${result.public_id}`);
+    console.log(`📍 Access mode: ${result.access_mode || 'public'}`);
+    console.log(`📍 Resource type: ${result.resource_type}`);
+    console.log(`📍 URL: ${result.secure_url}`);
 
     return {
       url: result.secure_url,

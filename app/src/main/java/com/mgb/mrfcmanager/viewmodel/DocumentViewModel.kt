@@ -28,6 +28,9 @@ class DocumentViewModel(private val repository: DocumentRepository) : ViewModel(
     private val _uploadState = MutableLiveData<DocumentUploadState>()
     val uploadState: LiveData<DocumentUploadState> = _uploadState
 
+    private val _uploadProgress = MutableLiveData<Int>()
+    val uploadProgress: LiveData<Int> = _uploadProgress
+
     private val _downloadState = MutableLiveData<DocumentDownloadState>()
     val downloadState: LiveData<DocumentDownloadState> = _downloadState
 
@@ -114,12 +117,22 @@ class DocumentViewModel(private val repository: DocumentRepository) : ViewModel(
         description: String? = null
     ) {
         _uploadState.value = DocumentUploadState.Loading
+        _uploadProgress.value = 0
 
         viewModelScope.launch {
             when (val result = repository.uploadDocument(
-                file, category, mrfcId, proponentId, quarterId, description
+                file = file,
+                category = category,
+                mrfcId = mrfcId,
+                proponentId = proponentId,
+                quarterId = quarterId,
+                description = description,
+                onProgress = { progress ->
+                    _uploadProgress.postValue(progress)
+                }
             )) {
                 is Result.Success -> {
+                    _uploadProgress.postValue(100)
                     _uploadState.value = DocumentUploadState.Success(result.data)
                 }
                 is Result.Error -> {

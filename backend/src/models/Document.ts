@@ -13,8 +13,6 @@ import sequelize from '../config/database';
 export enum DocumentCategory {
   MTF_REPORT = 'MTF_REPORT',
   AEPEP = 'AEPEP',
-  NTE_DISBURSEMENT = 'NTE_DISBURSEMENT',
-  OMVR = 'OMVR',
   CMVR = 'CMVR',
   RESEARCH_ACCOMPLISHMENTS = 'RESEARCH_ACCOMPLISHMENTS',
   SDMP = 'SDMP',

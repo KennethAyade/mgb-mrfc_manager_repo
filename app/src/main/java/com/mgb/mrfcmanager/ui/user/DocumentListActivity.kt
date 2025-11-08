@@ -334,11 +334,11 @@ class DocumentListActivity : AppCompatActivity() {
         // Filter by file type
         if (currentFileTypeFilter != "All") {
             filtered = filtered.filter { doc ->
-                val mimeType = doc.mimeType.lowercase()
+                val fileType = doc.fileType?.lowercase() ?: ""
                 when (currentFileTypeFilter) {
-                    "PDF" -> mimeType.contains("pdf")
-                    "Excel" -> mimeType.contains("spreadsheet") || mimeType.contains("excel")
-                    "Word" -> mimeType.contains("word") || mimeType.contains("document")
+                    "PDF" -> fileType.contains("pdf")
+                    "Excel" -> fileType.contains("spreadsheet") || fileType.contains("excel")
+                    "Word" -> fileType.contains("word") || fileType.contains("document")
                     else -> true
                 }
             }
@@ -356,7 +356,7 @@ class DocumentListActivity : AppCompatActivity() {
             filtered = filtered.filter {
                 it.fileName.contains(searchQuery, ignoreCase = true) ||
                 it.category.getDisplayName().contains(searchQuery, ignoreCase = true) ||
-                it.description?.contains(searchQuery, ignoreCase = true) == true
+                it.remarks?.contains(searchQuery, ignoreCase = true) == true
             }
         }
 
@@ -439,16 +439,15 @@ class DocumentListActivity : AppCompatActivity() {
                 tvFileDate.text = "Uploaded on $uploadDate"
 
                 // Set icon and color based on mime type
+                val fileType = document.fileType?.lowercase() ?: ""
                 val (iconRes, bgColor) = when {
-                    document.mimeType.contains("pdf", ignoreCase = true) ->
+                    fileType.contains("pdf") ->
                         R.drawable.ic_file to R.color.status_error
-                    document.mimeType.contains("spreadsheet", ignoreCase = true) ||
-                    document.mimeType.contains("excel", ignoreCase = true) ->
+                    fileType.contains("spreadsheet") || fileType.contains("excel") ->
                         R.drawable.ic_file to R.color.status_success
-                    document.mimeType.contains("word", ignoreCase = true) ||
-                    document.mimeType.contains("document", ignoreCase = true) ->
+                    fileType.contains("word") || fileType.contains("document") ->
                         R.drawable.ic_file to R.color.status_info
-                    document.mimeType.contains("image", ignoreCase = true) ->
+                    fileType.contains("image") ->
                         R.drawable.ic_file to R.color.status_warning
                     else -> R.drawable.ic_file to R.color.primary
                 }
