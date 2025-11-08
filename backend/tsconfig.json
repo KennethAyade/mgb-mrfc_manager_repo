@@ -29,6 +29,7 @@
     "node_modules",
     "dist",
     "**/*.test.ts",
+    "**/__tests__/**",
     "src/controllers/agenda.controller.ts",
     "src/controllers/attendance.controller.ts",
     "src/controllers/compliance.controller.ts",
