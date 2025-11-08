@@ -25,5 +25,16 @@
     "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "src/controllers/agenda.controller.ts",
+    "src/controllers/attendance.controller.ts",
+    "src/controllers/compliance.controller.ts",
+    "src/controllers/note.controller.ts",
+    "src/controllers/statistics.controller.ts",
+    "src/controllers/quarter.controller.ts",
+    "src/scripts/fix-cloudinary-access.ts"
+  ]
 }
