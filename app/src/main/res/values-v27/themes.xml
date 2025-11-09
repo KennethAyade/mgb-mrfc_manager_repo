@@ -1,0 +1,7 @@
+<resources>
+    <!-- API 27+ specific attributes -->
+    <style name="Base.Theme.MRFCManager" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Navigation Bar Light Mode (API 27+) -->
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

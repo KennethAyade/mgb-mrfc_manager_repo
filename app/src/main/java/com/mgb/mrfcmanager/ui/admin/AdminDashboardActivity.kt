@@ -46,6 +46,7 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
         setupNavigationDrawer()
         setupDashboardCards()
         setupRoleBasedUI()
+        setupBackPressedHandler()
         loadDashboardStatistics()
 
         Log.d("AdminDashboard", "AdminDashboardActivity setup completed")
@@ -351,11 +352,15 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
         }
     }
 
-    override fun onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START)
-        } else {
-            super.onBackPressed()
-        }
+    private fun setupBackPressedHandler() {
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                } else {
+                    finish()
+                }
+            }
+        })
     }
 }

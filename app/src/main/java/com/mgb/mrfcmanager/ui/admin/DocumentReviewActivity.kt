@@ -332,6 +332,7 @@ class DocumentReviewActivity : AppCompatActivity() {
             private val btnApprove: MaterialButton = itemView.findViewById(R.id.btnApprove)
             private val btnReject: MaterialButton = itemView.findViewById(R.id.btnReject)
             private val btnDownload: MaterialButton = itemView.findViewById(R.id.btnDownload)
+            private val btnAnalyzeCompliance: MaterialButton = itemView.findViewById(R.id.btnAnalyzeCompliance)
 
             fun bind(
                 document: DocumentDto,
@@ -373,6 +374,24 @@ class DocumentReviewActivity : AppCompatActivity() {
                 } else {
                     btnApprove.visibility = View.GONE
                     btnReject.visibility = View.GONE
+                }
+
+                // Analyze Compliance button - only show for CMVR documents
+                val isCMVR = document.category == com.mgb.mrfcmanager.data.remote.dto.DocumentCategory.CMVR || 
+                            document.originalName.uppercase().contains("CMVR")
+                if (isCMVR) {
+                    btnAnalyzeCompliance.visibility = View.VISIBLE
+                    btnAnalyzeCompliance.setOnClickListener {
+                        val context = itemView.context
+                        val intent = android.content.Intent(context, ComplianceAnalysisActivity::class.java).apply {
+                            putExtra(ComplianceAnalysisActivity.EXTRA_DOCUMENT_ID, document.id)
+                            putExtra(ComplianceAnalysisActivity.EXTRA_DOCUMENT_NAME, document.originalName)
+                            putExtra(ComplianceAnalysisActivity.EXTRA_AUTO_ANALYZE, true)
+                        }
+                        context.startActivity(intent)
+                    }
+                } else {
+                    btnAnalyzeCompliance.visibility = View.GONE
                 }
 
                 btnDownload.setOnClickListener { onDownloadClick(document) }

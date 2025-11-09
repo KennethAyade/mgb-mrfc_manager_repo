@@ -34,4 +34,9 @@
     <integer name="dashboard_grid_columns">2</integer>
     <integer name="list_grid_columns">1</integer>
     <integer name="agenda_grid_columns">1</integer>
+
+    <!-- Navigation rail and master-detail dimensions (tablet-specific, defaults for phone) -->
+    <dimen name="nav_rail_width">0dp</dimen>
+    <dimen name="master_pane_width">0dp</dimen>
+    <dimen name="detail_pane_min_width">0dp</dimen>
 </resources>

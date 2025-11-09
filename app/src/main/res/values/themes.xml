@@ -22,7 +22,6 @@
 
         <!-- Navigation Bar -->
         <item name="android:navigationBarColor">@color/surface</item>
-        <item name="android:windowLightNavigationBar">true</item>
 
         <!-- Text Colors -->
         <item name="android:textColorPrimary">@color/text_primary</item>

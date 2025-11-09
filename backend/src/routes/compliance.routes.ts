@@ -1,11 +1,17 @@
 /**
  * ================================================
- * COMPLIANCE DASHBOARD ROUTES
+ * COMPLIANCE ROUTES
  * ================================================
- * Handles compliance tracking and reporting for MRFCs
+ * Handles compliance tracking and CMVR analysis
  * Base path: /api/v1/compliance
  *
- * ENDPOINTS:
+ * CMVR COMPLIANCE ANALYSIS ENDPOINTS:
+ * POST   /compliance/analyze                      - Analyze CMVR document
+ * GET    /compliance/document/:documentId         - Get analysis results
+ * PUT    /compliance/document/:documentId         - Update analysis (admin adjustments)
+ * GET    /compliance/proponent/:proponentId       - Get all analyses for proponent
+ *
+ * COMPLIANCE DASHBOARD ENDPOINTS:
  * GET    /compliance/dashboard    - Get compliance dashboard overview
  * GET    /compliance/mrfc/:id     - Get compliance status for specific MRFC
  * POST   /compliance              - Record compliance update (ADMIN only)
@@ -14,8 +20,43 @@
 
 import { Router, Request, Response } from 'express';
 import { authenticate, adminOnly, checkMrfcAccess } from '../middleware/auth';
+import * as complianceAnalysisController from '../controllers/complianceAnalysis.controller';
 
 const router = Router();
+
+// ==========================================
+// CMVR COMPLIANCE ANALYSIS ROUTES
+// ==========================================
+
+/**
+ * POST /compliance/analyze
+ * Analyze CMVR document and calculate compliance percentage
+ * Body: { document_id: number }
+ */
+router.post('/analyze', authenticate, adminOnly, complianceAnalysisController.analyzeCompliance);
+
+/**
+ * GET /compliance/document/:documentId
+ * Get compliance analysis results for a document
+ */
+router.get('/document/:documentId', authenticate, complianceAnalysisController.getComplianceAnalysis);
+
+/**
+ * PUT /compliance/document/:documentId
+ * Update compliance analysis with admin adjustments
+ * Body: { compliance_percentage?: number, compliance_rating?: string, admin_notes?: string }
+ */
+router.put('/document/:documentId', authenticate, adminOnly, complianceAnalysisController.updateComplianceAnalysis);
+
+/**
+ * GET /compliance/proponent/:proponentId
+ * Get all compliance analyses for a proponent
+ */
+router.get('/proponent/:proponentId', authenticate, complianceAnalysisController.getProponentComplianceAnalyses);
+
+// ==========================================
+// COMPLIANCE DASHBOARD ROUTES
+// ==========================================
 
 /**
  * ================================================

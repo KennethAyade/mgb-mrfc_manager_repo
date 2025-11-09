@@ -22,6 +22,7 @@ import Note from './Note';
 import Notification from './Notification';
 import UserMrfcAccess from './UserMrfcAccess';
 import ComplianceLog from './ComplianceLog';
+import ComplianceAnalysis, { AnalysisStatus, ComplianceRating } from './ComplianceAnalysis';
 import AuditLog, { AuditAction } from './AuditLog';
 
 /**
@@ -298,6 +299,21 @@ ComplianceLog.belongsTo(Proponent, {
 });
 
 // ==========================================
+// DOCUMENT ASSOCIATIONS
+// ==========================================
+
+// Document -> ComplianceAnalysis (one-to-one)
+Document.hasOne(ComplianceAnalysis, {
+  foreignKey: 'document_id',
+  as: 'compliance_analysis',
+  onDelete: 'CASCADE'
+});
+ComplianceAnalysis.belongsTo(Document, {
+  foreignKey: 'document_id',
+  as: 'document'
+});
+
+// ==========================================
 // AGENDA ASSOCIATIONS
 // ==========================================
 
@@ -407,6 +423,9 @@ export {
   Notification,
   UserMrfcAccess,
   ComplianceLog,
+  ComplianceAnalysis,
+  AnalysisStatus,
+  ComplianceRating,
   AuditLog,
   AuditAction
 };
@@ -430,5 +449,6 @@ export default {
   Notification,
   UserMrfcAccess,
   ComplianceLog,
+  ComplianceAnalysis,
   AuditLog
 };

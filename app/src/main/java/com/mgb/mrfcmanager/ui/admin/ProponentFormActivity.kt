@@ -40,6 +40,7 @@ class ProponentFormActivity : AppCompatActivity() {
     private lateinit var etEmail: TextInputEditText
     private lateinit var etAddress: TextInputEditText
     private lateinit var btnSave: MaterialButton
+    private lateinit var btnCancel: MaterialButton
     private lateinit var progressBar: ProgressBar
     private lateinit var viewModel: ProponentViewModel
     private lateinit var repository: ProponentRepository
@@ -88,6 +89,7 @@ class ProponentFormActivity : AppCompatActivity() {
         etEmail = findViewById(R.id.etEmail)
         etAddress = findViewById(R.id.etAddress)
         btnSave = findViewById(R.id.btnSave)
+        btnCancel = findViewById(R.id.btnCancel)
         progressBar = findViewById(R.id.progressBar)
     }
 
@@ -116,6 +118,10 @@ class ProponentFormActivity : AppCompatActivity() {
                     createProponent()
                 }
             }
+        }
+
+        btnCancel.setOnClickListener {
+            finish()
         }
     }
 

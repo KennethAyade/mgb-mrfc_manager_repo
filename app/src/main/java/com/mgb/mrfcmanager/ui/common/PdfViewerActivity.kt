@@ -56,6 +56,7 @@ class PdfViewerActivity : AppCompatActivity() {
         initializeViews()
         setupToolbar()
         setupWebView()
+        setupBackPressedHandler()
         loadPdf(pdfUrl!!)
     }
 
@@ -74,7 +75,7 @@ class PdfViewerActivity : AppCompatActivity() {
         }
         
         toolbar.setNavigationOnClickListener {
-            onBackPressed()
+            onBackPressedDispatcher.onBackPressed()
         }
     }
 
@@ -108,12 +109,16 @@ class PdfViewerActivity : AppCompatActivity() {
         webView.loadUrl(url)
     }
 
-    override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            super.onBackPressed()
-        }
+    private fun setupBackPressedHandler() {
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    finish()
+                }
+            }
+        })
     }
 
     override fun onDestroy() {

@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <!-- Camera hardware feature (not required for ChromeOS compatibility) -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
     <!-- Package visibility for camera intent (Android 11+) -->
     <queries>
         <intent>
@@ -104,6 +108,11 @@
             android:name=".ui.admin.DocumentReviewActivity"
             android:exported="false"
             android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
+        <activity
+            android:name=".ui.admin.ComplianceAnalysisActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.DocumentReviewActivity" />
 
         <activity
             android:name=".ui.admin.AttendanceActivity"

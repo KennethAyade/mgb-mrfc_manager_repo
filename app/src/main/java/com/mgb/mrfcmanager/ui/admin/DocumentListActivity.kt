@@ -123,9 +123,11 @@ class DocumentListActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        adapter = DocumentListAdapter(documents) { document ->
-            onDocumentClicked(document)
-        }
+        adapter = DocumentListAdapter(
+            documents = documents,
+            onCardClick = { document -> onCardClicked(document) },
+            onDownloadClick = { document -> onDownloadClicked(document) }
+        )
         // Use GridLayoutManager with column count based on screen width
         // Phone: 1 column, 7" Tablet: 2 columns, 10" Tablet: 3 columns
         val columnCount = resources.getInteger(R.integer.list_grid_columns)
@@ -191,7 +193,32 @@ class DocumentListActivity : AppCompatActivity() {
         }
     }
 
-    private fun onDocumentClicked(document: DocumentDto) {
+    /**
+     * Handle card click:
+     * - For CMVR documents: Open Compliance Analysis screen
+     * - For other documents: Download and open PDF
+     */
+    private fun onCardClicked(document: DocumentDto) {
+        // Check if CMVR document
+        if (document.category == com.mgb.mrfcmanager.data.remote.dto.DocumentCategory.CMVR) {
+            // Open Compliance Analysis Activity
+            val intent = Intent(this, ComplianceAnalysisActivity::class.java).apply {
+                putExtra(ComplianceAnalysisActivity.EXTRA_DOCUMENT_ID, document.id)
+                putExtra(ComplianceAnalysisActivity.EXTRA_DOCUMENT_NAME, document.originalName)
+                putExtra(ComplianceAnalysisActivity.EXTRA_AUTO_ANALYZE, true)
+            }
+            startActivity(intent)
+        } else {
+            // For non-CMVR documents, download and open PDF
+            onDownloadClicked(document)
+        }
+    }
+
+    /**
+     * Handle download button click:
+     * Downloads PDF and opens with system PDF viewer
+     */
+    private fun onDownloadClicked(document: DocumentDto) {
         // Download PDF from backend stream endpoint, then open with local file URI
         android.util.Log.d("DocumentList", "Opening document: ${document.originalName}")
         android.util.Log.d("DocumentList", "Document ID: ${document.id}")
@@ -381,7 +408,8 @@ class DocumentListActivity : AppCompatActivity() {
     // Adapter for document list
     class DocumentListAdapter(
         private val documents: List<DocumentDto>,
-        private val onItemClick: (DocumentDto) -> Unit
+        private val onCardClick: (DocumentDto) -> Unit,
+        private val onDownloadClick: (DocumentDto) -> Unit
     ) : RecyclerView.Adapter<DocumentListAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -391,7 +419,7 @@ class DocumentListActivity : AppCompatActivity() {
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            holder.bind(documents[position], onItemClick)
+            holder.bind(documents[position], onCardClick, onDownloadClick)
         }
 
         override fun getItemCount() = documents.size
@@ -406,7 +434,11 @@ class DocumentListActivity : AppCompatActivity() {
             private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
             private val btnDownload: MaterialButton = itemView.findViewById(R.id.btnDownload)
 
-            fun bind(document: DocumentDto, onItemClick: (DocumentDto) -> Unit) {
+            fun bind(
+                document: DocumentDto, 
+                onCardClick: (DocumentDto) -> Unit,
+                onDownloadClick: (DocumentDto) -> Unit
+            ) {
                 // File name
                 tvFileName.text = document.originalName
 
@@ -441,8 +473,8 @@ class DocumentListActivity : AppCompatActivity() {
                 ivFileIcon.setImageResource(iconRes)
 
                 // Click listeners
-                cardDocument.setOnClickListener { onItemClick(document) }
-                btnDownload.setOnClickListener { onItemClick(document) }
+                cardDocument.setOnClickListener { onCardClick(document) }
+                btnDownload.setOnClickListener { onDownloadClick(document) }
             }
         }
     }

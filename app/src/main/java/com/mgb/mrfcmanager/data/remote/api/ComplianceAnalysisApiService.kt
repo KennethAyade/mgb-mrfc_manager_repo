@@ -1,0 +1,56 @@
+package com.mgb.mrfcmanager.data.remote.api
+
+import com.mgb.mrfcmanager.data.remote.dto.AnalyzeComplianceRequest
+import com.mgb.mrfcmanager.data.remote.dto.ComplianceAnalysisDto
+import com.mgb.mrfcmanager.data.remote.dto.UpdateComplianceAnalysisRequest
+import retrofit2.Response
+import retrofit2.http.*
+
+/**
+ * API Service for CMVR Compliance Analysis
+ */
+interface ComplianceAnalysisApiService {
+
+    /**
+     * Trigger compliance analysis for a document
+     * Backend will extract PDF text, analyze compliance indicators, and calculate percentage
+     */
+    @POST("compliance/analyze")
+    suspend fun analyzeCompliance(
+        @Body request: AnalyzeComplianceRequest
+    ): Response<ComplianceAnalysisDto>
+
+    /**
+     * Get compliance analysis results for a document
+     */
+    @GET("compliance/document/{documentId}")
+    suspend fun getComplianceAnalysis(
+        @Path("documentId") documentId: Long
+    ): Response<ComplianceAnalysisDto>
+
+    /**
+     * Update compliance analysis with admin adjustments
+     */
+    @PUT("compliance/document/{documentId}")
+    suspend fun updateComplianceAnalysis(
+        @Path("documentId") documentId: Long,
+        @Body request: UpdateComplianceAnalysisRequest
+    ): Response<ComplianceAnalysisDto>
+
+    /**
+     * Get all compliance analyses for a proponent
+     */
+    @GET("compliance/proponent/{proponentId}")
+    suspend fun getProponentComplianceAnalyses(
+        @Path("proponentId") proponentId: Long
+    ): Response<List<ComplianceAnalysisDto>>
+
+    /**
+     * Get all compliance analyses for an MRFC
+     */
+    @GET("compliance/mrfc/{mrfcId}")
+    suspend fun getMrfcComplianceAnalyses(
+        @Path("mrfcId") mrfcId: Long
+    ): Response<List<ComplianceAnalysisDto>>
+}
+
