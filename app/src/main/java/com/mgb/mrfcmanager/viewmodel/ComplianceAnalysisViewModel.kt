@@ -132,6 +132,11 @@ class ComplianceAnalysisViewModel(
     fun resetUpdateState() {
         _updateState.value = UpdateAnalysisState.Idle
     }
+    
+    /**
+     * Get OCR analysis progress (for direct access from Activity)
+     */
+    suspend fun getAnalysisProgress(documentId: Long) = repository.getAnalysisProgress(documentId)
 }
 
 /**

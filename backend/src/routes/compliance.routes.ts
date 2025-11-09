@@ -54,6 +54,13 @@ router.put('/document/:documentId', authenticate, adminOnly, complianceAnalysisC
  */
 router.get('/proponent/:proponentId', authenticate, complianceAnalysisController.getProponentComplianceAnalyses);
 
+/**
+ * GET /compliance/progress/:documentId
+ * Get real-time OCR analysis progress for a document
+ * Returns: { status, progress, current_step, error }
+ */
+router.get('/progress/:documentId', authenticate, complianceAnalysisController.getAnalysisProgress);
+
 // ==========================================
 // COMPLIANCE DASHBOARD ROUTES
 // ==========================================

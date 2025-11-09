@@ -2,6 +2,7 @@ package com.mgb.mrfcmanager.data.repository
 
 import com.mgb.mrfcmanager.data.remote.api.ComplianceAnalysisApiService
 import com.mgb.mrfcmanager.data.remote.dto.AnalyzeComplianceRequest
+import com.mgb.mrfcmanager.data.remote.dto.AnalysisProgressDto
 import com.mgb.mrfcmanager.data.remote.dto.ComplianceAnalysisDto
 import com.mgb.mrfcmanager.data.remote.dto.UpdateComplianceAnalysisRequest
 import org.json.JSONObject
@@ -18,9 +19,14 @@ class ComplianceAnalysisRepository(
      */
     suspend fun analyzeCompliance(documentId: Long): Result<ComplianceAnalysisDto> {
         return try {
+            android.util.Log.d("ComplianceRepo", "Calling analyze API for document $documentId")
             val response = apiService.analyzeCompliance(AnalyzeComplianceRequest(documentId))
+            android.util.Log.d("ComplianceRepo", "API Response code: ${response.code()}")
+            
             if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!)
+                val body = response.body()!!
+                android.util.Log.d("ComplianceRepo", "✅ Success! Parsed DTO: id=${body.id}, docId=${body.documentId}, percentage=${body.compliancePercentage}")
+                Result.Success(body)
             } else {
                 val errorMsg = when (response.code()) {
                     404 -> "Feature not available yet. Backend API not implemented."
@@ -34,15 +40,20 @@ class ComplianceAnalysisRepository(
             }
         } catch (e: com.squareup.moshi.JsonDataException) {
             // Moshi parsing error - backend returned unexpected format
+            android.util.Log.e("ComplianceRepo", "❌ JsonDataException: ${e.message}", e)
             Result.Error("Server returned invalid data. Please try again.")
         } catch (e: com.squareup.moshi.JsonEncodingException) {
             // Moshi encoding error
+            android.util.Log.e("ComplianceRepo", "❌ JsonEncodingException: ${e.message}", e)
             Result.Error("Data format error. Please contact support.")
         } catch (e: java.net.SocketTimeoutException) {
+            android.util.Log.e("ComplianceRepo", "❌ SocketTimeoutException: ${e.message}", e)
             Result.Error("Request timed out. Check your connection.")
         } catch (e: java.io.IOException) {
+            android.util.Log.e("ComplianceRepo", "❌ IOException: ${e.message}", e)
             Result.Error("Network error. Please check your connection.")
         } catch (e: Exception) {
+            android.util.Log.e("ComplianceRepo", "❌ Exception: ${e.javaClass.simpleName} - ${e.message}", e)
             Result.Error("Analysis failed: ${e.message ?: "Unknown error"}")
         }
     }
@@ -143,6 +154,27 @@ class ComplianceAnalysisRepository(
             }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Network error occurred")
+        }
+    }
+
+    /**
+     * Get real-time OCR analysis progress for a document
+     */
+    suspend fun getAnalysisProgress(documentId: Long): Result<AnalysisProgressDto> {
+        return try {
+            val response = apiService.getAnalysisProgress(documentId)
+            if (response.isSuccessful && response.body() != null) {
+                Result.Success(response.body()!!)
+            } else {
+                val errorMsg = when (response.code()) {
+                    404 -> "Progress information not available."
+                    401 -> "Authentication required."
+                    else -> "Failed to get progress"
+                }
+                Result.Error(errorMsg)
+            }
+        } catch (e: Exception) {
+            Result.Error("Network error occurred")
         }
     }
 

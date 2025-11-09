@@ -33,8 +33,19 @@ class NonCompliantItemsAdapter : ListAdapter<NonCompliantItemDto, NonCompliantIt
         private val tvPageNumber: TextView = itemView.findViewById(R.id.tvPageNumber)
 
         fun bind(item: NonCompliantItemDto) {
-            tvSectionName.text = item.section
-            tvItemDescription.text = item.itemDescription
+            // Display requirement as section name
+            tvSectionName.text = item.requirement
+            
+            // Display notes and severity as description
+            val description = buildString {
+                if (!item.severity.isNullOrEmpty()) {
+                    append("[${ item.severity}] ")
+                }
+                if (!item.notes.isNullOrEmpty()) {
+                    append(item.notes)
+                }
+            }
+            tvItemDescription.text = description.ifEmpty { "No additional details" }
             
             if (item.pageNumber != null) {
                 tvPageNumber.text = "Page ${item.pageNumber}"
@@ -50,8 +61,8 @@ class NonCompliantItemsAdapter : ListAdapter<NonCompliantItemDto, NonCompliantIt
             oldItem: NonCompliantItemDto,
             newItem: NonCompliantItemDto
         ): Boolean {
-            return oldItem.section == newItem.section && 
-                   oldItem.itemDescription == newItem.itemDescription
+            return oldItem.requirement == newItem.requirement && 
+                   oldItem.pageNumber == newItem.pageNumber
         }
 
         override fun areContentsTheSame(

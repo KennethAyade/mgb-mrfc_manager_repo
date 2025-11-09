@@ -199,8 +199,20 @@ class DocumentListActivity : AppCompatActivity() {
      * - For other documents: Download and open PDF
      */
     private fun onCardClicked(document: DocumentDto) {
+        android.util.Log.d("DocumentList", "====================================")
+        android.util.Log.d("DocumentList", "📄 Card clicked for document: ${document.originalName}")
+        android.util.Log.d("DocumentList", "Document ID: ${document.id}")
+        android.util.Log.d("DocumentList", "Category: ${document.category}")
+        android.util.Log.d("DocumentList", "File URL: ${document.fileUrl}")
+        
         // Check if CMVR document
         if (document.category == com.mgb.mrfcmanager.data.remote.dto.DocumentCategory.CMVR) {
+            android.util.Log.d("DocumentList", "✅ CMVR Document detected - Opening Compliance Analysis")
+            android.util.Log.d("DocumentList", "Passing parameters:")
+            android.util.Log.d("DocumentList", "  - DOCUMENT_ID: ${document.id}")
+            android.util.Log.d("DocumentList", "  - DOCUMENT_NAME: ${document.originalName}")
+            android.util.Log.d("DocumentList", "  - AUTO_ANALYZE: true")
+            
             // Open Compliance Analysis Activity
             val intent = Intent(this, ComplianceAnalysisActivity::class.java).apply {
                 putExtra(ComplianceAnalysisActivity.EXTRA_DOCUMENT_ID, document.id)
@@ -208,10 +220,13 @@ class DocumentListActivity : AppCompatActivity() {
                 putExtra(ComplianceAnalysisActivity.EXTRA_AUTO_ANALYZE, true)
             }
             startActivity(intent)
+            android.util.Log.d("DocumentList", "🚀 Navigating to ComplianceAnalysisActivity")
         } else {
+            android.util.Log.d("DocumentList", "📥 Non-CMVR Document - Downloading PDF instead")
             // For non-CMVR documents, download and open PDF
             onDownloadClicked(document)
         }
+        android.util.Log.d("DocumentList", "====================================")
     }
 
     /**

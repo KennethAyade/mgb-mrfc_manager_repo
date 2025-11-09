@@ -1,6 +1,7 @@
 package com.mgb.mrfcmanager.data.remote.api
 
 import com.mgb.mrfcmanager.data.remote.dto.AnalyzeComplianceRequest
+import com.mgb.mrfcmanager.data.remote.dto.AnalysisProgressDto
 import com.mgb.mrfcmanager.data.remote.dto.ComplianceAnalysisDto
 import com.mgb.mrfcmanager.data.remote.dto.UpdateComplianceAnalysisRequest
 import retrofit2.Response
@@ -52,5 +53,14 @@ interface ComplianceAnalysisApiService {
     suspend fun getMrfcComplianceAnalyses(
         @Path("mrfcId") mrfcId: Long
     ): Response<List<ComplianceAnalysisDto>>
+    
+    /**
+     * Get real-time OCR analysis progress for a document
+     * Returns current status, progress percentage, and current step
+     */
+    @GET("compliance/progress/{documentId}")
+    suspend fun getAnalysisProgress(
+        @Path("documentId") documentId: Long
+    ): Response<AnalysisProgressDto>
 }
 

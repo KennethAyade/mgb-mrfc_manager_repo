@@ -6,15 +6,18 @@ import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
 import com.mgb.mrfcmanager.MRFCManagerApp
@@ -70,21 +73,38 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
     private var documentId: Long = -1
     private var documentName: String = ""
     private var currentAnalysis: ComplianceAnalysisDto? = null
+    
+    // Progress dialog for OCR processing
+    private var progressDialog: AlertDialog? = null
+    private var progressDialogBar: LinearProgressIndicator? = null
+    private var progressDialogText: TextView? = null
+    private var isPollingProgress = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_compliance_analysis)
+
+        android.util.Log.d("ComplianceAnalysis", "====================================")
+        android.util.Log.d("ComplianceAnalysis", "🚀 ComplianceAnalysisActivity started")
 
         // Get intent data
         documentId = intent.getLongExtra(EXTRA_DOCUMENT_ID, -1)
         documentName = intent.getStringExtra(EXTRA_DOCUMENT_NAME) ?: "CMVR Document"
         val autoAnalyze = intent.getBooleanExtra(EXTRA_AUTO_ANALYZE, false)
 
+        android.util.Log.d("ComplianceAnalysis", "📥 Received intent parameters:")
+        android.util.Log.d("ComplianceAnalysis", "  - Document ID: $documentId")
+        android.util.Log.d("ComplianceAnalysis", "  - Document Name: $documentName")
+        android.util.Log.d("ComplianceAnalysis", "  - Auto Analyze: $autoAnalyze")
+
         if (documentId == -1L) {
+            android.util.Log.e("ComplianceAnalysis", "❌ Invalid document ID, finishing activity")
             Toast.makeText(this, "Invalid document ID", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
+
+        android.util.Log.d("ComplianceAnalysis", "✅ Valid document ID, proceeding with setup")
 
         setupToolbar()
         initializeViews()
@@ -96,13 +116,18 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
 
         // Display document name
         tvDocumentName.text = documentName
+        android.util.Log.d("ComplianceAnalysis", "📄 Document name set: $documentName")
 
         // Load or trigger analysis
         if (autoAnalyze) {
+            android.util.Log.d("ComplianceAnalysis", "🔍 Auto-analyze enabled, triggering analysis...")
+            showOcrProgressDialog() // Show progress dialog for OCR processing
             viewModel.analyzeCompliance(documentId)
         } else {
+            android.util.Log.d("ComplianceAnalysis", "📊 Loading existing analysis...")
             viewModel.getComplianceAnalysis(documentId)
         }
+        android.util.Log.d("ComplianceAnalysis", "====================================")
     }
 
     private fun setupToolbar() {
@@ -534,6 +559,105 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         }
         
         snackbar.show()
+    }
+    
+    /**
+     * Show OCR progress dialog with real-time updates
+     */
+    private fun showOcrProgressDialog() {
+        if (progressDialog != null) return // Already showing
+        
+        val dialogView = layoutInflater.inflate(R.layout.dialog_ocr_progress, null)
+        progressDialogBar = dialogView.findViewById(R.id.progressBar)
+        progressDialogText = dialogView.findViewById(R.id.tvProgressText)
+        
+        progressDialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+        
+        progressDialog?.show()
+        startProgressPolling()
+    }
+    
+    /**
+     * Update progress dialog with current status
+     */
+    private fun updateProgressDialog(progress: Int, message: String) {
+        runOnUiThread {
+            progressDialogBar?.apply {
+                setProgressCompat(progress, true)
+            }
+            progressDialogText?.text = message
+        }
+    }
+    
+    /**
+     * Dismiss progress dialog
+     */
+    private fun dismissProgressDialog() {
+        runOnUiThread {
+            progressDialog?.dismiss()
+            progressDialog = null
+            isPollingProgress = false
+        }
+    }
+    
+    /**
+     * Start polling progress endpoint every 2 seconds
+     */
+    private fun startProgressPolling() {
+        if (isPollingProgress) return
+        isPollingProgress = true
+        
+        lifecycleScope.launch {
+            while (isPollingProgress) {
+                try {
+                    when (val result = viewModel.getAnalysisProgress(documentId)) {
+                        is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                            val progressData = result.data
+                            updateProgressDialog(
+                                progressData.progress,
+                                progressData.getDisplayMessage()
+                            )
+                            
+                            // Stop polling if completed or failed
+                            if (progressData.isCompleted()) {
+                                isPollingProgress = false
+                                dismissProgressDialog()
+                                // Refresh analysis results
+                                viewModel.getComplianceAnalysis(documentId)
+                            } else if (progressData.isFailed()) {
+                                isPollingProgress = false
+                                dismissProgressDialog()
+                                showError(progressData.error ?: "Analysis failed")
+                            }
+                        }
+                        is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                            // Progress endpoint not available or error
+                            // Continue polling or show basic progress
+                        }
+                        is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
+                            // Still loading, continue polling
+                        }
+                    }
+                    
+                    // Wait 2 seconds before next poll
+                    if (isPollingProgress) {
+                        kotlinx.coroutines.delay(2000)
+                    }
+                } catch (e: Exception) {
+                    // Continue polling despite errors
+                    kotlinx.coroutines.delay(2000)
+                }
+            }
+        }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        isPollingProgress = false
+        progressDialog?.dismiss()
     }
 }
 

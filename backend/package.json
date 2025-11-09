@@ -13,7 +13,12 @@
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
     "db:reset": "ts-node scripts/reset-database.ts",
-    "db:check-password": "ts-node scripts/check-password.ts"
+    "db:check-password": "ts-node scripts/check-password.ts",
+    "db:clear-compliance": "ts-node src/scripts/clear-compliance-cache.ts",
+    "test:pdf": "ts-node src/scripts/test-pdf-extraction.ts",
+    "test:ocr": "ts-node src/scripts/test-ocr.ts",
+    "download:lang": "ts-node src/scripts/download-lang-data.ts",
+    "db:migrate:ocr": "ts-node src/scripts/run-ocr-migration.ts"
   },
   "keywords": [
     "mrfc",
@@ -38,6 +43,7 @@
     "@types/swagger-ui-express": "^4.1.6",
     "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
+    "canvas": "^3.2.0",
     "cloudinary": "^1.41.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
@@ -51,11 +57,14 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.0",
     "pdf-parse": "^2.4.5",
+    "pdf-poppler": "^0.2.3",
+    "pdf.js-extract": "^0.2.1",
     "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.35.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
+    "tesseract.js": "^6.0.1",
     "typescript": "^5.3.3"
   },
   "devDependencies": {

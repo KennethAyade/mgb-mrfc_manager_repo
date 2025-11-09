@@ -69,6 +69,9 @@ export interface ComplianceAnalysisAttributes {
   admin_adjusted: boolean;
   admin_notes: string | null;
   analyzed_at: Date | null;
+  extracted_text: string | null;
+  ocr_confidence: number | null;
+  ocr_language: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -90,6 +93,9 @@ export interface ComplianceAnalysisCreationAttributes
     | 'admin_adjusted'
     | 'admin_notes'
     | 'analyzed_at'
+    | 'extracted_text'
+    | 'ocr_confidence'
+    | 'ocr_language'
     | 'created_at'
     | 'updated_at'
   > {}
@@ -115,6 +121,9 @@ export class ComplianceAnalysis
   public admin_adjusted!: boolean;
   public admin_notes!: string | null;
   public analyzed_at!: Date | null;
+  public extracted_text!: string | null;
+  public ocr_confidence!: number | null;
+  public ocr_language!: string | null;
 
   // Timestamps
   public readonly created_at!: Date;
@@ -194,6 +203,18 @@ ComplianceAnalysis.init(
     },
     analyzed_at: {
       type: DataTypes.DATE,
+      allowNull: true,
+    },
+    extracted_text: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    ocr_confidence: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+    },
+    ocr_language: {
+      type: DataTypes.STRING(20),
       allowNull: true,
     },
     created_at: {

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- Icon -->
+    <ImageView
+        android:id="@+id/ivProgressIcon"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:src="@drawable/ic_document"
+        app:tint="@color/primary" />
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/tvProgressTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp"
+        android:text="Analyzing Document"
+        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+        android:textColor="@color/text_primary" />
+
+    <!-- Description -->
+    <TextView
+        android:id="@+id/tvProgressDescription"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:text="Scanning document pages using OCR...\nThis may take 30-60 seconds."
+        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+        android:textColor="@color/text_secondary" />
+
+    <!-- Progress Bar -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/progressBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        app:indicatorColor="@color/primary"
+        app:trackColor="#E0E0E0"
+        app:trackCornerRadius="4dp"
+        style="@style/Widget.Material3.LinearProgressIndicator" />
+
+    <!-- Progress Text (e.g., "Page 15/25") -->
+    <TextView
+        android:id="@+id/tvProgressText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:text="Starting..."
+        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+        android:textColor="@color/primary" />
+
+    <!-- Help Text -->
+    <TextView
+        android:id="@+id/tvProgressHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center"
+        android:text="Please wait while we analyze your document.\nDo not close this screen."
+        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+        android:textColor="@color/text_secondary"
+        android:alpha="0.7" />
+
+</LinearLayout>

@@ -9,6 +9,9 @@ import com.squareup.moshi.JsonClass
  */
 @JsonClass(generateAdapter = true)
 data class ComplianceAnalysisDto(
+    @Json(name = "id")
+    val id: Long? = null,
+
     @Json(name = "document_id")
     val documentId: Long,
 
@@ -54,11 +57,17 @@ data class ComplianceAnalysisDto(
     @Json(name = "analyzed_at")
     val analyzedAt: String?,
 
+    @Json(name = "created_at")
+    val createdAt: String? = null,
+
+    @Json(name = "updated_at")
+    val updatedAt: String? = null,
+
     @Json(name = "reviewed_at")
-    val reviewedAt: String?,
+    val reviewedAt: String? = null,
 
     @Json(name = "reviewed_by")
-    val reviewedBy: String?
+    val reviewedBy: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -129,14 +138,17 @@ data class RecommendationsSectionDto(
 
 @JsonClass(generateAdapter = true)
 data class NonCompliantItemDto(
-    @Json(name = "section")
-    val section: String,
-
-    @Json(name = "item_description")
-    val itemDescription: String,
+    @Json(name = "requirement")
+    val requirement: String,
 
     @Json(name = "page_number")
-    val pageNumber: Int?
+    val pageNumber: Int?,
+
+    @Json(name = "severity")
+    val severity: String? = null,
+
+    @Json(name = "notes")
+    val notes: String? = null
 )
 
 /**
