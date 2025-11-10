@@ -211,13 +211,13 @@ class DocumentListActivity : AppCompatActivity() {
             android.util.Log.d("DocumentList", "Passing parameters:")
             android.util.Log.d("DocumentList", "  - DOCUMENT_ID: ${document.id}")
             android.util.Log.d("DocumentList", "  - DOCUMENT_NAME: ${document.originalName}")
-            android.util.Log.d("DocumentList", "  - AUTO_ANALYZE: true")
+            android.util.Log.d("DocumentList", "  - AUTO_ANALYZE: false")
             
             // Open Compliance Analysis Activity
             val intent = Intent(this, ComplianceAnalysisActivity::class.java).apply {
                 putExtra(ComplianceAnalysisActivity.EXTRA_DOCUMENT_ID, document.id)
                 putExtra(ComplianceAnalysisActivity.EXTRA_DOCUMENT_NAME, document.originalName)
-                putExtra(ComplianceAnalysisActivity.EXTRA_AUTO_ANALYZE, true)
+                putExtra(ComplianceAnalysisActivity.EXTRA_AUTO_ANALYZE, false) // Changed to false - just view existing analysis
             }
             startActivity(intent)
             android.util.Log.d("DocumentList", "🚀 Navigating to ComplianceAnalysisActivity")

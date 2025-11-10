@@ -616,13 +616,15 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
                     when (val result = viewModel.getAnalysisProgress(documentId)) {
                         is com.mgb.mrfcmanager.data.repository.Result.Success -> {
                             val progressData = result.data
-                            updateProgressDialog(
-                                progressData.progress,
-                                progressData.getDisplayMessage()
-                            )
                             
-                            // Stop polling if completed or failed
-                            if (progressData.isCompleted()) {
+                            // Stop polling if not found (cached result), completed, or failed
+                            if (progressData.isNotFound()) {
+                                // Analysis already completed (cached), stop polling immediately
+                                isPollingProgress = false
+                                dismissProgressDialog()
+                                // Refresh analysis results
+                                viewModel.getComplianceAnalysis(documentId)
+                            } else if (progressData.isCompleted()) {
                                 isPollingProgress = false
                                 dismissProgressDialog()
                                 // Refresh analysis results
@@ -631,6 +633,12 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
                                 isPollingProgress = false
                                 dismissProgressDialog()
                                 showError(progressData.error ?: "Analysis failed")
+                            } else {
+                                // Still in progress, update dialog
+                                updateProgressDialog(
+                                    progressData.progress,
+                                    progressData.getDisplayMessage()
+                                )
                             }
                         }
                         is com.mgb.mrfcmanager.data.repository.Result.Error -> {

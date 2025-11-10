@@ -24,9 +24,16 @@ class ComplianceAnalysisRepository(
             android.util.Log.d("ComplianceRepo", "API Response code: ${response.code()}")
             
             if (response.isSuccessful && response.body() != null) {
-                val body = response.body()!!
-                android.util.Log.d("ComplianceRepo", "✅ Success! Parsed DTO: id=${body.id}, docId=${body.documentId}, percentage=${body.compliancePercentage}")
-                Result.Success(body)
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    val body = apiResponse.data
+                    android.util.Log.d("ComplianceRepo", "✅ Success! Parsed DTO: id=${body.id}, docId=${body.documentId}, percentage=${body.compliancePercentage}")
+                    Result.Success(body)
+                } else {
+                    val errorMsg = apiResponse.message ?: apiResponse.error?.message ?: "Analysis failed"
+                    android.util.Log.e("ComplianceRepo", "❌ API returned success=false: $errorMsg")
+                    Result.Error(errorMsg)
+                }
             } else {
                 val errorMsg = when (response.code()) {
                     404 -> "Feature not available yet. Backend API not implemented."
@@ -65,7 +72,12 @@ class ComplianceAnalysisRepository(
         return try {
             val response = apiService.getComplianceAnalysis(documentId)
             if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!)
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    Result.Success(apiResponse.data)
+                } else {
+                    Result.Error(apiResponse.message ?: apiResponse.error?.message ?: "Failed to get analysis")
+                }
             } else {
                 val errorMsg = when (response.code()) {
                     404 -> "No compliance analysis found for this document."
@@ -100,7 +112,12 @@ class ComplianceAnalysisRepository(
             )
             val response = apiService.updateComplianceAnalysis(documentId, request)
             if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!)
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    Result.Success(apiResponse.data)
+                } else {
+                    Result.Error(apiResponse.message ?: apiResponse.error?.message ?: "Failed to update")
+                }
             } else {
                 val errorMsg = when (response.code()) {
                     404 -> "Compliance analysis not found."
@@ -124,7 +141,12 @@ class ComplianceAnalysisRepository(
         return try {
             val response = apiService.getProponentComplianceAnalyses(proponentId)
             if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!)
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    Result.Success(apiResponse.data)
+                } else {
+                    Result.Error(apiResponse.message ?: "Failed to get analyses")
+                }
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "Failed to get compliance analyses"
                 Result.Error(errorMsg)
@@ -141,7 +163,12 @@ class ComplianceAnalysisRepository(
         return try {
             val response = apiService.getMrfcComplianceAnalyses(mrfcId)
             if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!)
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    Result.Success(apiResponse.data)
+                } else {
+                    Result.Error(apiResponse.message ?: "Failed to get analyses")
+                }
             } else {
                 val errorMsg = when (response.code()) {
                     404 -> "No compliance analyses found for this MRFC."
@@ -164,7 +191,12 @@ class ComplianceAnalysisRepository(
         return try {
             val response = apiService.getAnalysisProgress(documentId)
             if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!)
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    Result.Success(apiResponse.data)
+                } else {
+                    Result.Error(apiResponse.message ?: "Failed to get progress")
+                }
             } else {
                 val errorMsg = when (response.code()) {
                     404 -> "Progress information not available."

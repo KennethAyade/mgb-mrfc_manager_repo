@@ -2,6 +2,7 @@ package com.mgb.mrfcmanager.data.remote.api
 
 import com.mgb.mrfcmanager.data.remote.dto.AnalyzeComplianceRequest
 import com.mgb.mrfcmanager.data.remote.dto.AnalysisProgressDto
+import com.mgb.mrfcmanager.data.remote.dto.ApiResponse
 import com.mgb.mrfcmanager.data.remote.dto.ComplianceAnalysisDto
 import com.mgb.mrfcmanager.data.remote.dto.UpdateComplianceAnalysisRequest
 import retrofit2.Response
@@ -19,7 +20,7 @@ interface ComplianceAnalysisApiService {
     @POST("compliance/analyze")
     suspend fun analyzeCompliance(
         @Body request: AnalyzeComplianceRequest
-    ): Response<ComplianceAnalysisDto>
+    ): Response<ApiResponse<ComplianceAnalysisDto>>
 
     /**
      * Get compliance analysis results for a document
@@ -27,7 +28,7 @@ interface ComplianceAnalysisApiService {
     @GET("compliance/document/{documentId}")
     suspend fun getComplianceAnalysis(
         @Path("documentId") documentId: Long
-    ): Response<ComplianceAnalysisDto>
+    ): Response<ApiResponse<ComplianceAnalysisDto>>
 
     /**
      * Update compliance analysis with admin adjustments
@@ -36,7 +37,7 @@ interface ComplianceAnalysisApiService {
     suspend fun updateComplianceAnalysis(
         @Path("documentId") documentId: Long,
         @Body request: UpdateComplianceAnalysisRequest
-    ): Response<ComplianceAnalysisDto>
+    ): Response<ApiResponse<ComplianceAnalysisDto>>
 
     /**
      * Get all compliance analyses for a proponent
@@ -44,7 +45,7 @@ interface ComplianceAnalysisApiService {
     @GET("compliance/proponent/{proponentId}")
     suspend fun getProponentComplianceAnalyses(
         @Path("proponentId") proponentId: Long
-    ): Response<List<ComplianceAnalysisDto>>
+    ): Response<ApiResponse<List<ComplianceAnalysisDto>>>
 
     /**
      * Get all compliance analyses for an MRFC
@@ -52,7 +53,7 @@ interface ComplianceAnalysisApiService {
     @GET("compliance/mrfc/{mrfcId}")
     suspend fun getMrfcComplianceAnalyses(
         @Path("mrfcId") mrfcId: Long
-    ): Response<List<ComplianceAnalysisDto>>
+    ): Response<ApiResponse<List<ComplianceAnalysisDto>>>
     
     /**
      * Get real-time OCR analysis progress for a document
@@ -61,6 +62,6 @@ interface ComplianceAnalysisApiService {
     @GET("compliance/progress/{documentId}")
     suspend fun getAnalysisProgress(
         @Path("documentId") documentId: Long
-    ): Response<AnalysisProgressDto>
+    ): Response<ApiResponse<AnalysisProgressDto>>
 }
 

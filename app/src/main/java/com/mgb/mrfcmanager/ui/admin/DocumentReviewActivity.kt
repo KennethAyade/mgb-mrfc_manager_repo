@@ -386,7 +386,7 @@ class DocumentReviewActivity : AppCompatActivity() {
                         val intent = android.content.Intent(context, ComplianceAnalysisActivity::class.java).apply {
                             putExtra(ComplianceAnalysisActivity.EXTRA_DOCUMENT_ID, document.id)
                             putExtra(ComplianceAnalysisActivity.EXTRA_DOCUMENT_NAME, document.originalName)
-                            putExtra(ComplianceAnalysisActivity.EXTRA_AUTO_ANALYZE, true)
+                            putExtra(ComplianceAnalysisActivity.EXTRA_AUTO_ANALYZE, false) // Changed to false - just view existing analysis
                         }
                         context.startActivity(intent)
                     }

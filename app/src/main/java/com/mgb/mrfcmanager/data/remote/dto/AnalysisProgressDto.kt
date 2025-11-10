@@ -60,6 +60,13 @@ data class AnalysisProgressDto(
     }
     
     /**
+     * Check if analysis not found (already completed/cached)
+     */
+    fun isNotFound(): Boolean {
+        return status == "not_found"
+    }
+    
+    /**
      * Get display message for current status
      */
     fun getDisplayMessage(): String {
