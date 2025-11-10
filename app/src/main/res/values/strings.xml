@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">MRFC Manager</string>
-    <string name="welcome_message">WELCOME TO MRFC!</string>
-    <string name="powered_by">Powered by MGB-DENR</string>
+    <string name="app_name">CompliCheck</string>
+    <string name="welcome_message">WELCOME TO COMPLICHECK!</string>
+    <string name="powered_by">Powered by MGB Region 7 - DENR</string>
     <string name="complicheck">CompliCheck</string>
 
     <!-- Login -->
