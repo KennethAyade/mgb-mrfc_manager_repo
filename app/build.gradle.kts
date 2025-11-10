@@ -13,8 +13,8 @@ android {
         applicationId = "com.mgb.mrfcmanager"
         minSdk = 25
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -26,6 +26,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+    
+    // Custom APK naming
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val versionName = defaultConfig.versionName
+            val buildType = buildType.name
+            output.outputFileName = "MGB-MRFC-Manager-v${versionName}-${buildType}.apk"
         }
     }
     compileOptions {
