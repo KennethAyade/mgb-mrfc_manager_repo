@@ -1,7 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("kotlin-kapt") // For annotation processing (Room, Moshi)
+    // Temporarily disabled kapt due to Kotlin 2.0 compatibility issues
+    // id("kotlin-kapt") // For annotation processing (Room, Moshi)
 }
 
 android {
@@ -81,10 +82,11 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-    // JSON Parsing - Moshi
+    // JSON Parsing - Moshi (using reflection instead of codegen to avoid kapt)
     implementation("com.squareup.moshi:moshi:1.15.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
-    kapt("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")
+    // Temporarily disabled kapt codegen
+    // kapt("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")
 
     // Coroutines (for async operations)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -96,7 +98,8 @@ dependencies {
     // Room (local database for offline support)
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
+    // Temporarily disabled kapt compiler
+    // kapt("androidx.room:room-compiler:2.6.1")
 
     // DataStore (for preferences & token storage)
     implementation("androidx.datastore:datastore-preferences:1.0.0")

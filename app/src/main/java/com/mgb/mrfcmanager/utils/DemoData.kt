@@ -4,7 +4,8 @@ import com.mgb.mrfcmanager.data.model.*
 
 /**
  * Demo Data for UI-only implementation
- * TODO: BACKEND - Remove this class when backend is integrated
+ * NOTE: This file is kept for backward compatibility but is no longer used
+ * The app now uses real data from the backend API
  */
 object DemoData {
 
@@ -59,18 +60,6 @@ object DemoData {
         )
     }
 
-    // Sample Documents
-    val documentList = listOf(
-        Document(1, "MTF_Report_Q1_2025.pdf", "PDF", "MTF Disbursement", "2025-01-15", "1st Quarter 2025"),
-        Document(2, "AEPEP_Physical_Q1.xlsx", "Excel", "AEPEP Physical", "2025-01-20", "1st Quarter 2025"),
-        Document(3, "Research_Accomplishments.docx", "Word", "Research", "2025-02-01", "1st Quarter 2025"),
-        Document(4, "CMVR_Report.pdf", "PDF", "CMVR", "2025-02-10", "1st Quarter 2025"),
-        Document(5, "Minutes_Q4_2024.pdf", "PDF", "Minutes", "2024-12-15", "4th Quarter 2024"),
-        Document(6, "MTF_Report_Q2_2025.pdf", "PDF", "MTF Disbursement", "2025-04-15", "2nd Quarter 2025"),
-        Document(7, "AEPEP_Financial_Q2.xlsx", "Excel", "AEPEP Financial", "2025-05-10", "2nd Quarter 2025"),
-        Document(8, "Compliance_Report_Q2.pdf", "PDF", "Compliance", "2025-06-01", "2nd Quarter 2025")
-    )
-
     // Matters Arising
     val mattersArisingList = listOf(
         MatterArising(
@@ -111,9 +100,5 @@ object DemoData {
     fun getProponentsByMrfcId(mrfcId: Long): List<Proponent> {
         return proponentList.filter { it.mrfcId == mrfcId }
     }
-
-    // Helper function to get documents by category
-    fun getDocumentsByCategory(category: String): List<Document> {
-        return documentList.filter { it.category == category }
-    }
 }
+

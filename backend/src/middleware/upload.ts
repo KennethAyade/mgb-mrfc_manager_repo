@@ -12,7 +12,7 @@ import fs from 'fs';
 
 /**
  * Configure multer for storing files temporarily
- * Files will be uploaded to Cloudinary and then deleted locally
+ * Files will be uploaded to AWS S3 and then deleted locally
  */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -63,7 +63,7 @@ export const uploadPhoto = multer({
 
 /**
  * Multer configuration for document uploads
- * Max file size: 10MB
+ * Max file size: 100MB (S3 can handle much larger files)
  */
 const documentFileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedMimeTypes = [
@@ -88,7 +88,7 @@ export const uploadDocument = multer({
   storage: storage,
   fileFilter: documentFileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 100 * 1024 * 1024, // 100MB (increased for large PDFs)
     files: 1
   }
 });

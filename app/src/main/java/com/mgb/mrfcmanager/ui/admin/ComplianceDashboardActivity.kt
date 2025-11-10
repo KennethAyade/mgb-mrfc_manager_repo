@@ -24,14 +24,11 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
-import com.mgb.mrfcmanager.data.model.Proponent
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.ComplianceApiService
 import com.mgb.mrfcmanager.data.remote.dto.ComplianceDto
 import com.mgb.mrfcmanager.data.remote.dto.ComplianceSummaryDto
 import com.mgb.mrfcmanager.data.repository.ComplianceRepository
-import com.mgb.mrfcmanager.utils.DemoData
-import com.mgb.mrfcmanager.utils.TokenManager
 import com.mgb.mrfcmanager.viewmodel.ComplianceListState
 import com.mgb.mrfcmanager.viewmodel.ComplianceSummaryState
 import com.mgb.mrfcmanager.viewmodel.ComplianceViewModel
@@ -58,6 +55,8 @@ class ComplianceDashboardActivity : AppCompatActivity() {
     private var currentQuarter: String? = null
     private var currentYear: Int? = null
 
+    // Unused local models - app uses backend DTOs
+    /*
     data class ComplianceItem(
         val proponent: Proponent,
         val compliancePercentage: Int,
@@ -69,6 +68,7 @@ class ComplianceDashboardActivity : AppCompatActivity() {
         PARTIAL,
         NON_COMPLIANT
     }
+    */
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

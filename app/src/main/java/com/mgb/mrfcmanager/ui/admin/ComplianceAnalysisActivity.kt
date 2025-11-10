@@ -286,7 +286,36 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         // Analysis status
         tvAnalysisStatus.text = "Analysis Status: ${formatStatus(analysis.analysisStatus)}"
 
-        // Compliance percentage and rating
+        // Handle different analysis statuses
+        when (analysis.analysisStatus) {
+            "FAILED" -> {
+                // Show pending manual review message
+                tvCompliancePercentage.text = "N/A"
+                tvComplianceRating.text = "Pending Manual Review"
+                tvComplianceRating.setTextColor(Color.parseColor("#FF9800")) // Orange
+                tvComplianceDetails.text = "Analysis could not be completed automatically. Manual review required."
+                
+                // Show admin notes with error details
+                if (!analysis.adminNotes.isNullOrEmpty()) {
+                    etAdminNotes.setText(analysis.adminNotes)
+                }
+                
+                // Hide sections and non-compliant items
+                findViewById<View>(R.id.cardComplianceSections)?.visibility = View.GONE
+                findViewById<View>(R.id.cardNonCompliantItems)?.visibility = View.GONE
+                return
+            }
+            "PENDING" -> {
+                // Show loading state
+                tvCompliancePercentage.text = "..."
+                tvComplianceRating.text = "Analysis in Progress"
+                tvComplianceRating.setTextColor(Color.parseColor("#2196F3")) // Blue
+                tvComplianceDetails.text = "Analysis is being processed..."
+                return
+            }
+        }
+
+        // Compliance percentage and rating (for COMPLETED status)
         if (analysis.compliancePercentage != null && analysis.complianceRating != null) {
             tvCompliancePercentage.text = String.format(Locale.US, "%.0f%%", analysis.compliancePercentage)
             tvComplianceRating.text = viewModel.getRatingDisplayText(analysis.complianceRating)

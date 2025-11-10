@@ -25,13 +25,11 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
-import com.mgb.mrfcmanager.data.model.Document
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.DocumentApiService
 import com.mgb.mrfcmanager.data.remote.dto.DocumentCategory
 import com.mgb.mrfcmanager.data.remote.dto.DocumentDto
 import com.mgb.mrfcmanager.data.repository.DocumentRepository
-import com.mgb.mrfcmanager.utils.DemoData
 import com.mgb.mrfcmanager.utils.TokenManager
 import com.mgb.mrfcmanager.viewmodel.DocumentListState
 import com.mgb.mrfcmanager.viewmodel.DocumentUploadState

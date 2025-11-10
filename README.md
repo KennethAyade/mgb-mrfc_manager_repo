@@ -1,14 +1,14 @@
-# MRFC Manager - Android Application
+# MRFC Manager - Full Stack Application
 
 **Municipal Resource and Finance Committee Meeting Management System**
 
-A dual-portal Android application for managing MRFC meetings, compliance monitoring, and documentation with separate interfaces for administrators and regular users.
+A complete Android application with Node.js backend for managing MRFC meetings, compliance monitoring, and documentation with separate interfaces for administrators and regular users.
 
 ---
 
 ## 🎨 Design Philosophy
 
-This UI-only implementation follows the **DENR/MGB visual aesthetic**:
+This application follows the **DENR/MGB visual aesthetic**:
 - **Primary Color**: DENR Green (#2E7D32)
 - **Design Pattern**: Card-based Material Design 3
 - **Layout Style**: Clean, spacious with generous padding
@@ -18,459 +18,400 @@ This UI-only implementation follows the **DENR/MGB visual aesthetic**:
 
 ## ✅ What's Implemented
 
-### Core Infrastructure
-- ✅ **Project Setup**: Gradle configuration with all necessary dependencies
-- ✅ **Resource Files**: Complete colors, themes, dimensions, and strings
-- ✅ **Data Models**: User, MRFC, Proponent, Agenda, Document
-- ✅ **Demo Data**: Hardcoded test data (`DemoData.kt`)
+### Backend (Node.js + TypeScript)
+- ✅ **REST API**: Complete API with authentication
+- ✅ **PostgreSQL Database**: Full data persistence
+- ✅ **AWS S3 Storage**: File uploads/downloads (up to 100MB)
+- ✅ **JWT Authentication**: Secure token-based auth
+- ✅ **Auto Compliance Analysis**: Automatic CMVR analysis with real OCR
+- ✅ **AI-Powered Analysis**: Google Gemini AI for intelligent compliance detection
+- ✅ **Real OCR**: pdfjs-dist + Tesseract.js for scanned PDFs
+- ✅ **Smart Fallback**: Keyword analysis if AI unavailable
+- ✅ **Error Handling**: Failed analyses marked as "Pending Manual Review"
+- ✅ **Audit Logging**: Track all important actions
 
-### Completed Screens
+### Android App (Kotlin)
+- ✅ **Full Backend Integration**: No hardcoded data
+- ✅ **Authentication**: JWT token management
+- ✅ **Document Management**: Upload, view, download, delete
+- ✅ **Compliance Analysis**: Auto-trigger, real-time progress, results display
+- ✅ **MRFC Management**: List, create, update, delete
+- ✅ **Proponent Management**: Full CRUD operations
+- ✅ **Agenda Management**: Meeting planning and tracking
+- ✅ **Responsive UI**: Material Design 3 components
 
-#### 1. **Splash Screen** (`SplashActivity`)
-- DENR green background with branding
-- Auto-navigation to login after 2 seconds
-- **Location**: `app/src/main/java/com/mgb/mrfcmanager/ui/auth/SplashActivity.kt`
-
-#### 2. **Login Screen** (`LoginActivity`)
-- Gradient green background
-- Username/password authentication (hardcoded)
-- Routes to appropriate dashboard based on role
-- **Test Credentials**:
-  - Admin: `admin` / `admin123`
-  - User: `user1` / `user123`
-- **Location**: `app/src/main/java/com/mgb/mrfcmanager/ui/auth/LoginActivity.kt`
-
-#### 3. **Admin Dashboard** (`AdminDashboardActivity`)
-- 3x2 grid layout with icon cards
-- Six main functions:
-  1. Select MRFC (✅ functional)
-  2. Attendance (placeholder)
-  3. Notifications (placeholder)
-  4. File Upload (placeholder)
-  5. Settings (placeholder)
-  6. Minutes of Meetings (placeholder)
-- **Location**: `app/src/main/java/com/mgb/mrfcmanager/ui/admin/AdminDashboardActivity.kt`
-
-#### 4. **MRFC List Screen** (`MRFCListActivity`)
-- RecyclerView displaying all MRFCs
-- Uses hardcoded data from `DemoData.mrfcList`
-- Green button list items
-- Floating Action Button (FAB) for adding new MRFC (placeholder)
-- Back navigation to dashboard
-- **Location**: `app/src/main/java/com/mgb/mrfcmanager/ui/admin/MRFCListActivity.kt`
-
-#### 5. **User Dashboard** (`UserDashboardActivity`)
-- Placeholder screen for regular users
-- Shows "Coming Soon" message
-- **Location**: `app/src/main/java/com/mgb/mrfcmanager/ui/user/UserDashboardActivity.kt`
+### Compliance Analysis Features
+- ✅ **Auto-Trigger**: Analyzes documents automatically when viewed
+- ✅ **AI-Powered**: Google Gemini AI for intelligent analysis
+- ✅ **Real OCR**: Extracts text from scanned PDFs
+- ✅ **Digital PDF Support**: Fast text extraction for searchable PDFs
+- ✅ **Smart Analysis**: Context-aware compliance detection with AI
+- ✅ **Fallback Strategy**: Keyword analysis if AI unavailable
+- ✅ **Section Breakdown**: ECC, EPEP, Water Quality, Air Quality, etc.
+- ✅ **Non-Compliant Items**: Detailed issue tracking with severity
+- ✅ **Progress Tracking**: Real-time OCR progress updates
+- ✅ **Error Handling**: "Pending Manual Review" for failed analyses
 
 ---
 
-## 📱 How to Run the App
+## 📱 How to Run the Application
 
 ### Prerequisites
-- Android Studio (latest version recommended)
-- JDK 11 or higher
-- Android SDK with API 25+ support
+- **Android Studio** (latest version)
+- **JDK 11 or higher**
+- **Node.js 18+** and npm
+- **PostgreSQL** database
+- **AWS S3** bucket (configured)
 
-### Steps
-1. **Open Project**
+### Backend Setup
+
+1. **Install Dependencies**
    ```bash
-   cd MGB
-   # Open in Android Studio
+   cd backend
+   npm install
    ```
 
-2. **Sync Gradle**
+2. **Configure Environment**
+   Create `backend/.env`:
+   ```env
+   # Database
+   DATABASE_URL=postgresql://user:password@localhost:5432/mrfc_db
+   
+   # JWT
+   JWT_SECRET=your-secret-key-here
+   
+   # AWS S3
+   S3_BUCKET_NAME=adhub-s3-demo
+   AWS_ACCESS_KEY_ID=AKIA...
+   AWS_SECRET_ACCESS_KEY=...
+   AWS_REGION=us-east-1
+   
+   # Google Gemini AI (Optional - for intelligent compliance analysis)
+   GEMINI_API_KEY=AIzaSy...
+   
+   # Server
+   PORT=3000
+   NODE_ENV=development
+   ```
+
+3. **Setup Database**
+   ```bash
+   npm run db:migrate
+   npm run db:seed
+   ```
+
+4. **Start Backend**
+   ```bash
+   npm run dev
+   ```
+   Server runs on `http://localhost:3000`
+
+### Android App Setup
+
+1. **Open Project in Android Studio**
+   - Open the root directory in Android Studio
    - Wait for Gradle sync to complete
-   - All dependencies will be downloaded automatically
+
+2. **Configure API Base URL**
+   For emulator, the backend URL is already set to `http://10.0.2.2:3000`
 
 3. **Run the App**
-   - Connect an Android device or start an emulator
-   - Click the "Run" button (green triangle) in Android Studio
-   - Select your target device
+   - Connect Android device or start emulator (API 25+)
+   - Click Run button (▶️)
+   - App will install and launch
 
-4. **Test Login**
-   - Wait 2 seconds for splash screen
-   - Login with:
-     - **Admin**: `admin` / `admin123`
-     - **User**: `user1` / `user123`
+4. **Login**
+   - **Admin**: `superadmin` / `Admin@123`
+   - **User**: Create via admin panel
 
 ---
 
 ## 🗂️ Project Structure
 
 ```
-app/src/main/
-├── java/com/mgb/mrfcmanager/
-│   ├── ui/
-│   │   ├── auth/
-│   │   │   ├── SplashActivity.kt          ✅
-│   │   │   └── LoginActivity.kt           ✅
-│   │   ├── admin/
-│   │   │   ├── AdminDashboardActivity.kt  ✅
-│   │   │   └── MRFCListActivity.kt        ✅
-│   │   └── user/
-│   │       └── UserDashboardActivity.kt   ✅
-│   ├── data/model/
-│   │   ├── User.kt                        ✅
-│   │   ├── MRFC.kt                        ✅
-│   │   ├── Proponent.kt                   ✅
-│   │   ├── Agenda.kt                      ✅
-│   │   └── Document.kt                    ✅
-│   └── utils/
-│       └── DemoData.kt                    ✅
-└── res/
-    ├── layout/                             ✅ (5 layouts created)
-    ├── drawable/                           ✅ (6 icons created)
-    ├── values/
-    │   ├── colors.xml                     ✅
-    │   ├── strings.xml                    ✅
-    │   ├── themes.xml                     ✅
-    │   └── dimens.xml                     ✅
-    └── AndroidManifest.xml                ✅
+mgb-mrfc_manager_repo/
+├── backend/                    # Node.js Backend
+│   ├── src/
+│   │   ├── config/
+│   │   │   ├── database.ts    # PostgreSQL config
+│   │   │   └── s3.ts          # AWS S3 config
+│   │   ├── controllers/       # API logic
+│   │   │   ├── document.controller.ts
+│   │   │   ├── complianceAnalysis.controller.ts
+│   │   │   └── ...
+│   │   ├── models/            # Database models
+│   │   ├── routes/            # API routes
+│   │   ├── middleware/        # Auth, upload, etc.
+│   │   └── server.ts          # Entry point
+│   ├── database/
+│   │   └── schema.sql         # Database schema
+│   └── package.json
+│
+└── app/                        # Android Application
+    ├── src/main/
+    │   ├── java/com/mgb/mrfcmanager/
+    │   │   ├── ui/            # Activities & UI
+    │   │   │   ├── auth/      # Login, Splash
+    │   │   │   ├── admin/     # Admin screens
+    │   │   │   └── user/      # User screens
+    │   │   ├── data/
+    │   │   │   ├── remote/    # API services, DTOs
+    │   │   │   └── repository/# Data repositories
+    │   │   └── viewmodel/     # ViewModels
+    │   └── res/               # Resources
+    └── build.gradle.kts
 ```
 
 ---
 
-## 🚧 What Remains to be Built
+## 🎯 Key Features
 
-### Admin Portal Screens (TODO)
+### Document Management
+- Upload documents (PDF, DOC, XLS) up to 100MB
+- Automatic categorization (MTF, AEPEP, CMVR, etc.)
+- Download and view documents
+- Delete with audit logging
+- AWS S3 storage integration
 
-#### Priority 1 - Core Meeting Management
-1. **Proponent List Screen**
-   - Display proponents for selected MRFC
-   - Add/Edit/Delete proponent functionality
-   - Status indicators (Active/Inactive)
+### CMVR Compliance Analysis
+- **Automatic Analysis**: Triggers when viewing document
+- **Real OCR**: Extracts text from scanned PDFs using Tesseract.js
+- **Digital PDF Support**: Fast text extraction for searchable PDFs
+- **Compliance Calculation**: 
+  - Searches for keywords: "complied", "not complied", "satisfied", etc.
+  - Calculates percentages per section
+  - Determines rating (Fully/Partially/Non-Compliant)
+- **Section Breakdown**: ECC Compliance, EPEP, Water Quality, Air Quality, Noise, Waste
+- **Non-Compliant Items**: Lists specific issues with severity
+- **Progress Tracking**: Real-time updates during OCR
+- **Error Handling**: Failed analyses marked as "Pending Manual Review"
+- **Caching**: Analyzed documents return results instantly
 
-2. **Quarter Selection Screen**
-   - 2x2 grid for quarters
-   - Navigate to Agenda Management
+### MRFC Management
+- Create, read, update, delete MRFCs
+- Track compliance status
+- Assign administrators
+- View associated proponents
 
-3. **Agenda Management Screen**
-   - Meeting date/location pickers
-   - Standard agenda items (8 items from spec)
-   - "Matters Arising" table
-   - Save functionality
+### Proponent Management
+- Full CRUD operations
+- Link to MRFCs
+- Track permit information
+- Contact management
 
-#### Priority 2 - Supporting Features
-4. **Attendance Screen**
-   - List of attendees
-   - Camera integration for photos
-   - Mark present/absent
-
-5. **File Upload Screen**
-   - File picker integration
-   - Category selection
-   - Upload progress indicator
-
-6. **Compliance Dashboard**
-   - MPAndroidChart integration
-   - Donut chart for compliance rate
-   - Bar charts for breakdown
-   - Generate report functionality
-
-7. **Notifications Screen**
-   - List of notifications
-   - Mark as read functionality
-
-### User Portal Screens (TODO)
-
-1. **User Dashboard**
-   - Grid layout similar to admin
-   - Access to: Agenda View, Documents, Notes
-
-2. **MRFC Selection (User)**
-   - Select MRFC to view
-
-3. **Proponent View (User)**
-   - View-only proponent list
-
-4. **Agenda View (User)**
-   - Read-only agenda display
-   - View meeting details
-
-5. **Document List (User)**
-   - Browse and download documents
-
-6. **Notes Screen**
-   - Add/edit personal notes
-   - Attach to agenda items
+### Agenda Management
+- Create meeting agendas
+- Standard agenda items
+- Matters arising tracking
+- Quarter-based organization
 
 ---
 
-## 🔧 Backend Integration Guide
+## 🔧 Technical Stack
 
-When you're ready to add a backend, follow these steps:
+### Backend
+- **Runtime**: Node.js 18+
+- **Language**: TypeScript
+- **Framework**: Express.js
+- **Database**: PostgreSQL with Sequelize ORM
+- **File Storage**: AWS S3
+- **OCR**: Tesseract.js + pdfjs-dist + canvas
+- **Authentication**: JWT tokens
+- **Security**: Helmet, CORS, rate limiting
 
-### 1. Add Room Database
+### Android
+- **Language**: Kotlin
+- **Min SDK**: API 25 (Android 7.1)
+- **Target SDK**: API 36
+- **Architecture**: MVVM
+- **Networking**: Retrofit + Moshi
+- **UI**: Material Design 3
+- **Image Loading**: Coil
+- **Async**: Kotlin Coroutines
 
-**Update `build.gradle.kts`:**
-```kotlin
-dependencies {
-    // Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
-}
-```
-
-**Convert Data Models to Entities:**
-```kotlin
-@Entity(tableName = "mrfcs")
-data class MRFC(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String,
-    val municipality: String,
-    val contactPerson: String,
-    val contactNumber: String
-)
-```
-
-### 2. Create DAO Interfaces
-
-```kotlin
-@Dao
-interface MRFCDao {
-    @Query("SELECT * FROM mrfcs")
-    fun getAllMRFCs(): Flow<List<MRFC>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(mrfc: MRFC)
-
-    @Delete
-    suspend fun delete(mrfc: MRFC)
-}
-```
-
-### 3. Create Database Class
-
-```kotlin
-@Database(entities = [MRFC::class, Proponent::class, /* ... */], version = 1)
-abstract class AppDatabase : RoomDatabase() {
-    abstract fun mrfcDao(): MRFCDao
-    // ...
-}
-```
-
-### 4. Add ViewModels
-
-```kotlin
-class MRFCListViewModel(private val repository: MRFCRepository) : ViewModel() {
-    val mrfcs: LiveData<List<MRFC>> = repository.getAllMRFCs().asLiveData()
-
-    fun insert(mrfc: MRFC) = viewModelScope.launch {
-        repository.insert(mrfc)
-    }
-}
-```
-
-### 5. Update Activities
-
-**Replace this:**
-```kotlin
-val mrfcs = DemoData.mrfcList
-adapter.submitList(mrfcs)
-```
-
-**With this:**
-```kotlin
-viewModel.mrfcs.observe(this) { mrfcs ->
-    adapter.submitList(mrfcs)
-}
-```
-
-### 6. Remove Demo Data
-
-- Delete `DemoData.kt`
-- Remove all hardcoded data references
-- Remove TODOcomments
+### Free OCR Libraries
+- **pdfjs-dist**: PDF rendering (Mozilla PDF.js)
+- **canvas**: Image rendering
+- **Tesseract.js**: OCR text extraction
+- **pdf.js-extract**: Quick text extraction
 
 ---
 
-## 🎯 Key Features Overview
+## 🚀 Recent Updates (November 2025)
 
-### Authentication
-- Hardcoded credentials (admin/user)
-- Role-based routing
-- **TODO**: Add proper authentication service
+### Latest Changes
+1. **S3 Migration**: Migrated from Cloudinary to AWS S3
+   - All file operations now use S3
+   - Increased file size limit to 100MB
+   - Better cost efficiency
 
-### Admin Features
-- ✅ Dashboard with 6 function cards
-- ✅ MRFC list with RecyclerView
-- 🚧 Full CRUD operations for MRFC/Proponents
-- 🚧 Agenda management with standard items
-- 🚧 Attendance tracking with camera
-- 🚧 File upload and categorization
-- 🚧 Compliance monitoring with charts
+2. **Auto Compliance Analysis**: 
+   - Viewing CMVR document automatically triggers analysis
+   - No manual "Analyze" button needed
+   - Seamless user experience
 
-### User Features
-- 🚧 Read-only access to agendas
-- 🚧 Document viewing
-- 🚧 Personal notes functionality
+3. **Real OCR Implementation**:
+   - Replaced pdf2pic with pdfjs-dist + canvas
+   - Works cross-platform (Windows, Mac, Linux)
+   - No external dependencies (GraphicsMagick/ImageMagick)
+   - Handles scanned PDFs properly
 
-### Technical Highlights
-- Material Design 3 components
-- RecyclerView with ViewHolder pattern
-- Hardcoded data ready for backend swap
-- TODO comments marking backend integration points
-- Clean architecture preparation (models, UI separation)
+4. **Proper Error Handling**:
+   - Failed analyses saved as "Pending Manual Review"
+   - No mock data fallback
+   - Clear error messages in UI
 
----
+5. **Removed Hardcoded Data**:
+   - Deleted DemoData.kt
+   - 100% backend-integrated
+   - All data from real database
 
-## 📊 Sample Data
+6. **Fixed Infinite Polling**:
+   - Progress polling stops correctly
+   - Handles cached results properly
 
-The app includes demo data for:
-- **5 MRFCs** (Dingras, Laoag, Batac, Bangui, Pagudpud)
-- **10 Proponents** (Mining and quarrying companies)
-- **8 Standard Agenda Items** (as per MRFC spec)
-- **5 Sample Documents** (MTF reports, AEPEP, CMVR, Minutes)
-- **4 Quarters** (2025)
-
-**Location**: `app/src/main/java/com/mgb/mrfcmanager/utils/DemoData.kt`
+7. **Fixed JSON Parsing**:
+   - ApiResponse wrapper handling
+   - Proper data extraction
 
 ---
 
-## 🎨 UI Components Reference
+## 📊 Compliance Analysis Workflow
 
-### Colors (`colors.xml`)
-- `denr_green` (#2E7D32) - Primary
-- `denr_green_dark` (#1B5E20) - Dark variant
-- `denr_green_light` (#4CAF50) - Light variant
-- Status colors: compliant, partial, non-compliant, pending
+### For Digital PDFs (with selectable text):
+```
+1. User views CMVR document
+2. Backend checks for existing analysis
+3. If none exists, downloads PDF from S3
+4. Extracts text directly (< 1 second)
+5. Analyzes compliance keywords
+6. Saves results to database
+7. Returns to Android app
+8. Displays compliance percentage
+```
 
-### Dimensions (`dimens.xml`)
-- Spacing: 4dp, 8dp, 16dp, 24dp, 32dp
-- Text sizes: 12sp to 28sp
-- Button height: 56dp
-- Card corner radius: 12dp
+### For Scanned PDFs (images only):
+```
+1. User views CMVR document
+2. Backend checks for existing analysis
+3. If none exists, downloads PDF from S3
+4. Detects no selectable text
+5. Loads PDF with pdfjs-dist
+6. Renders each page to canvas (2-3 minutes for 25 pages)
+7. Runs Tesseract OCR on each page
+8. Extracts text from all pages
+9. Analyzes compliance keywords
+10. Saves results to database
+11. Returns to Android app
+12. Displays compliance percentage
+```
 
-### Styles (`themes.xml`)
-- `GreenButton` - Standard green button
-- `GreenButtonFull` - Full-width green button
-- `CardStyle` - Elevated card with rounded corners
-- `TextInputStyle` - Outlined text input
-
----
-
-## 📝 Development Workflow
-
-### Adding a New Screen
-
-1. **Create Layout XML**
-   ```xml
-   <!-- res/layout/activity_my_screen.xml -->
-   <androidx.coordinatorlayout.widget.CoordinatorLayout>
-       <!-- Your UI -->
-   </androidx.coordinatorlayout.widget.CoordinatorLayout>
-   ```
-
-2. **Create Activity Class**
-   ```kotlin
-   class MyScreenActivity : AppCompatActivity() {
-       override fun onCreate(savedInstanceState: Bundle?) {
-           super.onCreate(savedInstanceState)
-           setContentView(R.layout.activity_my_screen)
-       }
-   }
-   ```
-
-3. **Add to AndroidManifest.xml**
-   ```xml
-   <activity
-       android:name=".ui.admin.MyScreenActivity"
-       android:exported="false" />
-   ```
-
-4. **Navigate to Screen**
-   ```kotlin
-   startActivity(Intent(this, MyScreenActivity::class.java))
-   ```
+### If Analysis Fails:
+```
+1. Backend attempts analysis
+2. OCR fails (quality too low, corrupted, etc.)
+3. Saves analysis with status='FAILED'
+4. Returns failed analysis to app
+5. Android shows "Pending Manual Review"
+6. Admin can manually adjust later
+```
 
 ---
 
 ## 🐛 Known Issues & Limitations
 
-1. **Authentication**: Hardcoded credentials only
-2. **Data Persistence**: No database - data resets on app restart
-3. **Icons**: Using placeholder vector drawables (replace with proper icons)
-4. **Camera**: CameraX dependency added but not implemented
-5. **Charts**: MPAndroidChart dependency added but not implemented
-6. **File Handling**: No actual file upload/download functionality yet
-7. **Placeholder Screens**: Many screens show "Coming Soon" messages
+### Current Limitations
+1. **OCR Performance**: Scanned PDFs take 2-3 minutes for 25 pages
+2. **OCR on Windows**: Works but slower than Linux
+3. **File Size**: Limited to 100MB by Multer (S3 supports up to 5TB)
+
+### Resolved Issues
+- ✅ JSON parsing errors - Fixed
+- ✅ Infinite polling loops - Fixed
+- ✅ Hardcoded demo data - Removed
+- ✅ Cloudinary to S3 migration - Complete
+- ✅ Auto-trigger analysis - Implemented
+- ✅ OCR cross-platform support - Fixed
 
 ---
 
-## 🚀 Next Steps (Recommended Order)
+## 📚 API Documentation
 
-### Phase 1: Complete Admin Core (Week 1-2)
-1. Implement Proponent List with full CRUD
-2. Add Quarter Selection screen
-3. Build Agenda Management with standard items
-4. Test complete flow: MRFC → Proponents → Quarter → Agenda
+### Base URL
+- Development: `http://localhost:3000/api/v1`
+- Production: `https://your-domain.com/api/v1`
 
-### Phase 2: Supporting Features (Week 3-4)
-1. Implement Attendance with CameraX
-2. Add File Upload functionality
-3. Create Compliance Dashboard with charts
-4. Build Notifications system
+### Key Endpoints
 
-### Phase 3: User Portal (Week 5-6)
-1. Build User Dashboard
-2. Implement read-only views
-3. Add Notes functionality
-4. Test user workflows
+#### Authentication
+- `POST /auth/login` - User login
+- `POST /auth/register` - User registration (admin only)
 
-### Phase 4: Backend Integration (Week 7-8)
-1. Set up Room database
-2. Create DAOs and repositories
-3. Add ViewModels
-4. Replace hardcoded data
-5. Add proper authentication
+#### Documents
+- `GET /documents` - List documents
+- `POST /documents/upload` - Upload document
+- `GET /documents/:id` - Get document metadata
+- `GET /documents/:id/download` - Download document
+- `DELETE /documents/:id` - Delete document
 
----
+#### Compliance Analysis
+- `GET /compliance/document/:documentId` - Get analysis (auto-triggers if not exists)
+- `POST /compliance/analyze` - Manually trigger analysis
+- `PUT /compliance/document/:documentId` - Update analysis (admin adjustments)
+- `GET /compliance/progress/:documentId` - Get real-time OCR progress
 
-## 📚 Resources & Documentation
+#### MRFCs
+- `GET /mrfcs` - List MRFCs
+- `POST /mrfcs` - Create MRFC
+- `PUT /mrfcs/:id` - Update MRFC
+- `DELETE /mrfcs/:id` - Delete MRFC
 
-### Dependencies Used
-- **AndroidX Core**: Core Kotlin extensions
-- **Material Design 3**: UI components
-- **RecyclerView**: List displays
-- **Navigation**: Screen navigation (added, not yet used)
-- **ViewModel/LiveData**: MVVM support (added for future use)
-- **CameraX**: Camera functionality (added, not implemented)
-- **MPAndroidChart**: Charts and graphs (added, not implemented)
-- **Coil**: Image loading (added, not implemented)
-
-### Key Files to Review
-- `DemoData.kt` - All hardcoded test data
-- `themes.xml` - App styling and colors
-- `strings.xml` - All text strings
-- `AndroidManifest.xml` - App configuration
+#### Proponents
+- `GET /proponents` - List proponents
+- `POST /proponents` - Create proponent
+- `PUT /proponents/:id` - Update proponent
+- `DELETE /proponents/:id` - Delete proponent
 
 ---
 
 ## 💡 Tips for Developers
 
-1. **Search for "TODO: BACKEND"** in code to find all integration points
-2. **Use DemoData patterns** when adding new screens
-3. **Follow Material Design 3** guidelines for consistency
-4. **Test with both admin and user roles** regularly
-5. **Keep hardcoded data** until backend is fully ready
-6. **Document new features** in this README
+1. **Backend Development**: Check `backend/src/controllers/` for API logic
+2. **Android Development**: Check `app/src/main/java/com/mgb/mrfcmanager/ui/` for screens
+3. **Database Schema**: See `backend/database/schema.sql`
+4. **API Testing**: Use Postman or `backend/test-api.sh`
+5. **Logs**: Backend logs show detailed OCR progress
 
 ---
 
 ## 📞 Test Credentials
 
 ### Admin Access
-- **Username**: `admin`
-- **Password**: `admin123`
-- **Features**: Full CRUD access, dashboard, all admin screens
+- **Username**: `superadmin`
+- **Password**: `Admin@123`
+- **Features**: Full system access, compliance analysis, document management
 
-### User Access
-- **Username**: `user1`
-- **Password**: `user123`
-- **Features**: Read-only access, limited functionality
+### Creating Users
+- Login as admin
+- Navigate to User Management
+- Create new users with specific roles
+
+---
+
+## 🚀 Deployment
+
+### Backend (Render.com)
+```bash
+cd backend
+npm run build
+npm start
+```
+
+### Android (APK)
+1. Build → Generate Signed Bundle/APK
+2. Select APK
+3. Create/select keystore
+4. Build release APK
 
 ---
 
@@ -480,20 +421,53 @@ This project is developed for MGB-DENR Philippines.
 
 ---
 
-## 🎉 Summary
+## 🎉 Current Status
 
-**This UI-only implementation provides:**
-- ✅ Complete visual foundation following DENR design aesthetic
-- ✅ Working authentication and navigation
-- ✅ Functional Admin Dashboard and MRFC List
-- ✅ Hardcoded demo data for testing
-- ✅ Backend-ready architecture with TODO markers
-- ✅ Comprehensive documentation
+**Backend**: ✅ Production-ready with real OCR  
+**Android App**: ✅ Fully integrated with backend  
+**File Storage**: ✅ AWS S3  
+**Compliance Analysis**: ✅ Automatic with real OCR  
+**Demo Data**: ✅ Removed (100% real data)  
 
-**Ready for:**
-- 🚀 Immediate visual testing and feedback
-- 🚀 Additional screen implementations
-- 🚀 Backend integration when needed
-- 🚀 Stakeholder demonstrations
+**The application is complete and ready for production deployment!**
 
-The app is fully buildable and runnable right now using hardcoded data!
+---
+
+## 📖 Additional Documentation
+
+- `S3_MIGRATION_COMPLETE.md` - AWS S3 integration details
+- `AUTO_ANALYSIS_IMPLEMENTATION_COMPLETE.md` - Compliance analysis implementation
+- `ANDROID_JSON_PARSING_FIX.md` - JSON parsing fixes
+- `ANDROID_INFINITE_POLLING_FIX.md` - Polling loop fixes
+- `REAL_ANALYSIS_TESTING_COMPLETE.md` - OCR testing guide
+- `S3_BUCKET_SETUP_GUIDE.md` - S3 bucket configuration
+
+---
+
+## 🆘 Troubleshooting
+
+### Backend won't start
+- Check `.env` file has all required variables
+- Verify PostgreSQL is running
+- Check AWS credentials are valid
+
+### Android app can't connect
+- Verify backend is running on `http://localhost:3000`
+- For emulator, backend URL should be `http://10.0.2.2:3000`
+- Check firewall settings
+
+### File upload fails
+- Check S3 bucket permissions
+- Verify AWS credentials in `.env`
+- Check file size (max 100MB)
+
+### OCR takes too long
+- Normal for scanned PDFs (2-3 minutes for 25 pages)
+- Digital PDFs with text are instant
+- Consider using higher quality scans for better OCR accuracy
+
+---
+
+## 📞 Support
+
+For issues or questions, check the documentation files in the root directory or contact the development team.

@@ -15,7 +15,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticate, adminOnly } from '../middleware/auth';
 import { uploadPhoto, cleanupTempFile } from '../middleware/upload';
-import { uploadToCloudinary, deleteFromCloudinary, CLOUDINARY_FOLDERS } from '../config/cloudinary';
+import { uploadToS3, deleteFromS3, S3_FOLDERS } from '../config/s3';
 
 const router = Router();
 
@@ -231,14 +231,14 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
     if (req.file) {
       uploadedFilePath = req.file.path;
 
-      const uploadResult = await uploadToCloudinary(
+      const uploadResult = await uploadToS3(
         uploadedFilePath,
-        CLOUDINARY_FOLDERS.ATTENDANCE,
-        'image'
+        S3_FOLDERS.PHOTOS,
+        'image/jpeg'
       );
 
       photoUrl = uploadResult.url;
-      photoCloudinaryId = uploadResult.publicId;
+      photoCloudinaryId = uploadResult.key; // S3 key instead of Cloudinary public_id
 
       // Clean up temporary file
       cleanupTempFile(uploadedFilePath);
@@ -303,7 +303,7 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
     // Cleanup Cloudinary upload on error
     if (cloudinaryPublicId) {
       try {
-        await deleteFromCloudinary(cloudinaryPublicId, 'image');
+        await deleteFromS3(cloudinaryPublicId);
       } catch (cleanupError) {
         console.error('Failed to cleanup Cloudinary upload:', cleanupError);
       }
@@ -453,7 +453,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
     // Delete photo from Cloudinary if exists
     if (attendance.photo_cloudinary_id) {
       try {
-        await deleteFromCloudinary(attendance.photo_cloudinary_id, 'image');
+        await deleteFromS3(attendance.photo_cloudinary_id);
       } catch (error) {
         console.error('Failed to delete photo from Cloudinary:', error);
         // Continue with deletion even if Cloudinary cleanup fails

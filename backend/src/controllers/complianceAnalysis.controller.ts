@@ -4,7 +4,7 @@
  * Handles automatic CMVR document analysis and compliance percentage calculation
  * 
  * ✅ NOW USES ACTUAL PDF PARSING!
- * - Downloads PDF from Cloudinary
+ * - Downloads PDF from AWS S3
  * - Extracts text using pdf-parse library
  * - Analyzes compliance indicators with pattern matching
  * - Calculates real compliance percentages
@@ -14,15 +14,17 @@ import { Request, Response } from 'express';
 import { ComplianceAnalysis, AnalysisStatus, ComplianceRating, Document } from '../models';
 import AnalysisProgress from '../models/AnalysisProgress';
 import sequelize from '../config/database';
-import axios from 'axios';
+import { downloadFromS3 } from '../config/s3';
+import { analyzeComplianceWithGemini, isGeminiConfigured } from '../config/gemini';
 
 // Using Tesseract.js for OCR text extraction from scanned PDFs
 const Tesseract = require('tesseract.js');
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas, Image } = require('canvas');
 const PDFExtract = require('pdf.js-extract').PDFExtract;
 const pdfExtract = new PDFExtract();
 const fs = require('fs');
 const path = require('path');
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 
 /**
  * Transform ComplianceAnalysis model to JSON with proper number types
@@ -153,6 +155,39 @@ export const analyzeCompliance = async (req: Request, res: Response): Promise<vo
     });
   } catch (error: any) {
     console.error('Compliance analysis error:', error);
+    
+    // Save failed analysis to database for "Pending Manual Review"
+    try {
+      const document = await Document.findByPk(req.body.document_id);
+      if (document) {
+        const failedAnalysis = await ComplianceAnalysis.upsert({
+          document_id: req.body.document_id,
+          document_name: document.original_name,
+          analysis_status: AnalysisStatus.FAILED,
+          admin_notes: `Analysis failed: ${error.message}. Pending manual review.`,
+          analyzed_at: new Date()
+        });
+        
+        console.log(`💾 Saved failed analysis record for document ${req.body.document_id}`);
+        
+        // Return the failed analysis (not an error response)
+        const savedAnalysis = await ComplianceAnalysis.findOne({
+          where: { document_id: req.body.document_id }
+        });
+        
+        if (savedAnalysis) {
+          res.json({
+            success: true,
+            data: transformAnalysisToJSON(savedAnalysis)
+          });
+          return;
+        }
+      }
+    } catch (saveError) {
+      console.error('Failed to save error analysis:', saveError);
+    }
+    
+    // If we couldn't save the failed analysis, return error
     res.status(500).json({
       success: false,
       error: {
@@ -187,14 +222,14 @@ export const getComplianceAnalysis = async (req: Request, res: Response): Promis
     });
 
     if (!analysis) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'ANALYSIS_NOT_FOUND',
-          message: 'Compliance analysis not found for this document'
-        }
-      });
-      return;
+      // Auto-trigger analysis if none exists
+      console.log(`\n🔄 No analysis found for document ${documentId}, triggering automatic analysis...`);
+      
+      // Create request body for analyzeCompliance
+      req.body = { document_id: documentId };
+      
+      // Call analyzeCompliance function
+      return await analyzeCompliance(req, res);
     }
 
     res.json({
@@ -392,7 +427,7 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
     console.log(`📝 Document: ${document.original_name}`);
     console.log(`🆔 Document ID: ${document.id}`);
     console.log(`📂 Category: ${document.category}`);
-    console.log(`📍 PDF URL: ${document.file_url}`);
+    console.log(`📍 S3 URL: ${document.file_url}`);
     console.log('');
     
     // Check if we have cached extracted text
@@ -401,8 +436,22 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
       console.log(`   - Cached text length: ${cachedText.length} characters`);
       console.log('');
       
-      AnalysisProgress.update(documentId, 80, 'Using cached text, analyzing compliance...');
-      const analysis = analyzeComplianceText(cachedText, 0); // Page count unknown from cache
+      AnalysisProgress.update(documentId, 80, 'Analyzing compliance with AI...');
+      
+      let analysis;
+      if (isGeminiConfigured()) {
+        try {
+          console.log('🤖 Using Gemini AI for intelligent analysis...');
+          analysis = await analyzeComplianceWithGemini(cachedText, document.original_name);
+        } catch (geminiError: any) {
+          console.warn(`⚠️  Gemini AI failed: ${geminiError.message}`);
+          console.log('📊 Falling back to keyword-based analysis...');
+          analysis = analyzeComplianceText(cachedText, 0);
+        }
+      } else {
+        analysis = analyzeComplianceText(cachedText, 0);
+      }
+      
       AnalysisProgress.complete(documentId);
       
       const totalTime = Date.now() - startTime;
@@ -417,30 +466,23 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
     console.log('📥 No cached text available, will download and analyze PDF');
     console.log('');
 
-    // Step 1: Download PDF from Cloudinary
-    console.log('⏬ STEP 1: Downloading PDF from Cloudinary...');
+    // Step 1: Download PDF from S3
+    console.log('⏬ STEP 1: Downloading PDF from S3...');
     AnalysisProgress.update(documentId, 10, 'Downloading PDF...');
     const downloadStartTime = Date.now();
     
-    const response = await axios.get(document.file_url, {
-      responseType: 'arraybuffer',
-      timeout: 30000,
-      headers: {
-        'User-Agent': 'MGB-MRFC-Compliance-Analyzer/1.0'
-      }
-    });
+    const pdfBuffer = await downloadFromS3(document.file_url);
 
     const downloadDuration = Date.now() - downloadStartTime;
-    const fileSizeMB = (response.data.length / (1024 * 1024)).toFixed(2);
+    const fileSizeMB = (pdfBuffer.length / (1024 * 1024)).toFixed(2);
     console.log(`✅ PDF downloaded successfully`);
-    console.log(`   - Size: ${response.data.length} bytes (${fileSizeMB} MB)`);
+    console.log(`   - Size: ${pdfBuffer.length} bytes (${fileSizeMB} MB)`);
     console.log(`   - Download time: ${downloadDuration}ms`);
     console.log('');
 
     // Step 2: Try quick text extraction first (for digital PDFs)
     console.log('📖 STEP 2: Checking if PDF has selectable text...');
     AnalysisProgress.update(documentId, 20, 'Analyzing PDF content...');
-    const pdfBuffer = Buffer.from(response.data);
     const pdfData = await pdfExtract.extractBuffer(pdfBuffer);
     
     let quickText = '';
@@ -458,8 +500,23 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
       console.log(`✅ PDF has selectable text, skipping OCR`);
       console.log('');
       
-      AnalysisProgress.update(documentId, 80, 'Analyzing compliance indicators...');
-      const analysis = analyzeComplianceText(quickText, numPages);
+      AnalysisProgress.update(documentId, 80, 'Analyzing compliance with AI...');
+      
+      let analysis;
+      if (isGeminiConfigured()) {
+        try {
+          console.log('🤖 Using Gemini AI for intelligent analysis...');
+          analysis = await analyzeComplianceWithGemini(quickText, document.original_name);
+          console.log('✅ Gemini AI analysis successful');
+        } catch (geminiError: any) {
+          console.warn(`⚠️  Gemini AI failed: ${geminiError.message}`);
+          console.log('📊 Falling back to keyword-based analysis...');
+          analysis = analyzeComplianceText(quickText, numPages);
+        }
+      } else {
+        console.log('📊 Using keyword-based analysis (Gemini not configured)...');
+        analysis = analyzeComplianceText(quickText, numPages);
+      }
       
       AnalysisProgress.complete(documentId);
       
@@ -514,33 +571,41 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
     fs.writeFileSync(pdfPath, pdfBuffer);
     
     try {
-      // Convert PDF to images and perform OCR on each page
-      const pdf2pic = require('pdf2pic');
-      const convert = pdf2pic.fromPath(pdfPath, {
-        density: 300,           // DPI for image quality
-        saveFilename: 'page',
-        savePath: tempDir,
-        format: 'png',
-        width: 2480,           // A4 at 300 DPI
-        height: 3508
-      });
+      // Load PDF with pdfjs-dist
+      console.log(`   Loading PDF with pdfjs-dist...`);
+      const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
+      const pdfDocument = await loadingTask.promise;
+      const actualNumPages = pdfDocument.numPages;
       
-      console.log(`   Converting PDF pages to images (${numPages} pages)...`);
+      console.log(`   Rendering and OCR processing ${actualNumPages} pages...`);
       
-      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-        const pageProgress = Math.round((pageNum / numPages) * 100);
+      for (let pageNum = 1; pageNum <= actualNumPages; pageNum++) {
+        const pageProgress = Math.round((pageNum / actualNumPages) * 100);
         const overallProgress = 30 + (pageProgress * 0.5); // 30-80% for OCR
-        AnalysisProgress.update(documentId, overallProgress, `Processing page ${pageNum}/${numPages} (${pageProgress}%)`);
+        AnalysisProgress.update(documentId, overallProgress, `Processing page ${pageNum}/${actualNumPages} (${pageProgress}%)`);
         
-        console.log(`   Processing page ${pageNum}/${numPages}...`);
+        console.log(`   Processing page ${pageNum}/${actualNumPages}...`);
         
         try {
-          // Convert PDF page to image
-          const result = await convert(pageNum, { responseType: 'image' });
-          const imagePath = result.path;
+          // Get page
+          const page = await pdfDocument.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 2.0 }); // 2x scale for better quality
           
-          // Perform OCR on the image
-          const { data } = await worker.recognize(imagePath);
+          // Create canvas
+          const canvas = createCanvas(viewport.width, viewport.height);
+          const context = canvas.getContext('2d');
+          
+          // Render PDF page to canvas
+          await page.render({
+            canvasContext: context,
+            viewport: viewport
+          }).promise;
+          
+          // Convert canvas to buffer for Tesseract
+          const imageBuffer = canvas.toBuffer('image/png');
+          
+          // Perform OCR on the rendered page
+          const { data } = await worker.recognize(imageBuffer);
           const pageText = data.text;
           const pageConfidence = data.confidence;
           
@@ -549,10 +614,6 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
           
           console.log(`      ✓ Page ${pageNum}: ${pageText.length} chars, ${pageConfidence.toFixed(1)}% confidence`);
           
-          // Clean up image file
-          if (fs.existsSync(imagePath)) {
-            fs.unlinkSync(imagePath);
-          }
         } catch (pageError: any) {
           console.warn(`      ⚠️  Page ${pageNum} OCR failed: ${pageError.message}`);
           // Continue with other pages
@@ -560,7 +621,7 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
       }
       
       await worker.terminate();
-      totalConfidence = totalConfidence / numPages;
+      totalConfidence = totalConfidence / actualNumPages;
       
       // Clean up temporary PDF file
       if (fs.existsSync(pdfPath)) {
@@ -600,10 +661,26 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
 
     // Step 4: Analyze compliance indicators
     console.log('🔍 STEP 4: Analyzing compliance indicators...');
-    AnalysisProgress.update(documentId, 85, 'Analyzing compliance indicators...');
+    AnalysisProgress.update(documentId, 85, 'Analyzing compliance with AI...');
     const analysisStartTime = Date.now();
     
-    const analysis = analyzeComplianceText(ocrText, numPages);
+    let analysis;
+    
+    // Try Gemini AI first, fallback to keyword analysis
+    if (isGeminiConfigured()) {
+      try {
+        console.log('🤖 Using Gemini AI for intelligent analysis...');
+        analysis = await analyzeComplianceWithGemini(ocrText, document.original_name);
+        console.log('✅ Gemini AI analysis successful');
+      } catch (geminiError: any) {
+        console.warn(`⚠️  Gemini AI failed: ${geminiError.message}`);
+        console.log('📊 Falling back to keyword-based analysis...');
+        analysis = analyzeComplianceText(ocrText, numPages);
+      }
+    } else {
+      console.log('📊 Using keyword-based analysis (Gemini not configured)...');
+      analysis = analyzeComplianceText(ocrText, numPages);
+    }
     
     const analysisDuration = Date.now() - analysisStartTime;
     console.log(`✅ Compliance analysis complete`);

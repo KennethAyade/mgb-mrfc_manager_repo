@@ -3,7 +3,7 @@
  * DOCUMENT MANAGEMENT CONTROLLER
  * ================================================
  * Handles document upload, download, and management for proponent compliance documents
- * Integrates with Cloudinary for file storage
+ * Integrates with AWS S3 for file storage
  * Categories: MTF_REPORT, AEPEP, CMVR, SDMP, PRODUCTION, SAFETY, OTHER
  * Status: PENDING (awaiting review), ACCEPTED (approved), REJECTED (not accepted)
  */
@@ -12,7 +12,7 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { Document, DocumentCategory, DocumentStatus, User, Mrfc, Proponent, Quarter, AuditLog, AuditAction } from '../models';
 import sequelize from '../config/database';
-import { uploadToCloudinary, deleteFromCloudinary, downloadFromCloudinaryUrl, CLOUDINARY_FOLDERS } from '../config/cloudinary';
+import { uploadToS3, deleteFromS3, downloadFromS3, S3_FOLDERS } from '../config/s3';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -366,11 +366,11 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
     const fileExtension = path.extname(file.originalname);
     const generatedFileName = `${sanitizedMrfcName}_${sanitizedCategory}_Q${quarter.quarter_number}_${quarter.year}${fileExtension}`;
 
-    // Upload to Cloudinary
-    const cloudinaryResult = await uploadToCloudinary(
+    // Upload to S3
+    const s3Result = await uploadToS3(
       file.path,
-      CLOUDINARY_FOLDERS.DOCUMENTS,
-      'raw' // For PDFs and other document types
+      S3_FOLDERS.DOCUMENTS,
+      file.mimetype || 'application/pdf'
     );
 
     // Create document record in database
@@ -384,8 +384,8 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
           file_type: file.mimetype,
           file_size: file.size,
           category,
-          file_url: cloudinaryResult.url,
-          file_cloudinary_id: cloudinaryResult.publicId,
+          file_url: s3Result.url,
+          file_cloudinary_id: s3Result.key, // Using same field name for S3 key
           status: DocumentStatus.PENDING,
           uploaded_by: currentUser?.userId
         },
@@ -617,9 +617,9 @@ export const streamDocument = async (req: Request, res: Response): Promise<void>
     }
 
     console.log(`📥 Streaming document: ${document.original_name}`);
-    console.log(`📍 Cloudinary Public ID: ${document.file_cloudinary_id}`);
+    console.log(`📍 S3 Key: ${document.file_cloudinary_id}`);
 
-    // Validate that file has cloudinary_id
+    // Validate that file has S3 key
     if (!document.file_cloudinary_id) {
       res.status(500).json({
         success: false,
@@ -655,10 +655,9 @@ export const streamDocument = async (req: Request, res: Response): Promise<void>
     }
 
     try {
-      // Download file from Cloudinary using the direct URL
-      // This matches the exact flow from your error logs
-      console.log(`📥 Fetching file via Cloudinary Admin API with authentication`);
-      const fileBuffer = await downloadFromCloudinaryUrl(document.file_url);
+      // Download file from S3 using the URL
+      console.log(`📥 Fetching file from S3`);
+      const fileBuffer = await downloadFromS3(document.file_url);
 
       console.log(`📤 Sending file to client`);
 
@@ -817,13 +816,13 @@ export const deleteDocument = async (req: Request, res: Response): Promise<void>
 
     // Delete with transaction
     await sequelize.transaction(async (t) => {
-      // Delete file from Cloudinary if cloudinary_id exists
-      if (document.file_cloudinary_id) {
+      // Delete file from S3 if s3 key exists
+      if (document.file_cloudinary_id) { // Still using same field name for S3 key
         try {
-          await deleteFromCloudinary(document.file_cloudinary_id);
-        } catch (cloudinaryError) {
-          console.error('Cloudinary deletion error:', cloudinaryError);
-          // Continue with database deletion even if Cloudinary deletion fails
+          await deleteFromS3(document.file_cloudinary_id);
+        } catch (s3Error) {
+          console.error('S3 deletion error:', s3Error);
+          // Continue with database deletion even if S3 deletion fails
         }
       }
 
@@ -842,7 +841,7 @@ export const deleteDocument = async (req: Request, res: Response): Promise<void>
             original_name: document.original_name,
             proponent_id: document.proponent_id,
             quarter_id: document.quarter_id,
-            cloudinary_id: document.file_cloudinary_id
+            s3_key: document.file_cloudinary_id
           }
         },
         { transaction: t }
@@ -1098,11 +1097,11 @@ export const uploadViaToken = async (req: Request, res: Response): Promise<void>
     const fileExtension = path.extname(file.originalname);
     const generatedFileName = `${sanitizedMrfcName}_${sanitizedCategory}_Q${quarter.quarter_number}_${quarter.year}${fileExtension}`;
 
-    // Upload to Cloudinary
-    const cloudinaryResult = await uploadToCloudinary(
+    // Upload to S3
+    const s3Result = await uploadToS3(
       file.path,
-      CLOUDINARY_FOLDERS.DOCUMENTS,
-      'raw'
+      S3_FOLDERS.DOCUMENTS,
+      file.mimetype || 'application/pdf'
     );
 
     // Create document record
@@ -1116,8 +1115,8 @@ export const uploadViaToken = async (req: Request, res: Response): Promise<void>
           file_type: file.mimetype,
           file_size: file.size,
           category,
-          file_url: cloudinaryResult.url,
-          file_cloudinary_id: cloudinaryResult.publicId,
+          file_url: s3Result.url,
+          file_cloudinary_id: s3Result.key, // Using same field name for S3 key
           status: DocumentStatus.PENDING,
           uploaded_by: null // No user authentication for token uploads
         },
