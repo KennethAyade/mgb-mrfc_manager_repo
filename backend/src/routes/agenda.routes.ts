@@ -567,6 +567,26 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
       agendaData.quarter.quarter = `Q${agendaData.quarter.quarter_number}`;
     }
 
+    // Step 5.5: Generate signed URLs for attendance photos (1 hour expiration)
+    if (agendaData.attendance && agendaData.attendance.length > 0) {
+      const { getSignedDownloadUrl } = require('../config/s3');
+      agendaData.attendance = await Promise.all(
+        agendaData.attendance.map(async (record: any) => {
+          if (record.photo_cloudinary_id) {
+            try {
+              const signedUrl = await getSignedDownloadUrl(record.photo_cloudinary_id, 3600);
+              record.photo_url = signedUrl;
+              console.log(`📸 Generated signed URL for attendance ${record.id}`);
+            } catch (error) {
+              console.error(`❌ Failed to generate signed URL for attendance photo: ${error}`);
+              // Keep original URL as fallback
+            }
+          }
+          return record;
+        })
+      );
+    }
+
     // Step 6: Return meeting data
     return res.json({ success: true, data: agendaData });
   } catch (error: any) {

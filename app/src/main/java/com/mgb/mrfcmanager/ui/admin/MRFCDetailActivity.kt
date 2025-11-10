@@ -28,7 +28,7 @@ import com.mgb.mrfcmanager.viewmodel.MrfcViewModelFactory
  * MRFC Detail Activity - View and edit MRFC details
  * Integrated with backend API
  */
-class MRFCDetailActivity : AppCompatActivity() {
+class MRFCDetailActivity : com.mgb.mrfcmanager.ui.base.BaseActivity() {
 
     private lateinit var etMRFCName: TextInputEditText
     private lateinit var etMrfcCode: TextInputEditText
@@ -41,6 +41,7 @@ class MRFCDetailActivity : AppCompatActivity() {
     private lateinit var etEmail: TextInputEditText
     private lateinit var btnSave: MaterialButton
     private lateinit var btnViewProponents: MaterialButton
+    private lateinit var btnViewCompliance: MaterialButton
     private lateinit var progressBar: ProgressBar
 
     private lateinit var viewModel: MrfcViewModel
@@ -58,6 +59,9 @@ class MRFCDetailActivity : AppCompatActivity() {
         observeMrfcUpdate()
         setupListeners()
         loadMRFCData()
+        
+        // Setup floating home button
+        setupHomeFab()
     }
 
     private fun setupToolbar() {
@@ -80,6 +84,7 @@ class MRFCDetailActivity : AppCompatActivity() {
         etEmail = findViewById(R.id.etEmail)
         btnSave = findViewById(R.id.btnSave)
         btnViewProponents = findViewById(R.id.btnViewProponents)
+        btnViewCompliance = findViewById(R.id.btnViewCompliance)
         progressBar = findViewById(R.id.progressBar)
     }
 
@@ -180,6 +185,21 @@ class MRFCDetailActivity : AppCompatActivity() {
 
         btnViewProponents.setOnClickListener {
             navigateToProponents()
+        }
+
+        btnViewCompliance.setOnClickListener {
+            navigateToCompliance()
+        }
+    }
+
+    private fun navigateToCompliance() {
+        if (mrfcId != -1L) {
+            val intent = Intent(this, ComplianceDashboardActivity::class.java).apply {
+                putExtra("MRFC_ID", mrfcId)
+            }
+            startActivity(intent)
+        } else {
+            Toast.makeText(this, "Please save the MRFC first", Toast.LENGTH_SHORT).show()
         }
     }
 

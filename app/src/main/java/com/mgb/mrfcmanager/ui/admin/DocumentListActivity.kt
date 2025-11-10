@@ -40,6 +40,11 @@ import java.util.Locale
  */
 class DocumentListActivity : AppCompatActivity() {
 
+    private lateinit var btnFilterAll: MaterialButton
+    private lateinit var btnFilterQ1: MaterialButton
+    private lateinit var btnFilterQ2: MaterialButton
+    private lateinit var btnFilterQ3: MaterialButton
+    private lateinit var btnFilterQ4: MaterialButton
     private lateinit var rvDocuments: RecyclerView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvEmptyState: TextView
@@ -49,17 +54,19 @@ class DocumentListActivity : AppCompatActivity() {
     
     private lateinit var adapter: DocumentListAdapter
     private lateinit var viewModel: DocumentViewModel
+    private lateinit var quarterRepository: com.mgb.mrfcmanager.data.repository.QuarterRepository
+    private var quarters: List<com.mgb.mrfcmanager.data.remote.dto.QuarterDto> = emptyList()
     
     private var proponentId: Long = -1L
-    private var quarterId: Long = -1L
+    private var quarterId: Long? = null // Now nullable for "All" filter
     private var category: DocumentCategory? = null
     private var categoryName: String = ""
     
     private val documents = mutableListOf<DocumentDto>()
+    private val allDocuments = mutableListOf<DocumentDto>() // Store all documents for filtering
 
     companion object {
         const val EXTRA_PROPONENT_ID = "PROPONENT_ID"
-        const val EXTRA_QUARTER_ID = "QUARTER_ID"
         const val EXTRA_CATEGORY = "CATEGORY"
         const val REQUEST_CODE_UPLOAD = 1001
     }
@@ -70,7 +77,6 @@ class DocumentListActivity : AppCompatActivity() {
 
         // Get extras
         proponentId = intent.getLongExtra(EXTRA_PROPONENT_ID, -1L)
-        quarterId = intent.getLongExtra(EXTRA_QUARTER_ID, -1L)
         categoryName = intent.getStringExtra(EXTRA_CATEGORY) ?: ""
         
         // Convert category name to enum
@@ -83,10 +89,11 @@ class DocumentListActivity : AppCompatActivity() {
         setupToolbar()
         initializeViews()
         setupViewModel()
+        setupQuarterFilter()
         setupRecyclerView()
         setupFAB()
         observeDocuments()
-        loadDocuments()
+        loadQuarters()
     }
 
     private fun setupToolbar() {
@@ -99,6 +106,11 @@ class DocumentListActivity : AppCompatActivity() {
     }
 
     private fun initializeViews() {
+        btnFilterAll = findViewById(R.id.btnFilterAll)
+        btnFilterQ1 = findViewById(R.id.btnFilterQ1)
+        btnFilterQ2 = findViewById(R.id.btnFilterQ2)
+        btnFilterQ3 = findViewById(R.id.btnFilterQ3)
+        btnFilterQ4 = findViewById(R.id.btnFilterQ4)
         rvDocuments = findViewById(R.id.rvDocuments)
         progressBar = findViewById(R.id.progressBar)
         tvEmptyState = findViewById(R.id.tvEmptyState)
@@ -120,6 +132,112 @@ class DocumentListActivity : AppCompatActivity() {
         val documentRepository = DocumentRepository(documentApiService)
         val factory = DocumentViewModelFactory(documentRepository)
         viewModel = ViewModelProvider(this, factory)[DocumentViewModel::class.java]
+        
+        // Initialize quarter repository
+        val quarterApiService = retrofit.create(com.mgb.mrfcmanager.data.remote.api.QuarterApiService::class.java)
+        quarterRepository = com.mgb.mrfcmanager.data.repository.QuarterRepository(quarterApiService)
+    }
+    
+    private fun setupQuarterFilter() {
+        val filterButtons = listOf(btnFilterAll, btnFilterQ1, btnFilterQ2, btnFilterQ3, btnFilterQ4)
+
+        // Helper function to update filter button states
+        fun updateFilterButtonStates(selectedButton: MaterialButton) {
+            val selectedColor = getColor(R.color.primary)
+            val unselectedColor = getColor(R.color.background_light)
+            val selectedTextColor = getColor(android.R.color.white)
+            val unselectedTextColor = getColor(R.color.text_primary)
+            
+            filterButtons.forEach { button ->
+                if (button == selectedButton) {
+                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(selectedColor)
+                    button.setTextColor(selectedTextColor)
+                    button.strokeWidth = 0
+                } else {
+                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(unselectedColor)
+                    button.setTextColor(unselectedTextColor)
+                    button.strokeWidth = 2
+                    button.strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.border))
+                }
+            }
+        }
+
+        // Set "All" as default selected
+        updateFilterButtonStates(btnFilterAll)
+
+        // Filter button click listeners
+        btnFilterAll.setOnClickListener {
+            quarterId = null
+            updateFilterButtonStates(btnFilterAll)
+            applyQuarterFilter()
+        }
+        
+        btnFilterQ1.setOnClickListener {
+            setQuarterFilter(1, btnFilterQ1, ::updateFilterButtonStates)
+        }
+        
+        btnFilterQ2.setOnClickListener {
+            setQuarterFilter(2, btnFilterQ2, ::updateFilterButtonStates)
+        }
+        
+        btnFilterQ3.setOnClickListener {
+            setQuarterFilter(3, btnFilterQ3, ::updateFilterButtonStates)
+        }
+        
+        btnFilterQ4.setOnClickListener {
+            setQuarterFilter(4, btnFilterQ4, ::updateFilterButtonStates)
+        }
+    }
+    
+    private fun setQuarterFilter(quarter: Int, button: MaterialButton, updateStates: (MaterialButton) -> Unit) {
+        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        val matchingQuarter = quarters.find { 
+            it.quarterNumber == quarter && it.year == currentYear 
+        }
+        
+        if (matchingQuarter != null) {
+            quarterId = matchingQuarter.id
+            updateStates(button)
+            applyQuarterFilter()
+        } else {
+            Toast.makeText(this, "Quarter $quarter not found", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun applyQuarterFilter() {
+        documents.clear()
+        if (quarterId == null) {
+            // Show all documents
+            documents.addAll(allDocuments)
+        } else {
+            // Filter by quarter
+            documents.addAll(allDocuments.filter { it.quarterId == quarterId })
+        }
+        adapter.notifyDataSetChanged()
+        updateEmptyState()
+    }
+    
+    private fun loadQuarters() {
+        lifecycleScope.launch {
+            val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+            when (val result = quarterRepository.getQuarters(year = currentYear)) {
+                is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                    quarters = result.data
+                    loadDocuments() // Load documents after quarters are loaded
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                    Toast.makeText(
+                        this@DocumentListActivity,
+                        "Failed to load quarters: ${result.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    loadDocuments() // Still load documents even if quarters fail
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
+                    // Loading state
+                }
+            }
+        }
     }
 
     private fun setupRecyclerView() {
@@ -150,7 +268,7 @@ class DocumentListActivity : AppCompatActivity() {
                 }
                 is DocumentListState.Success -> {
                     showLoading(false)
-                    documents.clear()
+                    allDocuments.clear()
                     
                     // Filter by category if specified
                     val filteredDocs = if (category != null) {
@@ -159,19 +277,8 @@ class DocumentListActivity : AppCompatActivity() {
                         state.data
                     }
                     
-                    val oldSize = documents.size
-                    documents.addAll(filteredDocs)
-                    if (oldSize == 0) {
-                        adapter.notifyItemRangeInserted(0, documents.size)
-                    } else {
-                        adapter.notifyDataSetChanged()
-                    }
-
-                    if (documents.isEmpty()) {
-                        showEmptyState()
-                    } else {
-                        hideEmptyState()
-                    }
+                    allDocuments.addAll(filteredDocs)
+                    applyQuarterFilter() // Apply quarter filter on loaded documents
                 }
                 is DocumentListState.Error -> {
                     showLoading(false)
@@ -418,6 +525,14 @@ class DocumentListActivity : AppCompatActivity() {
     private fun hideEmptyState() {
         tvEmptyState.visibility = View.GONE
         rvDocuments.visibility = View.VISIBLE
+    }
+    
+    private fun updateEmptyState() {
+        if (documents.isEmpty()) {
+            showEmptyState()
+        } else {
+            hideEmptyState()
+        }
     }
 
     // Adapter for document list

@@ -18,8 +18,8 @@ object ApiConfig {
         get() = if (isEmulator()) LOCAL_URL else PRODUCTION_URL
 
     const val CONNECT_TIMEOUT = 30L // seconds
-    const val READ_TIMEOUT = 120L // 2 minutes (for Gemini AI analysis which can take 60-90 seconds)
-    const val WRITE_TIMEOUT = 60L
+    const val READ_TIMEOUT = 300L // 5 minutes (for OCR + Gemini AI analysis which can take 2-4 minutes)
+    const val WRITE_TIMEOUT = 120L // 2 minutes (for large file uploads)
 
     /**
      * Detect if running on emulator by checking device characteristics

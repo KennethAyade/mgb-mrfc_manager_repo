@@ -6,18 +6,14 @@ import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
-import android.widget.ImageView
-import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
 import com.mgb.mrfcmanager.MRFCManagerApp
@@ -37,6 +33,7 @@ import java.util.Locale
 
 /**
  * Activity to display and adjust CMVR compliance analysis results
+ * Completely rewritten for better state management and UI clarity
  */
 class ComplianceAnalysisActivity : AppCompatActivity() {
 
@@ -50,9 +47,14 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
     private lateinit var sectionsAdapter: ComplianceSectionsAdapter
     private lateinit var nonCompliantAdapter: NonCompliantItemsAdapter
 
-    // Views
+    // Main views
     private lateinit var coordinatorLayout: CoordinatorLayout
-    private lateinit var progressBar: ProgressBar
+    private lateinit var layoutProgress: View
+    private lateinit var layoutResults: View
+    private lateinit var tvProgressMessage: TextView
+    private lateinit var tvProgressDetails: TextView
+    
+    // Result views
     private lateinit var tvDocumentName: TextView
     private lateinit var tvAnalysisStatus: TextView
     private lateinit var tvCompliancePercentage: TextView
@@ -73,38 +75,30 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
     private var documentId: Long = -1
     private var documentName: String = ""
     private var currentAnalysis: ComplianceAnalysisDto? = null
-    
-    // Progress dialog for OCR processing
-    private var progressDialog: AlertDialog? = null
-    private var progressDialogBar: LinearProgressIndicator? = null
-    private var progressDialogText: TextView? = null
     private var isPollingProgress = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Set status bar color
+        window.statusBarColor = resources.getColor(R.color.primary, theme)
+        
         setContentView(R.layout.activity_compliance_analysis)
 
-        android.util.Log.d("ComplianceAnalysis", "====================================")
-        android.util.Log.d("ComplianceAnalysis", "🚀 ComplianceAnalysisActivity started")
+        android.util.Log.d("ComplianceAnalysis", "🚀 Activity started")
 
         // Get intent data
         documentId = intent.getLongExtra(EXTRA_DOCUMENT_ID, -1)
         documentName = intent.getStringExtra(EXTRA_DOCUMENT_NAME) ?: "CMVR Document"
         val autoAnalyze = intent.getBooleanExtra(EXTRA_AUTO_ANALYZE, false)
 
-        android.util.Log.d("ComplianceAnalysis", "📥 Received intent parameters:")
-        android.util.Log.d("ComplianceAnalysis", "  - Document ID: $documentId")
-        android.util.Log.d("ComplianceAnalysis", "  - Document Name: $documentName")
-        android.util.Log.d("ComplianceAnalysis", "  - Auto Analyze: $autoAnalyze")
+        android.util.Log.d("ComplianceAnalysis", "📥 Document: $documentName (ID: $documentId), Auto: $autoAnalyze")
 
         if (documentId == -1L) {
-            android.util.Log.e("ComplianceAnalysis", "❌ Invalid document ID, finishing activity")
             Toast.makeText(this, "Invalid document ID", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
-
-        android.util.Log.d("ComplianceAnalysis", "✅ Valid document ID, proceeding with setup")
 
         setupToolbar()
         initializeViews()
@@ -114,20 +108,20 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         setupClickListeners()
         observeViewModel()
 
-        // Display document name
+        // Set document name
         tvDocumentName.text = documentName
-        android.util.Log.d("ComplianceAnalysis", "📄 Document name set: $documentName")
 
         // Load or trigger analysis
         if (autoAnalyze) {
-            android.util.Log.d("ComplianceAnalysis", "🔍 Auto-analyze enabled, triggering analysis...")
-            showOcrProgressDialog() // Show progress dialog for OCR processing
+            android.util.Log.d("ComplianceAnalysis", "🔍 Auto-analyzing...")
+            showState(State.PROGRESS, "Starting analysis...")
+            startProgressPolling()
             viewModel.analyzeCompliance(documentId)
         } else {
             android.util.Log.d("ComplianceAnalysis", "📊 Loading existing analysis...")
+            showState(State.PROGRESS, "Loading analysis...")
             viewModel.getComplianceAnalysis(documentId)
         }
-        android.util.Log.d("ComplianceAnalysis", "====================================")
     }
 
     private fun setupToolbar() {
@@ -139,22 +133,18 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
             title = "Compliance Analysis"
         }
         
-        // Set up back button
         toolbar.setNavigationOnClickListener {
             finish()
         }
-        
-        // Handle system back button
-        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                finish()
-            }
-        })
     }
 
     private fun initializeViews() {
         coordinatorLayout = findViewById(R.id.coordinatorLayout)
-        progressBar = findViewById(R.id.progressBar)
+        layoutProgress = findViewById(R.id.layoutProgress)
+        layoutResults = findViewById(R.id.layoutResults)
+        tvProgressMessage = findViewById(R.id.tvProgressMessage)
+        tvProgressDetails = findViewById(R.id.tvProgressDetails)
+        
         tvDocumentName = findViewById(R.id.tvDocumentName)
         tvAnalysisStatus = findViewById(R.id.tvAnalysisStatus)
         tvCompliancePercentage = findViewById(R.id.tvCompliancePercentage)
@@ -182,14 +172,12 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerViews() {
-        // Compliance sections
         sectionsAdapter = ComplianceSectionsAdapter()
         rvComplianceSections.apply {
             layoutManager = LinearLayoutManager(this@ComplianceAnalysisActivity)
             adapter = sectionsAdapter
         }
 
-        // Non-compliant items
         nonCompliantAdapter = NonCompliantItemsAdapter()
         rvNonCompliantItems.apply {
             layoutManager = LinearLayoutManager(this@ComplianceAnalysisActivity)
@@ -220,7 +208,6 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
             saveAdjustments()
         }
 
-        // Auto-calculate rating when percentage changes
         etManualPercentage.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {
                 val percentageText = etManualPercentage.text.toString()
@@ -232,7 +219,7 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
                             spinnerManualRating.setText(viewModel.getRatingDisplayText(rating), false)
                         }
                     } catch (e: NumberFormatException) {
-                        // Ignore invalid input
+                        // Ignore
                     }
                 }
             }
@@ -243,19 +230,21 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         viewModel.analysisState.observe(this) { state ->
             when (state) {
                 is ComplianceAnalysisState.Loading -> {
-                    showLoading(true)
+                    // Keep progress visible if already polling
+                    if (!isPollingProgress) {
+                        showState(State.PROGRESS, "Loading...")
+                    }
                 }
                 is ComplianceAnalysisState.Success -> {
-                    showLoading(false)
                     currentAnalysis = state.data
                     displayAnalysisResults(state.data)
                 }
                 is ComplianceAnalysisState.Error -> {
-                    showLoading(false)
+                    showState(State.RESULTS, null)
                     showError("Analysis Error: ${state.message}")
                 }
                 is ComplianceAnalysisState.Idle -> {
-                    showLoading(false)
+                    // Do nothing
                 }
             }
         }
@@ -263,15 +252,13 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         viewModel.updateState.observe(this) { state ->
             when (state) {
                 is UpdateAnalysisState.Loading -> {
-                    showLoading(true)
+                    // Show loading
                 }
                 is UpdateAnalysisState.Success -> {
-                    showLoading(false)
                     Toast.makeText(this, "Analysis updated successfully", Toast.LENGTH_SHORT).show()
                     viewModel.resetUpdateState()
                 }
                 is UpdateAnalysisState.Error -> {
-                    showLoading(false)
                     showError("Update Error: ${state.message}")
                     viewModel.resetUpdateState()
                 }
@@ -283,59 +270,57 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
     }
 
     private fun displayAnalysisResults(analysis: ComplianceAnalysisDto) {
-        // Analysis status
+        // Update status
         tvAnalysisStatus.text = "Analysis Status: ${formatStatus(analysis.analysisStatus)}"
 
-        // Handle different analysis statuses
+        // Handle different statuses
         when (analysis.analysisStatus) {
             "FAILED" -> {
-                // Show pending manual review message
+                showState(State.RESULTS, null)
                 tvCompliancePercentage.text = "N/A"
                 tvComplianceRating.text = "Pending Manual Review"
-                tvComplianceRating.setTextColor(Color.parseColor("#FF9800")) // Orange
-                tvComplianceDetails.text = "Analysis could not be completed automatically. Manual review required."
+                tvComplianceRating.setTextColor(Color.parseColor("#FF9800"))
+                tvComplianceDetails.text = "Analysis failed. Manual review required."
                 
-                // Show admin notes with error details
                 if (!analysis.adminNotes.isNullOrEmpty()) {
                     etAdminNotes.setText(analysis.adminNotes)
                 }
                 
-                // Hide sections and non-compliant items
                 findViewById<View>(R.id.cardComplianceSections)?.visibility = View.GONE
                 findViewById<View>(R.id.cardNonCompliantItems)?.visibility = View.GONE
                 return
             }
             "PENDING" -> {
-                // Show loading state
-                tvCompliancePercentage.text = "..."
-                tvComplianceRating.text = "Analysis in Progress"
-                tvComplianceRating.setTextColor(Color.parseColor("#2196F3")) // Blue
-                tvComplianceDetails.text = "Analysis is being processed..."
+                android.util.Log.d("ComplianceAnalysis", "📊 Status PENDING - showing progress")
+                showState(State.PROGRESS, "Analysis in progress...")
+                if (!isPollingProgress) {
+                    startProgressPolling()
+                }
                 return
             }
         }
+        
+        // Show results
+        showState(State.RESULTS, null)
 
-        // Compliance percentage and rating (for COMPLETED status)
+        // Display compliance data
         if (analysis.compliancePercentage != null && analysis.complianceRating != null) {
             tvCompliancePercentage.text = String.format(Locale.US, "%.0f%%", analysis.compliancePercentage)
             tvComplianceRating.text = viewModel.getRatingDisplayText(analysis.complianceRating)
 
-            // Set color based on rating
             val color = Color.parseColor(viewModel.getRatingColor(analysis.complianceRating))
             tvCompliancePercentage.setTextColor(color)
         }
 
-        // Compliance details
         if (analysis.applicableItems != null && analysis.compliantItems != null) {
             tvComplianceDetails.text = "${analysis.compliantItems} out of ${analysis.applicableItems} requirements met"
         }
 
-        // Counts
         tvCompliantCount.text = analysis.compliantItems?.toString() ?: "0"
         tvNonCompliantCount.text = analysis.nonCompliantItems?.toString() ?: "0"
         tvNACount.text = analysis.naItems?.toString() ?: "0"
 
-        // Compliance sections
+        // Sections
         analysis.complianceDetails?.let { details ->
             val sections = mutableListOf<ComplianceSectionDto>()
             details.eccCompliance?.let { sections.add(it) }
@@ -361,7 +346,7 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
             }
         }
 
-        // Admin adjustments (if any)
+        // Admin adjustments
         if (analysis.adminAdjusted) {
             analysis.compliancePercentage?.let {
                 etManualPercentage.setText(String.format(Locale.US, "%.1f", it))
@@ -382,12 +367,104 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Show either PROGRESS or RESULTS state
+     */
+    private enum class State {
+        PROGRESS,
+        RESULTS
+    }
+
+    private fun showState(state: State, message: String?) {
+        runOnUiThread {
+            when (state) {
+                State.PROGRESS -> {
+                    layoutProgress.visibility = View.VISIBLE
+                    layoutResults.visibility = View.GONE
+                    tvProgressMessage.text = message ?: "Analyzing document..."
+                    android.util.Log.d("ComplianceAnalysis", "🔄 Showing PROGRESS: $message")
+                }
+                State.RESULTS -> {
+                    layoutProgress.visibility = View.GONE
+                    layoutResults.visibility = View.VISIBLE
+                    android.util.Log.d("ComplianceAnalysis", "✅ Showing RESULTS")
+                }
+            }
+        }
+    }
+
+    private fun updateProgress(progress: Int, message: String) {
+        runOnUiThread {
+            tvProgressMessage.text = message
+            tvProgressDetails.text = "$progress% complete"
+            android.util.Log.d("ComplianceAnalysis", "📊 Progress: $progress% - $message")
+        }
+    }
+
+    private fun startProgressPolling() {
+        if (isPollingProgress) {
+            return
+        }
+        isPollingProgress = true
+        
+        android.util.Log.d("ComplianceAnalysis", "🔄 Starting polling")
+        
+        lifecycleScope.launch {
+            while (isPollingProgress) {
+                try {
+                    when (val result = viewModel.getAnalysisProgress(documentId)) {
+                        is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                            val progressData = result.data
+                            
+                            android.util.Log.d("ComplianceAnalysis", "📊 Progress: ${progressData.status}, ${progressData.progress}%")
+                            
+                            if (progressData.isNotFound()) {
+                                android.util.Log.d("ComplianceAnalysis", "✅ Already cached, stopping polling")
+                                isPollingProgress = false
+                                showState(State.RESULTS, null)
+                                viewModel.getComplianceAnalysis(documentId)
+                            } else if (progressData.isCompleted()) {
+                                android.util.Log.d("ComplianceAnalysis", "✅ Completed, stopping polling")
+                                isPollingProgress = false
+                                showState(State.RESULTS, null)
+                                viewModel.getComplianceAnalysis(documentId)
+                            } else if (progressData.isFailed()) {
+                                android.util.Log.e("ComplianceAnalysis", "❌ Failed: ${progressData.error}")
+                                isPollingProgress = false
+                                showState(State.RESULTS, null)
+                                showError(progressData.error ?: "Analysis failed")
+                                viewModel.getComplianceAnalysis(documentId)
+                            } else {
+                                // Update progress
+                                updateProgress(progressData.progress, progressData.getDisplayMessage())
+                            }
+                        }
+                        is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                            android.util.Log.w("ComplianceAnalysis", "⚠️ Progress endpoint error")
+                        }
+                        is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
+                            // Continue
+                        }
+                    }
+                    
+                    if (isPollingProgress) {
+                        kotlinx.coroutines.delay(2000)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("ComplianceAnalysis", "❌ Polling error: ${e.message}")
+                    kotlinx.coroutines.delay(2000)
+                }
+            }
+            
+            android.util.Log.d("ComplianceAnalysis", "🛑 Polling stopped")
+        }
+    }
+
     private fun resetAdjustments() {
         etManualPercentage.text?.clear()
         spinnerManualRating.text?.clear()
         etAdminNotes.text?.clear()
 
-        // Restore original values if available
         currentAnalysis?.let { analysis ->
             if (!analysis.adminAdjusted) {
                 analysis.compliancePercentage?.let {
@@ -405,7 +482,6 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         val ratingText = spinnerManualRating.text.toString().trim()
         val notes = etAdminNotes.text.toString().trim()
 
-        // Validate percentage
         val percentage = if (percentageText.isNotEmpty()) {
             try {
                 val value = percentageText.toDouble()
@@ -422,7 +498,6 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
             currentAnalysis?.compliancePercentage
         }
 
-        // Convert rating display text to enum
         val rating = when (ratingText) {
             "Fully Compliant" -> "FULLY_COMPLIANT"
             "Partially Compliant" -> "PARTIALLY_COMPLIANT"
@@ -438,18 +513,13 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         )
     }
 
-    /**
-     * Download PDF and open with system PDF viewer
-     */
     private fun downloadAndOpenPdf() {
         Toast.makeText(this, "Downloading PDF...", Toast.LENGTH_SHORT).show()
         
         lifecycleScope.launch {
             try {
-                // Download PDF from backend stream endpoint to cache directory
                 val pdfFile = downloadPdfFromBackend(documentId, documentName)
                 
-                // Open PDF using FileProvider
                 val pdfUri = androidx.core.content.FileProvider.getUriForFile(
                     this@ComplianceAnalysisActivity,
                     "${applicationContext.packageName}.fileprovider",
@@ -461,14 +531,13 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
                 }
                 
-                // Check if there's an app to handle PDFs
                 val chooser = Intent.createChooser(intent, "Open PDF with")
                 if (chooser.resolveActivity(packageManager) != null) {
                     startActivity(chooser)
                 } else {
                     Toast.makeText(
                         this@ComplianceAnalysisActivity,
-                        "No PDF viewer app found. Please install one.",
+                        "No PDF viewer app found",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -489,27 +558,19 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Download PDF from backend to cache directory
-     */
     private suspend fun downloadPdfFromBackend(documentId: Long, fileName: String): java.io.File = withContext(Dispatchers.IO) {
         try {
-            // Create cache directory for PDFs
             val cacheDir = java.io.File(cacheDir, "pdfs")
             if (!cacheDir.exists()) {
                 cacheDir.mkdirs()
             }
             
-            // Create file
             val pdfFile = java.io.File(cacheDir, fileName)
             
-            // Download if not already cached
             if (!pdfFile.exists() || pdfFile.length() == 0L) {
-                // Get backend base URL from ApiConfig
                 val baseUrl = ApiConfig.BASE_URL.removeSuffix("/")
                 val streamUrl = "$baseUrl/documents/$documentId/stream"
                 
-                // Get auth token
                 val tokenManager = MRFCManagerApp.getTokenManager()
                 val token = tokenManager.getAccessToken()
                 
@@ -519,7 +580,7 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
                 
                 val connection = java.net.URL(streamUrl).openConnection() as java.net.HttpURLConnection
                 connection.requestMethod = "GET"
-                connection.connectTimeout = 60000 // 60 seconds
+                connection.connectTimeout = 60000
                 connection.readTimeout = 60000
                 connection.setRequestProperty("Authorization", "Bearer $token")
                 connection.setRequestProperty("User-Agent", "MGB MRFC Manager/1.0")
@@ -551,7 +612,6 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
                 }
             }
             
-            // Verify file was downloaded successfully
             if (!pdfFile.exists() || pdfFile.length() == 0L) {
                 throw java.io.IOException("Download failed: file is empty or doesn't exist")
             }
@@ -565,21 +625,13 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         }
     }
 
-    private fun showLoading(isLoading: Boolean) {
-        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-    }
-
-    /**
-     * Show error message using Snackbar (better UX, doesn't overlap content)
-     */
     private fun showError(message: String) {
         val snackbar = Snackbar.make(coordinatorLayout, message, Snackbar.LENGTH_INDEFINITE)
-            .setAction("DISMISS") { /* Dismiss snackbar */ }
+            .setAction("DISMISS") { /* Dismiss */ }
             .setBackgroundTint(getColor(R.color.error))
             .setTextColor(getColor(android.R.color.white))
             .setActionTextColor(getColor(android.R.color.white))
         
-        // Enable multi-line text and click-to-dismiss
         snackbar.view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text)?.apply {
             maxLines = 5
             setOnClickListener {
@@ -589,112 +641,10 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         
         snackbar.show()
     }
-    
-    /**
-     * Show OCR progress dialog with real-time updates
-     */
-    private fun showOcrProgressDialog() {
-        if (progressDialog != null) return // Already showing
-        
-        val dialogView = layoutInflater.inflate(R.layout.dialog_ocr_progress, null)
-        progressDialogBar = dialogView.findViewById(R.id.progressBar)
-        progressDialogText = dialogView.findViewById(R.id.tvProgressText)
-        
-        progressDialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .setCancelable(false)
-            .create()
-        
-        progressDialog?.show()
-        startProgressPolling()
-    }
-    
-    /**
-     * Update progress dialog with current status
-     */
-    private fun updateProgressDialog(progress: Int, message: String) {
-        runOnUiThread {
-            progressDialogBar?.apply {
-                setProgressCompat(progress, true)
-            }
-            progressDialogText?.text = message
-        }
-    }
-    
-    /**
-     * Dismiss progress dialog
-     */
-    private fun dismissProgressDialog() {
-        runOnUiThread {
-            progressDialog?.dismiss()
-            progressDialog = null
-            isPollingProgress = false
-        }
-    }
-    
-    /**
-     * Start polling progress endpoint every 2 seconds
-     */
-    private fun startProgressPolling() {
-        if (isPollingProgress) return
-        isPollingProgress = true
-        
-        lifecycleScope.launch {
-            while (isPollingProgress) {
-                try {
-                    when (val result = viewModel.getAnalysisProgress(documentId)) {
-                        is com.mgb.mrfcmanager.data.repository.Result.Success -> {
-                            val progressData = result.data
-                            
-                            // Stop polling if not found (cached result), completed, or failed
-                            if (progressData.isNotFound()) {
-                                // Analysis already completed (cached), stop polling immediately
-                                isPollingProgress = false
-                                dismissProgressDialog()
-                                // Refresh analysis results
-                                viewModel.getComplianceAnalysis(documentId)
-                            } else if (progressData.isCompleted()) {
-                                isPollingProgress = false
-                                dismissProgressDialog()
-                                // Refresh analysis results
-                                viewModel.getComplianceAnalysis(documentId)
-                            } else if (progressData.isFailed()) {
-                                isPollingProgress = false
-                                dismissProgressDialog()
-                                showError(progressData.error ?: "Analysis failed")
-                            } else {
-                                // Still in progress, update dialog
-                                updateProgressDialog(
-                                    progressData.progress,
-                                    progressData.getDisplayMessage()
-                                )
-                            }
-                        }
-                        is com.mgb.mrfcmanager.data.repository.Result.Error -> {
-                            // Progress endpoint not available or error
-                            // Continue polling or show basic progress
-                        }
-                        is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
-                            // Still loading, continue polling
-                        }
-                    }
-                    
-                    // Wait 2 seconds before next poll
-                    if (isPollingProgress) {
-                        kotlinx.coroutines.delay(2000)
-                    }
-                } catch (e: Exception) {
-                    // Continue polling despite errors
-                    kotlinx.coroutines.delay(2000)
-                }
-            }
-        }
-    }
-    
+
     override fun onDestroy() {
         super.onDestroy()
+        android.util.Log.d("ComplianceAnalysis", "🛑 Activity destroyed, stopping polling")
         isPollingProgress = false
-        progressDialog?.dismiss()
     }
 }
-

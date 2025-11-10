@@ -13,7 +13,6 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -30,6 +29,7 @@ import com.mgb.mrfcmanager.data.remote.api.DocumentApiService
 import com.mgb.mrfcmanager.data.remote.dto.DocumentCategory
 import com.mgb.mrfcmanager.data.remote.dto.DocumentDto
 import com.mgb.mrfcmanager.data.repository.DocumentRepository
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import com.mgb.mrfcmanager.utils.TokenManager
 import com.mgb.mrfcmanager.viewmodel.DocumentListState
 import com.mgb.mrfcmanager.viewmodel.DocumentUploadState
@@ -42,8 +42,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class FileUploadActivity : AppCompatActivity() {
+class FileUploadActivity : BaseActivity() {
 
+    private lateinit var btnQuarter1: MaterialButton
+    private lateinit var btnQuarter2: MaterialButton
+    private lateinit var btnQuarter3: MaterialButton
+    private lateinit var btnQuarter4: MaterialButton
     private lateinit var tilCategory: TextInputLayout
     private lateinit var actvCategory: AutoCompleteTextView
     private lateinit var etDescription: TextInputEditText
@@ -59,10 +63,13 @@ class FileUploadActivity : AppCompatActivity() {
     private var selectedFileUri: Uri? = null
     private var selectedFileName: String = ""
     private var selectedCategory: DocumentCategory? = null
+    private var selectedQuarter: Int = 1
 
     private val uploadedFiles = mutableListOf<DocumentDto>()
     private lateinit var filesAdapter: UploadedFilesAdapter
     private lateinit var viewModel: DocumentViewModel
+    private lateinit var quarterRepository: com.mgb.mrfcmanager.data.repository.QuarterRepository
+    private var quarters: List<com.mgb.mrfcmanager.data.remote.dto.QuarterDto> = emptyList()
 
     private var mrfcId: Long = 0L
     private var proponentId: Long? = null
@@ -80,17 +87,20 @@ class FileUploadActivity : AppCompatActivity() {
 
         mrfcId = intent.getLongExtra("MRFC_ID", 0L)
         proponentId = intent.getLongExtra("PROPONENT_ID", -1L).takeIf { it != -1L }
-        quarterId = intent.getLongExtra("QUARTER_ID", -1L).takeIf { it != -1L }
 
         setupToolbar()
         initializeViews()
         setupViewModel()
+        setupQuarterSelection()
         setupCategoryDropdown()
         setupRecyclerView()
         setupClickListeners()
         observeUploadState()
         observeDocumentListState()
-        loadUploadedFiles()
+        
+        // Setup floating home button
+        setupHomeFab()
+        loadQuarters()
     }
 
     private fun setupToolbar() {
@@ -101,6 +111,10 @@ class FileUploadActivity : AppCompatActivity() {
     }
 
     private fun initializeViews() {
+        btnQuarter1 = findViewById(R.id.btnQuarter1)
+        btnQuarter2 = findViewById(R.id.btnQuarter2)
+        btnQuarter3 = findViewById(R.id.btnQuarter3)
+        btnQuarter4 = findViewById(R.id.btnQuarter4)
         tilCategory = findViewById(R.id.tilCategory)
         actvCategory = findViewById(R.id.actvCategory)
         etDescription = findViewById(R.id.etDescription)
@@ -122,6 +136,77 @@ class FileUploadActivity : AppCompatActivity() {
         val documentRepository = DocumentRepository(documentApiService)
         val factory = DocumentViewModelFactory(documentRepository)
         viewModel = ViewModelProvider(this, factory)[DocumentViewModel::class.java]
+        
+        // Initialize quarter repository
+        val quarterApiService = retrofit.create(com.mgb.mrfcmanager.data.remote.api.QuarterApiService::class.java)
+        quarterRepository = com.mgb.mrfcmanager.data.repository.QuarterRepository(quarterApiService)
+    }
+    
+    private fun setupQuarterSelection() {
+        val quarterButtons = listOf(btnQuarter1, btnQuarter2, btnQuarter3, btnQuarter4)
+
+        // Helper function to update button selection visual state
+        fun updateQuarterButtonStates(selectedButton: MaterialButton) {
+            val selectedColor = getColor(R.color.primary)
+            val unselectedColor = getColor(R.color.background_light)
+            val selectedTextColor = getColor(android.R.color.white)
+            val unselectedTextColor = getColor(R.color.text_primary)
+            
+            quarterButtons.forEach { button ->
+                if (button == selectedButton) {
+                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(selectedColor)
+                    button.setTextColor(selectedTextColor)
+                    button.strokeWidth = 0
+                } else {
+                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(unselectedColor)
+                    button.setTextColor(unselectedTextColor)
+                    button.strokeWidth = 2
+                    button.strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.border))
+                }
+            }
+        }
+
+        // Set Q1 as default selected
+        updateQuarterButtonStates(btnQuarter1)
+
+        // Quarter button click listeners
+        quarterButtons.forEachIndexed { index, button ->
+            button.setOnClickListener {
+                selectedQuarter = index + 1
+                updateQuarterButtonStates(button)
+                updateQuarterId()
+            }
+        }
+    }
+    
+    private fun loadQuarters() {
+        lifecycleScope.launch {
+            val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+            when (val result = quarterRepository.getQuarters(year = currentYear)) {
+                is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                    quarters = result.data
+                    updateQuarterId() // Set initial quarter ID for Q1
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                    Toast.makeText(
+                        this@FileUploadActivity,
+                        "Failed to load quarters: ${result.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
+                    // Loading state
+                }
+            }
+        }
+    }
+    
+    private fun updateQuarterId() {
+        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        val matchingQuarter = quarters.find { 
+            it.quarterNumber == selectedQuarter && it.year == currentYear 
+        }
+        quarterId = matchingQuarter?.id
     }
 
     private fun observeUploadState() {
@@ -179,6 +264,9 @@ class FileUploadActivity : AppCompatActivity() {
                 }
             }
         }
+        
+        // Load documents on initial page load
+        loadUploadedFiles()
     }
 
     private fun showUploadProgress(show: Boolean) {
@@ -262,6 +350,11 @@ class FileUploadActivity : AppCompatActivity() {
     private fun uploadFile() {
         if (selectedFileUri == null || selectedCategory == null) {
             Toast.makeText(this, "Please select a file and category", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        if (quarterId == null) {
+            Toast.makeText(this, "Please wait, loading quarters...", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -374,14 +467,21 @@ class FileUploadActivity : AppCompatActivity() {
     }
 
     private fun loadUploadedFiles() {
-        if (mrfcId == 0L) {
-            // If no MRFC ID, just show empty state
-            updateFileListVisibility()
-            return
+        // Load documents based on available context
+        when {
+            proponentId != null -> {
+                // If proponent ID is available, load documents for this specific proponent
+                viewModel.loadDocumentsByProponent(proponentId!!)
+            }
+            mrfcId != 0L -> {
+                // Otherwise, load documents for the entire MRFC
+                viewModel.loadDocumentsByMrfc(mrfcId)
+            }
+            else -> {
+                // No valid ID, just show empty state
+                updateFileListVisibility()
+            }
         }
-
-        // Load documents from backend for this MRFC
-        viewModel.loadDocumentsByMrfc(mrfcId)
     }
 
     // Adapter for uploaded files

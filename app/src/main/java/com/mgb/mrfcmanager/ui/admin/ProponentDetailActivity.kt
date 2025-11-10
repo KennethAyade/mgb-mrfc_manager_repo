@@ -9,7 +9,6 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.card.MaterialCardView
@@ -23,13 +22,14 @@ import com.mgb.mrfcmanager.data.remote.dto.QuarterDto
 import com.mgb.mrfcmanager.data.repository.ProponentRepository
 import com.mgb.mrfcmanager.data.repository.QuarterRepository
 import com.mgb.mrfcmanager.data.repository.Result
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import com.mgb.mrfcmanager.viewmodel.ProponentDetailState
 import com.mgb.mrfcmanager.viewmodel.ProponentViewModel
 import com.mgb.mrfcmanager.viewmodel.ProponentViewModelFactory
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-class ProponentDetailActivity : AppCompatActivity() {
+class ProponentDetailActivity : BaseActivity() {
 
     private lateinit var tvProponentName: TextView
     private lateinit var tvCompanyName: TextView
@@ -64,6 +64,9 @@ class ProponentDetailActivity : AppCompatActivity() {
         observeProponent()
         setupQuarterlyServices()
         loadProponentData()
+        
+        // Setup floating home button
+        setupHomeFab()
     }
 
     private fun setupToolbar() {
@@ -178,68 +181,25 @@ class ProponentDetailActivity : AppCompatActivity() {
     }
 
     private fun setupQuarterlyServices() {
-        var selectedQuarter = 1
-
-        // Quarter selection buttons
-        val btnQuarter1 = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnQuarter1)
-        val btnQuarter2 = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnQuarter2)
-        val btnQuarter3 = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnQuarter3)
-        val btnQuarter4 = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnQuarter4)
-
-        val quarterButtons = listOf(btnQuarter1, btnQuarter2, btnQuarter3, btnQuarter4)
-
-        // Helper function to update button selection visual state
-        fun updateQuarterButtonStates(selectedButton: com.google.android.material.button.MaterialButton) {
-            val selectedColor = getColor(R.color.primary)
-            val unselectedColor = getColor(R.color.background_light)
-            val selectedTextColor = getColor(android.R.color.white)
-            val unselectedTextColor = getColor(R.color.text_primary)
-            
-            quarterButtons.forEach { button ->
-                if (button == selectedButton) {
-                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(selectedColor)
-                    button.setTextColor(selectedTextColor)
-                    button.strokeWidth = 0
-                } else {
-                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(unselectedColor)
-                    button.setTextColor(unselectedTextColor)
-                    button.strokeWidth = 2
-                    button.strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.border))
-                }
-            }
-        }
-
-        // Set Q1 as default selected
-        updateQuarterButtonStates(btnQuarter1)
-
-        // Quarter button click listeners
-        quarterButtons.forEachIndexed { index, button ->
-            button.setOnClickListener {
-                selectedQuarter = index + 1
-                updateQuarterButtonStates(button)
-                Toast.makeText(this, "Quarter ${selectedQuarter} selected", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        // Service buttons - Open category-specific document viewers
+        // Service buttons - Open file upload or document viewers
         findViewById<com.google.android.material.button.MaterialButton>(R.id.btnFileUpload).setOnClickListener {
-            openFileUpload(selectedQuarter)
+            openFileUpload()
         }
 
         findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewMTF).setOnClickListener {
-            openDocumentList("MTF_REPORT", selectedQuarter)
+            openDocumentList("MTF_REPORT")
         }
 
         findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewAEPEP).setOnClickListener {
-            openDocumentList("AEPEP", selectedQuarter)
+            openDocumentList("AEPEP")
         }
 
         findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewCMVR).setOnClickListener {
-            openDocumentList("CMVR", selectedQuarter)
+            openDocumentList("CMVR")
         }
 
         findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewResearch).setOnClickListener {
-            openDocumentList("RESEARCH_ACCOMPLISHMENTS", selectedQuarter)
+            openDocumentList("RESEARCH_ACCOMPLISHMENTS")
         }
     }
 
@@ -247,49 +207,17 @@ class ProponentDetailActivity : AppCompatActivity() {
         progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
     }
 
-    private fun openFileUpload(quarter: Int) {
-        // Dynamically find quarter ID from loaded quarters
-        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-        val matchingQuarter = quarters.find { 
-            it.quarterNumber == quarter && it.year == currentYear 
-        }
-        
-        if (matchingQuarter == null) {
-            Toast.makeText(
-                this,
-                "Quarter $quarter not found for year $currentYear",
-                Toast.LENGTH_SHORT
-            ).show()
-            return
-        }
-        
+    private fun openFileUpload() {
         val intent = Intent(this, FileUploadActivity::class.java).apply {
             putExtra("PROPONENT_ID", proponentId)
             putExtra("MRFC_ID", mrfcId)
-            putExtra("QUARTER_ID", matchingQuarter.id)
         }
         startActivity(intent)
     }
 
-    private fun openDocumentList(category: String, quarter: Int) {
-        // Dynamically find quarter ID from loaded quarters
-        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-        val matchingQuarter = quarters.find { 
-            it.quarterNumber == quarter && it.year == currentYear 
-        }
-        
-        if (matchingQuarter == null) {
-            Toast.makeText(
-                this,
-                "Quarter $quarter not found for year $currentYear",
-                Toast.LENGTH_SHORT
-            ).show()
-            return
-        }
-        
+    private fun openDocumentList(category: String) {
         val intent = Intent(this, DocumentListActivity::class.java).apply {
             putExtra(DocumentListActivity.EXTRA_PROPONENT_ID, proponentId)
-            putExtra(DocumentListActivity.EXTRA_QUARTER_ID, matchingQuarter.id)
             putExtra(DocumentListActivity.EXTRA_CATEGORY, category)
         }
         startActivity(intent)

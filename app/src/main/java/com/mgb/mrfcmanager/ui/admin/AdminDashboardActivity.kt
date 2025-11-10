@@ -219,7 +219,9 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
 
         // Compliance Card
         findViewById<MaterialCardView>(R.id.cardCompliance).setOnClickListener {
-            startActivity(Intent(this, ComplianceDashboardActivity::class.java))
+            // Navigate to MRFC List first - user needs to select an MRFC to view compliance
+            Toast.makeText(this, "Please select an MRFC to view compliance", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, MRFCListActivity::class.java))
         }
 
         // Reports Card
@@ -282,7 +284,9 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
             
             // Reports Section
             R.id.nav_compliance -> {
-                startActivity(Intent(this, ComplianceDashboardActivity::class.java))
+                // Navigate to MRFC List first - user needs to select an MRFC to view compliance
+                Toast.makeText(this, "Please select an MRFC to view compliance", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, MRFCListActivity::class.java))
             }
             R.id.nav_attendance_reports -> {
                 Toast.makeText(this, "Attendance Reports - Coming Soon", Toast.LENGTH_SHORT).show()

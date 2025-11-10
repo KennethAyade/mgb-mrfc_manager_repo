@@ -24,7 +24,7 @@ const PDFExtract = require('pdf.js-extract').PDFExtract;
 const pdfExtract = new PDFExtract();
 const fs = require('fs');
 const path = require('path');
-const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+const pdfjsLib = require('pdfjs-dist');
 
 /**
  * Transform ComplianceAnalysis model to JSON with proper number types
@@ -571,9 +571,10 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
     fs.writeFileSync(pdfPath, pdfBuffer);
     
     try {
-      // Load PDF with pdfjs-dist
+      // Load PDF with pdfjs-dist (convert Buffer to Uint8Array)
       console.log(`   Loading PDF with pdfjs-dist...`);
-      const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
+      const uint8Array = new Uint8Array(pdfBuffer);
+      const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
       const pdfDocument = await loadingTask.promise;
       const actualNumPages = pdfDocument.numPages;
       

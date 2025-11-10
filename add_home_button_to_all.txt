@@ -1,0 +1,39 @@
+=== ACTIVITIES TO UPDATE ===
+
+LAYOUTS (Add FAB before closing </CoordinatorLayout>):
+✅ activity_meeting_detail.xml - DONE
+✅ activity_proponent_detail.xml - DONE  
+✅ activity_document_list.xml - DONE
+✅ activity_file_upload.xml - DONE
+✅ activity_proponent_list.xml - DONE
+✅ activity_compliance_analysis.xml - DONE
+✅ activity_meeting_list.xml - DONE
+
+STILL NEED:
+- activity_mrfc_detail.xml
+- activity_proponent_form.xml
+- activity_document_review.xml
+- activity_attendance.xml
+- activity_notification.xml
+- activity_edit_mrfc.xml
+- activity_create_mrfc.xml
+- activity_mrfc_list.xml
+- activity_services_menu.xml
+- activity_quarter_selection.xml
+
+ACTIVITIES (extend BaseActivity + call setupHomeFab()):
+✅ MeetingDetailActivity - DONE
+✅ ComplianceAnalysisActivity - DONE
+✅ ProponentDetailActivity - DONE
+
+STILL NEED:
+- FileUploadActivity
+- DocumentListActivity (admin)
+- ProponentListActivity  
+- MeetingListActivity
+- ProponentFormActivity
+- MRFCDetailActivity
+- DocumentReviewActivity
+- AttendanceActivity
+- NotificationActivity
+

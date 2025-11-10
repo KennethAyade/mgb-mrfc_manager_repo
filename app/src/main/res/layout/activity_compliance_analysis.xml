@@ -1,136 +1,163 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-compat"
-    xmlns:tools="http://schemas.android.com/tools"
+<androidx.coordinatorlayout.widget.CoordinatorLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/coordinatorLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/background"
+    android:fitsSystemWindows="true">
 
     <!-- App Bar -->
     <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/AppBarStyle">
+        android:layout_height="wrap_content">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/primary"
-            app:titleTextColor="@color/text_on_primary"
-            app:navigationIconTint="@color/text_on_primary" />
+            app:titleTextColor="@android:color/white"
+            app:navigationIconTint="@android:color/white" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Main Content -->
-    <androidx.core.widget.NestedScrollView
+    <!-- Content Frame Layout - Only ONE of these will be visible at a time -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        android:fillViewport="true">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
+        <!-- PROGRESS STATE: Shows during analysis -->
         <LinearLayout
+            android:id="@+id/layoutProgress"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:orientation="vertical"
-            android:padding="@dimen/spacing_normal">
+            android:gravity="center"
+            android:padding="32dp"
+            android:visibility="gone">
 
-            <!-- Document Info Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardDocumentInfo"
+            <ProgressBar
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:indeterminate="true"
+                android:indeterminateTint="@color/primary" />
+
+            <TextView
+                android:id="@+id/tvProgressMessage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Analyzing document..."
+                android:textSize="18sp"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold"
+                android:layout_marginTop="24dp"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/tvProgressDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="This may take a few minutes"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="8dp"
+                android:gravity="center" />
+
+        </LinearLayout>
+
+        <!-- RESULTS STATE: Shows compliance results -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/layoutResults"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                style="@style/ModernCard"
-                android:layout_marginBottom="@dimen/spacing_normal">
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                <LinearLayout
+                <!-- Document Info -->
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/spacing_normal">
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
 
-                    <TextView
-                        android:id="@+id/tvDocumentName"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="CMVR-3Q-Dingras-Walter-E..."
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary" />
-
-                    <TextView
-                        android:id="@+id/tvAnalysisStatus"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Analysis Status: Completed"
-                        android:textSize="14sp"
-                        android:textColor="@color/text_secondary"
-                        android:layout_marginTop="4dp" />
-
-                    <!-- Download PDF Button with help text -->
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="💡 To view the PDF document, download it first"
-                        android:textSize="12sp"
-                        android:textColor="@color/text_secondary"
-                        android:layout_marginTop="@dimen/spacing_normal" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnDownloadPdf"
-                        style="@style/Widget.Material3.Button.OutlinedButton.Icon"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Download PDF"
-                        app:icon="@drawable/ic_download"
-                        app:iconGravity="start"
-                        android:layout_marginTop="8dp" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Compliance Summary Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardComplianceSummary"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                style="@style/ModernCard"
-                android:layout_marginBottom="@dimen/spacing_normal">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/spacing_normal">
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Compliance Summary"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary"
-                        android:layout_marginBottom="@dimen/spacing_normal" />
-
-                    <!-- Compliance Percentage -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center"
-                        android:padding="@dimen/spacing_normal"
-                        android:background="@drawable/bg_rounded_border"
-                        android:layout_marginBottom="@dimen/spacing_normal">
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                        <LinearLayout
-                            android:layout_width="0dp"
+                        <TextView
+                            android:id="@+id/tvDocumentName"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
+                            android:text="Document Name"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:id="@+id/tvAnalysisStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Status: Completed"
+                            android:textSize="14sp"
+                            android:textColor="@color/text_secondary"
+                            android:layout_marginTop="4dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnDownloadPdf"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Download PDF"
+                            android:layout_marginTop="12dp"
+                            app:icon="@drawable/ic_download" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Compliance Summary -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardComplianceSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Compliance Summary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary"
+                            android:layout_marginBottom="16dp" />
+
+                        <!-- Big Percentage Display -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
                             android:orientation="vertical"
-                            android:gravity="center">
+                            android:gravity="center"
+                            android:padding="24dp"
+                            android:background="@drawable/bg_rounded_border">
 
                             <TextView
                                 android:id="@+id/tvCompliancePercentage"
@@ -147,301 +174,280 @@
                                 android:layout_height="wrap_content"
                                 android:text="Partially Compliant"
                                 android:textSize="16sp"
-                                android:textStyle="bold"
                                 android:textColor="@color/text_secondary"
-                                android:layout_marginTop="4dp" />
+                                android:layout_marginTop="8dp" />
+
+                        </LinearLayout>
+
+                        <!-- Requirements Met -->
+                        <TextView
+                            android:id="@+id/tvComplianceDetails"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="24 out of 31 requirements met"
+                            android:textSize="14sp"
+                            android:textColor="@color/text_secondary"
+                            android:gravity="center"
+                            android:layout_marginTop="16dp" />
+
+                        <!-- Counts -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginTop="16dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical"
+                                android:gravity="center">
+
+                                <TextView
+                                    android:id="@+id/tvCompliantCount"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="24"
+                                    android:textSize="24sp"
+                                    android:textStyle="bold"
+                                    android:textColor="@color/status_success" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Compliant"
+                                    android:textSize="12sp"
+                                    android:textColor="@color/text_secondary" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical"
+                                android:gravity="center">
+
+                                <TextView
+                                    android:id="@+id/tvNonCompliantCount"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="7"
+                                    android:textSize="24sp"
+                                    android:textStyle="bold"
+                                    android:textColor="@color/status_error" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Non-Compliant"
+                                    android:textSize="12sp"
+                                    android:textColor="@color/text_secondary" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical"
+                                android:gravity="center">
+
+                                <TextView
+                                    android:id="@+id/tvNACount"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="2"
+                                    android:textSize="24sp"
+                                    android:textStyle="bold"
+                                    android:textColor="@color/text_secondary" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="N/A"
+                                    android:textSize="12sp"
+                                    android:textColor="@color/text_secondary" />
+
+                            </LinearLayout>
 
                         </LinearLayout>
 
                     </LinearLayout>
 
-                    <!-- Compliance Details -->
-                    <TextView
-                        android:id="@+id/tvComplianceDetails"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="24 out of 31 requirements met"
-                        android:textSize="14sp"
-                        android:textColor="@color/text_secondary"
-                        android:gravity="center"
-                        android:layout_marginBottom="@dimen/spacing_small" />
+                </com.google.android.material.card.MaterialCardView>
 
-                    <!-- Progress Breakdown -->
+                <!-- Compliance Sections -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardComplianceSections"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="@dimen/spacing_small">
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
-
-                            <TextView
-                                android:id="@+id/tvCompliantCount"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="24"
-                                android:textSize="20sp"
-                                android:textStyle="bold"
-                                android:textColor="#4CAF50" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Compliant"
-                                android:textSize="12sp"
-                                android:textColor="@color/text_secondary" />
-
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
-
-                            <TextView
-                                android:id="@+id/tvNonCompliantCount"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="7"
-                                android:textSize="20sp"
-                                android:textStyle="bold"
-                                android:textColor="#F44336" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Non-Compliant"
-                                android:textSize="12sp"
-                                android:textColor="@color/text_secondary" />
-
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
-
-                            <TextView
-                                android:id="@+id/tvNACount"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="2"
-                                android:textSize="20sp"
-                                android:textStyle="bold"
-                                android:textColor="@color/text_secondary" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="N/A"
-                                android:textSize="12sp"
-                                android:textColor="@color/text_secondary" />
-
-                        </LinearLayout>
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Compliance Sections Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardComplianceSections"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                style="@style/ModernCard"
-                android:layout_marginBottom="@dimen/spacing_normal">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/spacing_normal">
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Compliance by Section"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary"
-                        android:layout_marginBottom="@dimen/spacing_normal" />
-
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rvComplianceSections"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:nestedScrollingEnabled="false"
-                        tools:itemCount="5"
-                        tools:listitem="@layout/item_compliance_section" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Non-Compliant Items Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardNonCompliantItems"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                style="@style/ModernCard"
-                android:layout_marginBottom="@dimen/spacing_normal">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/spacing_normal">
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Non-Compliant Items"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary"
-                        android:layout_marginBottom="@dimen/spacing_normal" />
-
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rvNonCompliantItems"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:nestedScrollingEnabled="false"
-                        tools:itemCount="3"
-                        tools:listitem="@layout/item_non_compliant" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Admin Adjustment Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardAdminAdjustment"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                style="@style/ModernCard"
-                android:layout_marginBottom="@dimen/spacing_normal">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/spacing_normal">
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Admin Adjustments"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary"
-                        android:layout_marginBottom="@dimen/spacing_normal" />
-
-                    <!-- Manual Percentage Input -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilManualPercentage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Override Percentage (0-100)"
-                        style="@style/TextInputStyle"
-                        android:layout_marginBottom="@dimen/spacing_normal">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etManualPercentage"
+                        <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:inputType="numberDecimal" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Manual Rating Spinner -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilManualRating"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Override Rating"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                        android:layout_marginBottom="@dimen/spacing_normal">
-
-                        <AutoCompleteTextView
-                            android:id="@+id/spinnerManualRating"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="none" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Admin Notes -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilAdminNotes"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Admin Notes"
-                        style="@style/TextInputStyle"
-                        android:layout_marginBottom="@dimen/spacing_normal">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etAdminNotes"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textMultiLine"
-                            android:minLines="3"
-                            android:gravity="top|start" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Action Buttons -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="end">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnResetAdjustments"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="@dimen/button_height"
-                            android:text="Reset"
+                            android:text="Compliance by Section"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
                             android:textColor="@color/text_primary"
-                            app:cornerRadius="8dp"
-                            android:layout_marginEnd="@dimen/spacing_small" />
+                            android:layout_marginBottom="12dp" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnSaveAdjustments"
-                            android:layout_width="wrap_content"
-                            android:layout_height="@dimen/button_height"
-                            android:text="Save Changes"
-                            android:textColor="@android:color/white"
-                            android:backgroundTint="@color/primary"
-                            app:cornerRadius="8dp" />
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rvComplianceSections"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:nestedScrollingEnabled="false" />
 
                     </LinearLayout>
 
-                </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-            </com.google.android.material.card.MaterialCardView>
+                <!-- Non-Compliant Items -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardNonCompliantItems"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp"
+                    android:visibility="gone">
 
-        </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-    </androidx.core.widget.NestedScrollView>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Non-Compliant Items"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary"
+                            android:layout_marginBottom="12dp" />
 
-    <!-- Loading Indicator -->
-    <ProgressBar
-        android:id="@+id/progressBar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="gone" />
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rvNonCompliantItems"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:nestedScrollingEnabled="false" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Admin Adjustments -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardAdminAdjustment"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Admin Adjustments"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary"
+                            android:layout_marginBottom="16dp" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Override Percentage (0-100)"
+                            android:layout_marginBottom="12dp">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etManualPercentage"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Override Rating"
+                            android:layout_marginBottom="12dp">
+
+                            <AutoCompleteTextView
+                                android:id="@+id/spinnerManualRating"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Admin Notes"
+                            android:layout_marginBottom="16dp">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etAdminNotes"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textMultiLine"
+                                android:minLines="3" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="end">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnResetAdjustments"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Reset"
+                                android:layout_marginEnd="8dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnSaveAdjustments"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Save Changes" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+    </FrameLayout>
+
+    <!-- Floating Home Button -->
+    <include layout="@layout/fab_home_button" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

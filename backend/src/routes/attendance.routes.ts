@@ -83,6 +83,28 @@ router.get('/meeting/:agendaId', authenticate, async (req: Request, res: Respons
       order: [['marked_at', 'DESC']]
     });
 
+    // Generate signed URLs for photos (1 hour expiration)
+    const { getSignedDownloadUrl } = require('../config/s3');
+    const attendanceWithSignedUrls = await Promise.all(
+      attendance.map(async (record: any) => {
+        const recordData = record.toJSON();
+        
+        // If photo exists, generate signed URL
+        if (recordData.photo_cloudinary_id) {
+          try {
+            const signedUrl = await getSignedDownloadUrl(recordData.photo_cloudinary_id, 3600);
+            recordData.photo_url = signedUrl;
+            console.log(`📸 Generated signed URL for ${recordData.attendee_name}: ${signedUrl.substring(0, 100)}...`);
+          } catch (error) {
+            console.error(`❌ Failed to generate signed URL for photo: ${error}`);
+            // Keep original URL as fallback
+          }
+        }
+        
+        return recordData;
+      })
+    );
+
     // Calculate summary
     const total = attendance.length;
     const present = attendance.filter((a: any) => a.is_present).length;
@@ -92,7 +114,7 @@ router.get('/meeting/:agendaId', authenticate, async (req: Request, res: Respons
     return res.json({
       success: true,
       data: {
-        attendance,
+        attendance: attendanceWithSignedUrls,
         summary: {
           total_attendees: total,
           present,

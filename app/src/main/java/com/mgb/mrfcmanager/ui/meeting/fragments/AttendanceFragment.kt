@@ -65,6 +65,38 @@ class AttendanceFragment : Fragment() {
                 }
             }
         }
+        
+        /**
+         * Format ISO timestamp to Philippine Time (UTC+8) with readable format
+         */
+        fun formatToPhilippineTime(isoTimestamp: String): String {
+            return try {
+                // Parse ISO 8601 timestamp (e.g., "2025-11-10T09:26:28.990Z")
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+                inputFormat.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                val date = inputFormat.parse(isoTimestamp)
+                
+                // Format to Philippine Time (UTC+8) with readable format
+                val outputFormat = SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault())
+                outputFormat.timeZone = java.util.TimeZone.getTimeZone("Asia/Manila")
+                
+                date?.let { outputFormat.format(it) } ?: isoTimestamp
+            } catch (e: Exception) {
+                // Fallback: try without milliseconds
+                try {
+                    val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                    inputFormat.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    val date = inputFormat.parse(isoTimestamp)
+                    
+                    val outputFormat = SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault())
+                    outputFormat.timeZone = java.util.TimeZone.getTimeZone("Asia/Manila")
+                    
+                    date?.let { outputFormat.format(it) } ?: isoTimestamp
+                } catch (e2: Exception) {
+                    isoTimestamp // Return original if parsing fails
+                }
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -123,6 +155,12 @@ class AttendanceFragment : Fragment() {
     }
 
     private fun showAttendanceDetails(attendance: AttendanceDto) {
+        android.util.Log.d("AttendanceDetails", "=== Showing Attendance Details ===")
+        android.util.Log.d("AttendanceDetails", "ID: ${attendance.id}")
+        android.util.Log.d("AttendanceDetails", "Name: ${attendance.attendeeName}")
+        android.util.Log.d("AttendanceDetails", "Photo URL: ${attendance.photoUrl}")
+        android.util.Log.d("AttendanceDetails", "Photo Cloudinary ID: ${attendance.photoCloudinaryId}")
+        
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_attendance_detail, null)
 
@@ -137,8 +175,11 @@ class AttendanceFragment : Fragment() {
             attendance.attendeePosition ?: "N/A"
         dialogView.findViewById<TextView>(R.id.tvDetailDepartment).text =
             attendance.attendeeDepartment ?: "N/A"
+        
+        // Format timestamp to Philippine Time
         dialogView.findViewById<TextView>(R.id.tvDetailTimestamp).text =
-            "Logged at: ${attendance.markedAt}"
+            "Logged at: ${formatToPhilippineTime(attendance.markedAt)}"
+        
         dialogView.findViewById<TextView>(R.id.tvDetailStatus).apply {
             text = if (attendance.isPresent) "Present" else "Absent"
             setTextColor(
@@ -151,14 +192,49 @@ class AttendanceFragment : Fragment() {
 
         // Load photo if available
         val ivPhoto = dialogView.findViewById<ImageView>(R.id.ivDetailPhoto)
-        if (attendance.photoUrl != null) {
+        
+        android.util.Log.d("AttendancePhoto", "========================================")
+        android.util.Log.d("AttendancePhoto", "📸 Attendance Photo Debug:")
+        android.util.Log.d("AttendancePhoto", "  Attendee: ${attendance.attendeeName}")
+        android.util.Log.d("AttendancePhoto", "  Photo URL: ${attendance.photoUrl}")
+        android.util.Log.d("AttendancePhoto", "  Is Null: ${attendance.photoUrl == null}")
+        android.util.Log.d("AttendancePhoto", "  Is Empty: ${attendance.photoUrl?.isEmpty()}")
+        android.util.Log.d("AttendancePhoto", "========================================")
+        
+        if (!attendance.photoUrl.isNullOrEmpty()) {
+            // S3 URLs come as full URLs (https://...), local paths start with /
+            val fullPhotoUrl = if (attendance.photoUrl.startsWith("http")) {
+                attendance.photoUrl
+            } else {
+                val baseUrl = com.mgb.mrfcmanager.data.remote.ApiConfig.BASE_URL
+                    .removeSuffix("/api/v1/")
+                    .removeSuffix("/api/v1")
+                    .removeSuffix("/")
+                "$baseUrl${attendance.photoUrl}"
+            }
+            
+            android.util.Log.d("AttendancePhoto", "🔗 Final URL: $fullPhotoUrl")
+            
             // Load photo using Coil
-            ivPhoto.load(attendance.photoUrl) {
+            ivPhoto.load(fullPhotoUrl) {
                 crossfade(true)
                 placeholder(R.drawable.ic_person)
                 error(R.drawable.ic_person)
+                listener(
+                    onSuccess = { _, _ ->
+                        android.util.Log.d("AttendancePhoto", "✅ Photo loaded successfully from: $fullPhotoUrl")
+                    },
+                    onError = { _, result ->
+                        android.util.Log.e("AttendancePhoto", "❌ Failed to load photo")
+                        android.util.Log.e("AttendancePhoto", "  Error: ${result.throwable.message}")
+                        android.util.Log.e("AttendancePhoto", "  URL: $fullPhotoUrl")
+                        android.util.Log.e("AttendancePhoto", "  Stack trace: ${result.throwable.stackTraceToString()}")
+                    }
+                )
+                allowHardware(false)
             }
         } else {
+            android.util.Log.w("AttendancePhoto", "⚠️ No photo URL available, using placeholder")
             ivPhoto.setImageResource(R.drawable.ic_person)
         }
 
@@ -325,9 +401,9 @@ class AttendanceListAdapter(
                     itemView.context.getColor(R.color.status_pending)
             )
 
-            // Display timestamp
+            // Display timestamp in Philippine Time
             tvTimestamp?.apply {
-                text = "Logged at: ${attendance.markedAt}"
+                text = "Logged at: ${AttendanceFragment.formatToPhilippineTime(attendance.markedAt)}"
                 visibility = View.VISIBLE
             }
         }

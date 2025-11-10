@@ -112,6 +112,7 @@
         <activity
             android:name=".ui.admin.ComplianceAnalysisActivity"
             android:exported="false"
+            android:theme="@style/Theme.MRFCManager"
             android:parentActivityName=".ui.admin.DocumentReviewActivity" />
 
         <activity

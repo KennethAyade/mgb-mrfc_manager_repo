@@ -1,8 +1,15 @@
 package com.mgb.mrfcmanager.ui.base
 
+import android.content.Intent
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.mgb.mrfcmanager.MRFCManagerApp
+import com.mgb.mrfcmanager.R
+import com.mgb.mrfcmanager.ui.admin.AdminDashboardActivity
+import com.mgb.mrfcmanager.ui.user.UserDashboardActivity
 import com.mgb.mrfcmanager.util.ErrorHandler
 
 /**
@@ -113,6 +120,53 @@ abstract class BaseActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         dismissLoading()
+    }
+
+    /**
+     * Setup floating home button
+     * Call this method from your activity after setContentView()
+     * 
+     * The FAB should already exist in your layout with id: fabHome
+     * 
+     * Example usage in your activity:
+     * override fun onCreate(savedInstanceState: Bundle?) {
+     *     super.onCreate(savedInstanceState)
+     *     setContentView(R.layout.your_activity)
+     *     setupHomeFab() // Add this line
+     * }
+     */
+    protected fun setupHomeFab() {
+        val fabHome = findViewById<FloatingActionButton>(R.id.fabHome)
+        fabHome?.let { fab ->
+            // Hide on dashboard activities (you're already home)
+            if (this is AdminDashboardActivity || this is UserDashboardActivity) {
+                fab.visibility = View.GONE
+                return
+            }
+            
+            fab.setOnClickListener {
+                navigateToHome()
+            }
+        }
+    }
+
+    /**
+     * Navigate to the appropriate home screen based on user role
+     */
+    private fun navigateToHome() {
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        
+        val intent = when (userRole) {
+            "ADMIN", "SUPER_ADMIN" -> Intent(this, AdminDashboardActivity::class.java)
+            "USER" -> Intent(this, UserDashboardActivity::class.java)
+            else -> Intent(this, AdminDashboardActivity::class.java)
+        }
+        
+        // Clear activity stack and start fresh
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+        finish()
     }
 }
 

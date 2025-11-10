@@ -284,7 +284,7 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Quarterly Services Card (As per flowchart) -->
+            <!-- Services Card -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/ModernCard"
                 android:layout_width="match_parent"
@@ -297,94 +297,11 @@
                     android:orientation="vertical"
                     android:padding="@dimen/spacing_normal">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Select Quarter"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_size_large"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="@dimen/spacing_normal" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Choose a quarter to access related services and documents"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="@dimen/text_size_small"
-                        android:layout_marginBottom="@dimen/spacing_normal" />
-
-                    <!-- Quarter Selection Grid -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:weightSum="4"
-                        android:layout_marginBottom="@dimen/spacing_normal">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnQuarter1"
-                            style="@style/Widget.Material3.Button.ElevatedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_margin="4dp"
-                            android:text="Q1"
-                            android:textSize="16sp"
-                            android:padding="16dp"
-                            app:cornerRadius="8dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnQuarter2"
-                            style="@style/Widget.Material3.Button.ElevatedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_margin="4dp"
-                            android:text="Q2"
-                            android:textSize="16sp"
-                            android:padding="16dp"
-                            app:cornerRadius="8dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnQuarter3"
-                            style="@style/Widget.Material3.Button.ElevatedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_margin="4dp"
-                            android:text="Q3"
-                            android:textSize="16sp"
-                            android:padding="16dp"
-                            app:cornerRadius="8dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnQuarter4"
-                            style="@style/Widget.Material3.Button.ElevatedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_margin="4dp"
-                            android:text="Q4"
-                            android:textSize="16sp"
-                            android:padding="16dp"
-                            app:cornerRadius="8dp" />
-
-                    </LinearLayout>
-
-                    <!-- Divider -->
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="#E0E0E0"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginBottom="16dp" />
-
                     <!-- Services Title -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Quarterly Services"
+                        android:text="Services"
                         android:textColor="@color/text_primary"
                         android:textSize="@dimen/text_size_large"
                         android:textStyle="bold"
@@ -468,5 +385,8 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:visibility="gone" />
+
+    <!-- Floating Home Button -->
+    <include layout="@layout/fab_home_button" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

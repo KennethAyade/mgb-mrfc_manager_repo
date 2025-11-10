@@ -89,4 +89,7 @@
         app:tint="@android:color/white"
         android:contentDescription="@string/add" />
 
+    <!-- Floating Home Button -->
+    <include layout="@layout/fab_home_button" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

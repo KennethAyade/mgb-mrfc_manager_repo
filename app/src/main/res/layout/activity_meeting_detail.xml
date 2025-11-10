@@ -91,4 +91,7 @@
         android:layout_gravity="center"
         android:visibility="gone" />
 
+    <!-- Floating Home Button -->
+    <include layout="@layout/fab_home_button" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

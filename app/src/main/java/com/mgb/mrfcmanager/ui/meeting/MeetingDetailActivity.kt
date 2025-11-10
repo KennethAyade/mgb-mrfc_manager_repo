@@ -5,7 +5,6 @@ import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.ViewModelProvider
 import androidx.viewpager2.widget.ViewPager2
@@ -16,6 +15,7 @@ import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.AgendaApiService
 import com.mgb.mrfcmanager.data.repository.AgendaRepository
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import com.mgb.mrfcmanager.viewmodel.AgendaDetailState
 import com.mgb.mrfcmanager.viewmodel.AgendaViewModel
 import com.mgb.mrfcmanager.viewmodel.AgendaViewModelFactory
@@ -27,7 +27,7 @@ import com.mgb.mrfcmanager.viewmodel.AgendaViewModelFactory
  * 2. Attendance - Log attendance with photo (all users)
  * 3. Minutes - View/edit minutes (organizer only)
  */
-class MeetingDetailActivity : AppCompatActivity() {
+class MeetingDetailActivity : BaseActivity() {
 
     private lateinit var toolbar: Toolbar
     private lateinit var tvMeetingTitle: TextView
@@ -54,6 +54,9 @@ class MeetingDetailActivity : AppCompatActivity() {
         setupViewPager()
         observeViewModel()
         loadMeetingDetails()
+        
+        // Setup floating home button
+        setupHomeFab()
     }
 
     private fun loadIntent() {

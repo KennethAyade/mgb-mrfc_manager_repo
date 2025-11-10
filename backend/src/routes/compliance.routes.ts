@@ -139,101 +139,314 @@ router.get('/progress/:documentId', authenticate, complianceAnalysisController.g
  */
 router.get('/dashboard', authenticate, async (req: Request, res: Response) => {
   try {
-    // TODO: IMPLEMENT COMPLIANCE DASHBOARD LOGIC
-    // Step 1: Parse parameters
-    // const { quarter_id, status } = req.query;
+    const { ComplianceAnalysis, Document, Proponent, Mrfc } = require('../models');
+    const { Op } = require('sequelize');
 
-    // Step 2: Build base filter
-    // const where: any = {};
-    // if (status) where.status = status;
-    // if (quarter_id) where.quarter_id = quarter_id;
+    console.log('\n📊 Loading compliance dashboard...');
 
-    // Step 3: Apply user MRFC access filter
-    // let mrfcFilter: any = {};
-    // if (req.user?.role === 'USER') {
-    //   const userMrfcIds = req.user.mrfcAccess || [];
-    //   mrfcFilter = { id: { [Op.in]: userMrfcIds } };
-    // }
+    // Parse query parameters
+    const { mrfc_id, quarter_id } = req.query;
 
-    // Step 4: Query compliance records
-    // const complianceRecords = await Compliance.findAll({
-    //   where,
-    //   include: [{
-    //     model: MRFC,
-    //     as: 'mrfc',
-    //     where: mrfcFilter,
-    //     attributes: ['id', 'mrfc_number', 'project_title']
-    //   }]
-    // });
+    // Build filter for documents
+    const documentFilter: any = {
+      category: 'CMVR' // Only CMVR documents
+    };
 
-    // Step 5: Calculate summary
-    // const total = complianceRecords.length;
-    // const compliant = complianceRecords.filter(c => c.status === 'COMPLIANT').length;
-    // const nonCompliant = complianceRecords.filter(c => c.status === 'NON_COMPLIANT').length;
-    // const pending = complianceRecords.filter(c => c.status === 'PENDING').length;
-    // const rate = total > 0 ? (compliant / total) * 100 : 0;
+    // Build filter for analysis
+    const analysisFilter: any = {
+      analysis_status: 'COMPLETED' // Only completed analyses
+    };
 
-    // Step 6: Group by quarter
-    // const byQuarter = await Compliance.findAll({
-    //   attributes: [
-    //     'quarter_id',
-    //     [sequelize.fn('COUNT', sequelize.col('*')), 'total'],
-    //     [sequelize.fn('SUM', sequelize.literal("CASE WHEN status = 'COMPLIANT' THEN 1 ELSE 0 END")), 'compliant'],
-    //     [sequelize.fn('SUM', sequelize.literal("CASE WHEN status = 'NON_COMPLIANT' THEN 1 ELSE 0 END")), 'non_compliant'],
-    //     [sequelize.fn('SUM', sequelize.literal("CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END")), 'pending']
-    //   ],
-    //   include: [{
-    //     model: Quarter,
-    //     as: 'quarter',
-    //     attributes: ['quarter_number', 'year']
-    //   }],
-    //   group: ['quarter_id'],
-    //   raw: true
-    // });
+    // If MRFC ID specified, filter by MRFC
+    if (mrfc_id) {
+      // We need to join through Document -> Proponent -> MRFC
+      console.log(`   Filtering by MRFC ID: ${mrfc_id}`);
+    }
 
-    // Step 7: Get recent updates
-    // const recentUpdates = await Compliance.findAll({
-    //   where,
-    //   include: [{
-    //     model: MRFC,
-    //     as: 'mrfc',
-    //     where: mrfcFilter,
-    //     attributes: ['id', 'mrfc_number', 'project_title']
-    //   }],
-    //   order: [['updated_at', 'DESC']],
-    //   limit: 10
-    // });
+    // If quarter specified, filter by quarter
+    if (quarter_id) {
+      documentFilter.quarter_id = quarter_id;
+      console.log(`   Filtering by Quarter ID: ${quarter_id}`);
+    }
 
-    // Step 8: Return dashboard data
-    // return res.json({
-    //   success: true,
-    //   data: {
-    //     summary: {
-    //       total_mrfcs: total,
-    //       compliant,
-    //       non_compliant: nonCompliant,
-    //       pending,
-    //       compliance_rate: parseFloat(rate.toFixed(2))
-    //     },
-    //     by_quarter: byQuarter,
-    //     recent_updates: recentUpdates
-    //   }
-    // });
+    // Query all completed compliance analyses with document and proponent info
+    const analyses = await ComplianceAnalysis.findAll({
+      where: analysisFilter,
+      include: [{
+        model: Document,
+        as: 'document',
+        where: documentFilter,
+        include: [{
+          model: Proponent,
+          as: 'proponent',
+          include: [{
+            model: Mrfc,
+            as: 'mrfc',
+            ...(mrfc_id ? { where: { id: mrfc_id } } : {})
+          }]
+        }]
+      }],
+      attributes: ['id', 'compliance_rating', 'compliance_percentage', 'analyzed_at']
+    });
 
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Compliance dashboard endpoint not yet implemented. See comments in compliance.routes.ts for implementation details.'
+    console.log(`   Found ${analyses.length} completed analyses`);
+
+    // Calculate summary statistics
+    const total = analyses.length;
+    const compliant = analyses.filter((a: any) => a.compliance_rating === 'FULLY_COMPLIANT').length;
+    const partial = analyses.filter((a: any) => a.compliance_rating === 'PARTIALLY_COMPLIANT').length;
+    const nonCompliant = analyses.filter((a: any) => a.compliance_rating === 'NON_COMPLIANT').length;
+
+    const complianceRate = total > 0 ? (compliant / total) * 100 : 0;
+
+    console.log(`   Summary: ${compliant} compliant, ${partial} partial, ${nonCompliant} non-compliant`);
+
+    // Format response
+    const summary = {
+      total_proponents: total,
+      compliant,
+      partial,
+      non_compliant: nonCompliant,
+      compliance_rate: parseFloat(complianceRate.toFixed(2))
+    };
+
+    // Get proponent breakdown (list of proponents with their compliance)
+    const proponentList = analyses.map((analysis: any) => ({
+      proponent: {
+        id: analysis.document?.proponent?.id,
+        name: analysis.document?.proponent?.name,
+        company_name: analysis.document?.proponent?.company_name,
+        mrfc: {
+          id: analysis.document?.proponent?.mrfc?.id,
+          name: analysis.document?.proponent?.mrfc?.name
+        }
+      },
+      compliance_percentage: analysis.compliance_percentage,
+      status: analysis.compliance_rating,
+      analyzed_at: analysis.analyzed_at
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        summary,
+        proponents: proponentList
       }
     });
+
   } catch (error: any) {
-    console.error('Compliance dashboard error:', error);
+    console.error('❌ Compliance dashboard error:', error);
     res.status(500).json({
       success: false,
       error: {
         code: 'COMPLIANCE_DASHBOARD_FAILED',
         message: error.message || 'Failed to retrieve compliance dashboard'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * GET /compliance/summary
+ * ================================================
+ * Get compliance summary for a specific MRFC (aggregated from CMVR analyses)
+ * Returns: { total_proponents, compliant, partial, non_compliant, compliance_rate }
+ */
+router.get('/summary', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { ComplianceAnalysis, Document, Proponent, Mrfc } = require('../models');
+    const { mrfc_id, quarter_id } = req.query;
+
+    if (!mrfc_id) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_MRFC_ID',
+          message: 'mrfc_id query parameter is required'
+        }
+      });
+    }
+
+    console.log(`\n📊 Loading compliance summary for MRFC ${mrfc_id}...`);
+
+    // Build filter for documents
+    const documentFilter: any = {
+      category: 'CMVR'
+    };
+
+    if (quarter_id) {
+      documentFilter.quarter_id = quarter_id;
+      console.log(`   Filtering by Quarter ID: ${quarter_id}`);
+    }
+
+    // Query all completed compliance analyses for this MRFC
+    const analyses = await ComplianceAnalysis.findAll({
+      where: {
+        analysis_status: 'COMPLETED'
+      },
+      include: [{
+        model: Document,
+        as: 'document',
+        where: documentFilter,
+        include: [{
+          model: Proponent,
+          as: 'proponent',
+          include: [{
+            model: Mrfc,
+            as: 'mrfc',
+            where: { id: mrfc_id }
+          }]
+        }]
+      }],
+      attributes: ['id', 'compliance_rating', 'compliance_percentage']
+    });
+
+    console.log(`   Found ${analyses.length} completed analyses`);
+
+    // Calculate summary statistics
+    const total = analyses.length;
+    const compliant = analyses.filter((a: any) => a.compliance_rating === 'FULLY_COMPLIANT').length;
+    const partial = analyses.filter((a: any) => a.compliance_rating === 'PARTIALLY_COMPLIANT').length;
+    const nonCompliant = analyses.filter((a: any) => a.compliance_rating === 'NON_COMPLIANT').length;
+
+    const complianceRate = total > 0 ? (compliant / total) * 100 : 0;
+
+    console.log(`   Summary: ${compliant} compliant, ${partial} partial, ${nonCompliant} non-compliant`);
+    console.log(`   Compliance rate: ${complianceRate.toFixed(2)}%`);
+
+    res.json({
+      success: true,
+      data: {
+        total_proponents: total,
+        compliant,
+        partial,
+        non_compliant: nonCompliant,
+        compliance_rate: parseFloat(complianceRate.toFixed(2))
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ Compliance summary error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'COMPLIANCE_SUMMARY_FAILED',
+        message: error.message || 'Failed to retrieve compliance summary'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * GET /compliance
+ * ================================================
+ * Get list of compliance records (aggregated from CMVR analyses)
+ * Supports filtering by MRFC, proponent, quarter
+ */
+router.get('/', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { ComplianceAnalysis, Document, Proponent, Mrfc, Quarter } = require('../models');
+    const { mrfc_id, proponent_id, quarter } = req.query;
+
+    console.log(`\n📋 Loading compliance records...`);
+
+    // Build filter for documents
+    const documentFilter: any = {
+      category: 'CMVR'
+    };
+
+    // Build includes
+    const proponentInclude: any = {
+      model: Proponent,
+      as: 'proponent',
+      attributes: ['id', 'name', 'company_name']
+    };
+
+    // If MRFC filter specified
+    if (mrfc_id) {
+      proponentInclude.include = [{
+        model: Mrfc,
+        as: 'mrfc',
+        where: { id: mrfc_id },
+        attributes: ['id', 'name']
+      }];
+      console.log(`   Filtering by MRFC ID: ${mrfc_id}`);
+    } else {
+      proponentInclude.include = [{
+        model: Mrfc,
+        as: 'mrfc',
+        attributes: ['id', 'name']
+      }];
+    }
+
+    // If proponent filter specified
+    if (proponent_id) {
+      proponentInclude.where = { id: proponent_id };
+      console.log(`   Filtering by Proponent ID: ${proponent_id}`);
+    }
+
+    // Query completed compliance analyses
+    const analyses = await ComplianceAnalysis.findAll({
+      where: {
+        analysis_status: 'COMPLETED'
+      },
+      include: [{
+        model: Document,
+        as: 'document',
+        where: documentFilter,
+        attributes: ['id', 'original_name', 'created_at'],
+        include: [
+          proponentInclude,
+          {
+            model: Quarter,
+            as: 'quarter',
+            attributes: ['id', 'name', 'quarter_number', 'year']
+          }
+        ]
+      }],
+      attributes: ['id', 'compliance_rating', 'compliance_percentage', 'analyzed_at'],
+      order: [['analyzed_at', 'DESC']]
+    });
+
+    console.log(`   Found ${analyses.length} compliance records`);
+
+    // Format response to match Android DTO
+    const complianceList = analyses
+      .filter((analysis: any) => analysis.document?.proponent?.mrfc?.id) // Filter out records without MRFC
+      .map((analysis: any) => ({
+        id: analysis.id,
+        mrfc_id: analysis.document.proponent.mrfc.id,
+        proponent_id: analysis.document.proponent?.id || null,
+        proponent_name: analysis.document.proponent?.name || 'Unknown',
+        company_name: analysis.document.proponent?.company_name || 'N/A',
+        mrfc_name: analysis.document.proponent.mrfc?.name || 'Unknown MRFC',
+        compliance_type: 'CMVR',
+        quarter: analysis.document?.quarter?.name || 'N/A',
+        year: analysis.document?.quarter?.year || new Date().getFullYear(),
+        score: analysis.compliance_percentage,
+        status: analysis.compliance_rating,
+        remarks: null,
+        report_date: analysis.analyzed_at,
+        created_at: analysis.analyzed_at,
+        updated_at: analysis.analyzed_at
+      }));
+
+    console.log(`   Returning ${complianceList.length} compliance records (filtered for valid MRFC)`);
+
+    res.json({
+      success: true,
+      data: complianceList
+    });
+
+  } catch (error: any) {
+    console.error('❌ Compliance list error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'COMPLIANCE_LIST_FAILED',
+        message: error.message || 'Failed to retrieve compliance records'
       }
     });
   }
