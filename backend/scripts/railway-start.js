@@ -34,21 +34,32 @@ if (!process.env.DATABASE_URL) {
 }
 console.log('✅ DATABASE_URL found\n');
 
-// Step 2: Run migrations
+// Step 2: Run main schema (create all base tables)
+const schemaSuccess = runCommand(
+  'node scripts/run-schema.js',
+  'Step 2: Creating database schema (tables, types, indexes)'
+);
+
+if (!schemaSuccess) {
+  console.error('⚠️  Warning: Schema creation had issues, but continuing...');
+  console.error('Tables may already exist from previous deployment.');
+}
+
+// Step 3: Run migrations (additional table modifications)
 const migrationSuccess = runCommand(
   'node scripts/migrate.js',
-  'Step 2: Running database migrations'
+  'Step 3: Running database migrations'
 );
 
 if (!migrationSuccess) {
   console.error('⚠️  Warning: Migration failed, but continuing...');
-  console.error('This is normal for first-time deployments.');
+  console.error('This is normal if migrations already applied.');
 }
 
-// Step 3: Seed quarters (CRITICAL)
+// Step 4: Seed quarters (CRITICAL)
 const seedSuccess = runCommand(
   'node scripts/seed-quarters.js',
-  'Step 3: Seeding quarters (Q1-Q4 2025)'
+  'Step 4: Seeding quarters (Q1-Q4 2025)'
 );
 
 if (!seedSuccess) {
@@ -56,8 +67,8 @@ if (!seedSuccess) {
   console.error('File upload feature may not work correctly.');
 }
 
-// Step 4: Start the server
-console.log('🚀 Step 4: Starting server...');
+// Step 5: Start the server
+console.log('🚀 Step 5: Starting server...');
 console.log('============================================\n');
 
 try {
