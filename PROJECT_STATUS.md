@@ -1,8 +1,8 @@
 # MGB MRFC Manager - Project Status & Development Tracker
 
-**Last Updated:** November 10, 2025
-**Version:** 2.0.2
-**Status:** 🚀 **PRODUCTION READY** | ✅ **AI-Powered Compliance Analysis** | ✅ **AWS S3 Storage** | ✅ **Real Compliance Dashboard** | ✅ **Attendance & Notifications**
+**Last Updated:** November 11, 2025
+**Version:** 2.0.3
+**Status:** 🚀 **PRODUCTION READY** | ✅ **AI-Powered Compliance Analysis** | ✅ **AWS S3 Storage** | ✅ **Real Compliance Dashboard** | ✅ **Quarters Seeded**
 
 ---
 
@@ -1517,8 +1517,8 @@ GEMINI_API_KEY=AIzaSy...
 # 5. Run migrations
 npm run migrate
 
-# 6. Seed database
-npm run seed
+# 6. Seed quarters (REQUIRED - file upload won't work without this!)
+npm run db:seed
 
 # 7. Start server
 npm run dev
@@ -1526,6 +1526,8 @@ npm run dev
 # Server running at http://localhost:3000
 # Swagger docs at http://localhost:3000/api-docs
 ```
+
+**⚠️ IMPORTANT:** Quarters MUST be seeded for file upload to work! See [QUARTERS_SETUP.md](./backend/QUARTERS_SETUP.md)
 
 ### S3 Bucket Setup
 
@@ -1671,6 +1673,7 @@ Password: Admin@123
   - [ALL_DEMODATA_REMOVED.md](./ALL_DEMODATA_REMOVED.md) - Complete data cleanup
   
 - **Configuration:**
+  - [backend/QUARTERS_SETUP.md](./backend/QUARTERS_SETUP.md) - ⚠️ **REQUIRED** - Quarters setup guide
   - [S3_BUCKET_SETUP_GUIDE.md](./S3_BUCKET_SETUP_GUIDE.md) - S3 configuration guide
   - [GEMINI_SETUP_GUIDE.md](./GEMINI_SETUP_GUIDE.md) - Gemini AI setup
   
@@ -1691,6 +1694,7 @@ Password: Admin@123
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| Nov 11, 2025 | 2.0.3 | **🔧 CRITICAL FIX - v2.0.3:** Fixed file upload "loading quarters" issue. **Changes:** (1) **Quarters Seeding Fixed** - Added `npm run db:seed:quarters` script to package.json (was referencing non-existent seed.js), (2) **Database Reset Enhancement** - Updated `reset-database.ts` to automatically seed Q1-Q4 2025 quarters after reset (prevents future issues), (3) **Quarters Seeded** - Ran seed script to populate quarters table (Q1-Q4 2025, Q4 marked as current), (4) **Documentation Added** - Created `backend/QUARTERS_SETUP.md` with comprehensive quarters setup guide and troubleshooting, (5) **Updated Quick Start** - Added quarters seeding requirement to PROJECT_STATUS.md setup instructions. **Root Cause:** Quarters table was empty after database reset, blocking file upload feature which requires quarters to function. **Files Modified:** backend/package.json (added db:seed script), backend/scripts/reset-database.ts (auto-seed quarters), backend/QUARTERS_SETUP.md (new), PROJECT_STATUS.md (updated setup guide). **Status:** Production-ready! File upload now works correctly. | AI Assistant |
 | Nov 10, 2025 | 2.0.2 | **📋 DOCUMENTATION UPDATE - v2.0.2:** Cross-verification of feature status against actual codebase. **Major Corrections:** (1) **Attendance Tracking** - Updated from "API not implemented" to ~90% COMPLETE (full backend API with 4 endpoints, functional frontend with photo upload to S3, only reports pending), (2) **Notifications** - Updated from "No implementation" to ~80% COMPLETE (full CRUD API backend, complete frontend MVVM stack, only Firebase push notifications and auto-triggers pending). **Minor Updates:** (3) Clarified Agenda Items status (backend complete, frontend read-only view only), (4) Clarified Reports status (skeleton exists but returns 501), (5) Updated testing status table to reflect Attendance (70%) and Notifications (65%) test coverage, (6) Added manual testing checkmarks for attendance and notifications. **New Document:** Created FEATURE_STATUS_VERIFICATION.md with detailed code evidence and file paths. Accuracy improved from ~60% to 100%. See FEATURE_STATUS_VERIFICATION.md for full verification report. | AI Assistant |
 | Nov 10, 2025 | 2.0.1 | **🛠 PATCH RELEASE - v2.0.1:** Critical bug fixes and feature enhancements. **Security:** (1) **Fixed pdfjs-dist HIGH vulnerability** - Updated from v3.11.174 (vulnerable) to v4.9.155 (secure), updated import path from 'pdfjs-dist/legacy/build/pdf.js' to 'pdfjs-dist'. **Compliance Dashboard:** (1) **Implemented REAL Compliance Dashboard** - Created GET /api/v1/compliance/summary (aggregate stats) and GET /api/v1/compliance (records list), (2) Changed dashboard navigation to MRFC List first, (3) Added "View Compliance" button to MRFC Detail page, (4) Fixed missing mrfc_id in compliance list response. **Navigation:** (1) **Floating Home Button (FAB)** - Added reusable home button to all activities (bottom-left), created BaseActivity with setupHomeFab() method, role-based navigation to correct dashboard, (2) Fixed FAB overlap with add buttons by positioning at bottom-left. **Quarter Selection:** (1) Moved quarter selection from Proponent Detail to File Upload page (admin selects during upload), (2) Added quarter filter to all "View..." pages (All/Q1/Q2/Q3/Q4 buttons), (3) Documents now load on File Upload page open (not just after upload). **Performance:** (1) **Fixed OkHttp timeout errors** - Increased READ_TIMEOUT from 120s to 300s (5 minutes), WRITE_TIMEOUT from 60s to 120s (2 minutes) to support long-running OCR operations. **Files Modified:** backend/package.json, backend/src/controllers/complianceAnalysis.controller.ts, backend/src/routes/compliance.routes.ts, app/src/main/java/.../ApiConfig.kt, app/src/main/java/.../BaseActivity.kt (new), app/res/layout/fab_home_button.xml (new), 12+ activity files. **Status:** Production-ready with enhanced UX! | AI Assistant |
 | Nov 10, 2025 | 2.0.0 | **🚀 MAJOR RELEASE - v2.0.0:** Complete system overhaul with AI, S3, and auto-analysis. **New Features:** (1) **Google Gemini AI Integration** - Intelligent, context-aware compliance analysis with gemini-1.5-flash model, (2) **AWS S3 Migration** - Replaced Cloudinary with S3, increased file limit from 10MB to 100MB, better cost efficiency, (3) **Auto-Trigger Analysis** - Viewing CMVR documents automatically triggers analysis if not exists, seamless UX, (4) **Real OCR Implementation** - Replaced pdf2pic with pdfjs-dist + canvas + Tesseract.js, works cross-platform (Windows/Mac/Linux), no external dependencies. **Bug Fixes:** (1) Fixed Android JSON parsing errors (ApiResponse wrapper), (2) Fixed infinite polling loop (stop on "not_found"), (3) Fixed S3 ACL errors (use bucket policy), (4) Fixed auto-analyze re-running analysis (view mode). **Data Cleanup:** (1) Removed DemoData.kt (no hardcoded data), (2) Removed old Document.kt model, (3) 100% backend integration. **Performance:** Digital PDFs < 1 second, Scanned PDFs 2-3 minutes, Gemini AI 2-5 seconds. **Status:** Production-ready! See CHANGELOG_NOV_2025.md for full details. | AI Assistant |

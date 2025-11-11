@@ -9,7 +9,25 @@
  */
 
 import sequelize from '../src/config/database';
-import { User, Mrfc, Proponent, Agenda, Quarter, Attendance, MeetingMinutes, Note, AgendaItem, MatterArising, UserMrfcAccess, AuditLog } from '../src/models';
+import { 
+  User, 
+  Mrfc, 
+  Proponent, 
+  Agenda, 
+  Quarter, 
+  Attendance, 
+  MeetingMinutes, 
+  Note, 
+  AgendaItem, 
+  MatterArising, 
+  UserMrfcAccess, 
+  AuditLog,
+  Document,
+  VoiceRecording,
+  Notification,
+  ComplianceLog,
+  ComplianceAnalysis
+} from '../src/models';
 import { UserRole } from '../src/models/User';
 import bcrypt from 'bcryptjs';
 
@@ -54,13 +72,34 @@ const resetDatabase = async () => {
     console.log(`   Password: ${superadminPassword}`);
     console.log(`   Email: ${superadminEmail}\n`);
 
-    // Step 4: Summary
+    // Step 4: Seed quarters for 2025
+    console.log('📅 Seeding quarters for 2025...');
+    const currentYear = 2025;
+    const quarters = [
+      { name: 'Q1-2025', year: 2025, quarter_number: 1, start_date: '2025-01-01', end_date: '2025-03-31', is_current: false },
+      { name: 'Q2-2025', year: 2025, quarter_number: 2, start_date: '2025-04-01', end_date: '2025-06-30', is_current: false },
+      { name: 'Q3-2025', year: 2025, quarter_number: 3, start_date: '2025-07-01', end_date: '2025-09-30', is_current: false },
+      { name: 'Q4-2025', year: 2025, quarter_number: 4, start_date: '2025-10-01', end_date: '2025-12-31', is_current: true }
+    ];
+
+    for (const quarter of quarters) {
+      await sequelize.query(
+        `INSERT INTO quarters (name, year, quarter_number, start_date, end_date, is_current, created_at, updated_at)
+         VALUES (:name, :year, :quarter_number, :start_date, :end_date, :is_current, NOW(), NOW())`,
+        { replacements: quarter }
+      );
+    }
+
+    console.log('✅ Quarters seeded (Q1-Q4 2025)\n');
+
+    // Step 5: Summary
     console.log('================================================');
     console.log('DATABASE RESET - COMPLETED');
     console.log('================================================');
     console.log('✅ All data cleared');
     console.log('✅ Fresh tables created');
     console.log('✅ Superadmin user ready');
+    console.log('✅ Quarters seeded (Q1-Q4 2025)');
     console.log('\n📝 You can now login with superadmin credentials');
     console.log('================================================\n');
 
