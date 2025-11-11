@@ -1,0 +1,80 @@
+# MGB MRFC Manager - Railway Environment Variables Template
+# Copy these to Railway dashboard → Your Service → Variables tab
+
+# =============================================
+# NODE ENVIRONMENT
+# =============================================
+NODE_ENV=production
+
+# =============================================
+# DATABASE CONFIGURATION
+# =============================================
+# Railway PostgreSQL plugin creates this automatically
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+
+# =============================================
+# JWT CONFIGURATION
+# =============================================
+# Generate using: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+JWT_SECRET=<generate_a_64_character_random_string>
+
+# =============================================
+# AWS S3 CONFIGURATION (REQUIRED)
+# =============================================
+S3_BUCKET_NAME=adhub-s3-demo
+AWS_ACCESS_KEY_ID=AKIA...your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key_here
+AWS_REGION=us-east-1
+
+# =============================================
+# GOOGLE GEMINI AI (OPTIONAL)
+# =============================================
+# For intelligent compliance analysis
+# Get API key from: https://makersuite.google.com/app/apikey
+# System falls back to keyword analysis if not provided
+GEMINI_API_KEY=AIzaSy...your_gemini_api_key
+
+# =============================================
+# SUPER ADMIN CONFIGURATION
+# =============================================
+SUPER_ADMIN_USERNAME=superadmin
+SUPER_ADMIN_PASSWORD=<your_secure_password>
+SUPER_ADMIN_EMAIL=admin@mgb.gov.ph
+SUPER_ADMIN_FULL_NAME=Super Administrator
+
+# =============================================
+# SERVER PORT (Railway sets this automatically)
+# =============================================
+PORT=3000
+
+# =============================================
+# CORS CONFIGURATION
+# =============================================
+# Allow all origins for Android app (or specify your domain)
+CORS_ORIGIN=*
+
+# =============================================
+# CLOUDINARY (LEGACY - OPTIONAL)
+# =============================================
+# Only needed if you have old documents in Cloudinary
+# New uploads use AWS S3
+CLOUDINARY_CLOUD_NAME=drxjbb7np
+CLOUDINARY_API_KEY=<optional_if_you_have_old_data>
+CLOUDINARY_API_SECRET=<optional_if_you_have_old_data>
+
+# =============================================
+# HOW TO USE:
+# =============================================
+# 1. Go to Railway dashboard
+# 2. Click your backend service
+# 3. Go to "Variables" tab
+# 4. Click "Raw Editor"
+# 5. Paste these variables (with real values)
+# 6. Click "Deploy" to apply changes
+#
+# CRITICAL: Run after first deploy:
+#   npm run db:migrate
+#   npm run db:seed:quarters
+#
+# See RAILWAY_DEPLOYMENT_GUIDE.md for full instructions
+

@@ -1,0 +1,58 @@
+# Railway Ignore File
+# Files and directories to exclude from Railway deployment
+
+# Development files
+node_modules/
+.env
+.env.local
+.env.development
+*.log
+
+# Test files
+coverage/
+*.test.ts
+*.test.js
+__tests__/
+
+# Build artifacts (will be rebuilt on Railway)
+dist/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+temp/
+tmp/
+uploads/temp/
+*.tmp
+
+# Documentation (not needed for runtime)
+docs/
+*.md
+!README.md
+
+# Scripts (only needed for local dev)
+scripts/test-*.ts
+scripts/check-*.ts
+scripts/clear-*.ts
+
+# Database dumps
+*.sql
+*.dump
+
+# Tesseract language data (will download on first use)
+# tessdata/
+# eng.traineddata
+# fil.traineddata
+
+# Legacy files
+RENDER_ENV_TEMPLATE.txt
+
