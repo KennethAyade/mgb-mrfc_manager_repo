@@ -6,13 +6,13 @@ object ApiConfig {
     // Local development backend URL for emulator
     private const val LOCAL_URL = "http://10.0.2.2:3000/api/v1/"
 
-    // Production backend URL for physical devices
-    private const val PRODUCTION_URL = "https://mgb-mrfc-manager-repo.onrender.com/api/v1/"
+    // Production backend URL for physical devices (Railway)
+    private const val PRODUCTION_URL = "https://mgb-mrfc-backend-production-503b.up.railway.app/api/v1/"
 
     /**
      * Dynamically determine the base URL:
      * - Emulator: Use localhost backend (10.0.2.2)
-     * - Physical device: Use deployed Render backend
+     * - Physical device: Use Railway production backend
      */
     val BASE_URL: String
         get() = if (isEmulator()) LOCAL_URL else PRODUCTION_URL
