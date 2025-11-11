@@ -63,5 +63,14 @@ interface ComplianceAnalysisApiService {
     suspend fun getAnalysisProgress(
         @Path("documentId") documentId: Long
     ): Response<ApiResponse<AnalysisProgressDto>>
+    
+    /**
+     * Force re-analysis of a document
+     * Deletes cached results and triggers fresh analysis
+     */
+    @POST("compliance/reanalyze/{documentId}")
+    suspend fun reanalyzeCompliance(
+        @Path("documentId") documentId: Long
+    ): Response<ApiResponse<ComplianceAnalysisDto>>
 }
 

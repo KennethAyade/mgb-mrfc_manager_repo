@@ -211,6 +211,43 @@ class ComplianceAnalysisRepository(
     }
 
     /**
+     * Force re-analysis of a document
+     * Deletes cached results and triggers fresh analysis
+     */
+    suspend fun reanalyzeCompliance(documentId: Long): Result<ComplianceAnalysisDto> {
+        return try {
+            android.util.Log.d("ComplianceRepo", "🔄 Calling reanalyze API for document $documentId")
+            val response = apiService.reanalyzeCompliance(documentId)
+            android.util.Log.d("ComplianceRepo", "API Response code: ${response.code()}")
+            
+            if (response.isSuccessful && response.body() != null) {
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    android.util.Log.d("ComplianceRepo", "✅ Reanalysis started successfully")
+                    Result.Success(apiResponse.data)
+                } else {
+                    val errorMsg = apiResponse.message ?: apiResponse.error?.message ?: "Reanalysis failed"
+                    android.util.Log.e("ComplianceRepo", "❌ API returned success=false: $errorMsg")
+                    Result.Error(errorMsg)
+                }
+            } else {
+                val errorMsg = when (response.code()) {
+                    404 -> "Document not found"
+                    400 -> parseErrorMessage(response.errorBody()?.string()) ?: "Invalid request"
+                    401 -> "Please login again"
+                    403 -> "Permission denied"
+                    500 -> "Server error. Please try again later."
+                    else -> parseErrorMessage(response.errorBody()?.string()) ?: "Reanalysis failed"
+                }
+                Result.Error(errorMsg)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ComplianceRepo", "❌ Exception: ${e.javaClass.simpleName} - ${e.message}", e)
+            Result.Error("Reanalysis failed: ${e.message ?: "Network error occurred"}")
+        }
+    }
+
+    /**
      * Parse error message from JSON response
      */
     private fun parseErrorMessage(errorBody: String?): String? {

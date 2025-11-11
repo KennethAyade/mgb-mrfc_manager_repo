@@ -61,6 +61,13 @@ router.get('/proponent/:proponentId', authenticate, complianceAnalysisController
  */
 router.get('/progress/:documentId', authenticate, complianceAnalysisController.getAnalysisProgress);
 
+/**
+ * POST /compliance/reanalyze/:documentId
+ * Force re-analysis of a document (deletes cached results and triggers new analysis)
+ * Returns: { message, analysis }
+ */
+router.post('/reanalyze/:documentId', authenticate, adminOnly, complianceAnalysisController.reanalyzeCompliance);
+
 // ==========================================
 // COMPLIANCE DASHBOARD ROUTES
 // ==========================================

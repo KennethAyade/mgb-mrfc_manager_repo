@@ -19,12 +19,18 @@ import { analyzeComplianceWithGemini, isGeminiConfigured } from '../config/gemin
 
 // Using Tesseract.js for OCR text extraction from scanned PDFs
 const Tesseract = require('tesseract.js');
-const { createCanvas, Image } = require('canvas');
+const { createCanvas, Image, ImageData: NodeImageData } = require('canvas');
 const PDFExtract = require('pdf.js-extract').PDFExtract;
 const pdfExtract = new PDFExtract();
 const fs = require('fs');
 const path = require('path');
-// Note: pdfjs-dist is imported dynamically where needed (ES Module)
+
+// Polyfill ImageData for Node.js environment (required by pdfjs-dist)
+if (typeof (globalThis as any).ImageData === 'undefined') {
+  (globalThis as any).ImageData = NodeImageData;
+}
+
+// Note: pdfjs-dist legacy build is imported dynamically where needed (CommonJS compatible)
 
 /**
  * Transform ComplianceAnalysis model to JSON with proper number types
@@ -362,6 +368,104 @@ export const getAnalysisProgress = async (req: Request, res: Response): Promise<
 };
 
 /**
+ * Force re-analysis of a document
+ * Deletes cached analysis and triggers new analysis
+ * POST /api/v1/compliance/reanalyze/:documentId
+ */
+export const reanalyzeCompliance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const documentId = parseInt(req.params.documentId);
+
+    if (isNaN(documentId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_DOCUMENT_ID',
+          message: 'Invalid document ID'
+        }
+      });
+      return;
+    }
+
+    console.log(`\n🔄 Reanalyze request for document ${documentId}`);
+
+    // Delete existing analysis to force fresh analysis
+    const deleted = await ComplianceAnalysis.destroy({
+      where: { document_id: documentId }
+    });
+
+    if (deleted > 0) {
+      console.log(`✅ Deleted ${deleted} existing analysis record(s)`);
+    }
+
+    // Verify document exists
+    const document = await Document.findByPk(documentId);
+    if (!document) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'DOCUMENT_NOT_FOUND',
+          message: 'Document not found'
+        }
+      });
+      return;
+    }
+
+    console.log(`📄 Document: ${document.original_name}`);
+    console.log(`🔍 Starting fresh analysis...`);
+
+    // Perform PDF analysis (force fresh analysis - no cached text)
+    // performPdfAnalysis will create the analysis record
+    const analysisResults = await performPdfAnalysis(document, undefined);
+
+    // Get the created analysis record
+    const analysis = await ComplianceAnalysis.findOne({
+      where: { document_id: documentId }
+    });
+
+    if (!analysis) {
+      throw new Error('Analysis record not found after analysis');
+    }
+
+    // Update analysis with results
+    await analysis.update({
+      analysis_status: AnalysisStatus.COMPLETED,
+      compliance_percentage: analysisResults.compliance_percentage,
+      compliance_rating: analysisResults.compliance_rating,
+      total_items: analysisResults.total_items,
+      compliant_items: analysisResults.compliant_items,
+      non_compliant_items: analysisResults.non_compliant_items,
+      na_items: analysisResults.na_items,
+      applicable_items: analysisResults.applicable_items,
+      compliance_details: analysisResults.compliance_details,
+      non_compliant_list: analysisResults.non_compliant_list,
+      extracted_text: analysisResults.extracted_text || null,
+      ocr_confidence: analysisResults.ocr_confidence || null,
+      ocr_language: analysisResults.ocr_language || null,
+      analyzed_at: new Date()
+    });
+
+    console.log(`✅ Re-analysis completed successfully`);
+
+    res.json({
+      success: true,
+      message: 'Re-analysis completed successfully',
+      data: transformAnalysisToJSON(analysis)
+    });
+
+  } catch (error: any) {
+    console.error('Reanalyze compliance error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'REANALYSIS_FAILED',
+        message: error.message || 'Failed to reanalyze document'
+      }
+    });
+  }
+};
+
+/**
  * Get all compliance analyses for a proponent
  * GET /api/v1/compliance/proponent/:proponentId
  */
@@ -573,8 +677,8 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
     try {
       // Load PDF with pdfjs-dist (convert Buffer to Uint8Array)
       console.log(`   Loading PDF with pdfjs-dist...`);
-      // Dynamic import for ES Module
-      const pdfjsLib = await import('pdfjs-dist');
+      // Use dynamic import for ES Module (legacy build for Node.js compatibility)
+      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
       const uint8Array = new Uint8Array(pdfBuffer);
       const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
       const pdfDocument = await loadingTask.promise;
@@ -603,12 +707,17 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
             canvasContext: context,
             viewport: viewport
           }).promise;
-          
-          // Convert canvas to buffer for Tesseract
+
+          // Save canvas to temporary PNG file for Tesseract
+          // Tesseract.js in Node.js works BEST with file paths (most reliable)
+          const tempImagePath = path.join(tempDir, `page-${pageNum}.png`);
           const imageBuffer = canvas.toBuffer('image/png');
-          
-          // Perform OCR on the rendered page
-          const { data } = await worker.recognize(imageBuffer);
+          fs.writeFileSync(tempImagePath, imageBuffer);
+
+          console.log(`      📄 Saved page ${pageNum} to temp file (${imageBuffer.length} bytes)`);
+
+          // Perform OCR on the image file (most reliable method in Node.js)
+          const { data } = await worker.recognize(tempImagePath);
           const pageText = data.text;
           const pageConfidence = data.confidence;
           
@@ -625,10 +734,18 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
       
       await worker.terminate();
       totalConfidence = totalConfidence / actualNumPages;
-      
-      // Clean up temporary PDF file
+
+      // Clean up temporary files (PDF and page images)
       if (fs.existsSync(pdfPath)) {
         fs.unlinkSync(pdfPath);
+      }
+
+      // Clean up temporary page images
+      for (let i = 1; i <= actualNumPages; i++) {
+        const tempImagePath = path.join(tempDir, `page-${i}.png`);
+        if (fs.existsSync(tempImagePath)) {
+          fs.unlinkSync(tempImagePath);
+        }
       }
       
       console.log('');
@@ -638,12 +755,21 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
       
     } catch (error: any) {
       await worker.terminate();
-      
-      // Clean up temporary PDF file on error
+
+      // Clean up temporary files on error
       if (fs.existsSync(pdfPath)) {
         fs.unlinkSync(pdfPath);
       }
-      
+
+      // Clean up any temporary page images
+      const tempFiles = fs.readdirSync(tempDir).filter((f: string) => f.startsWith('page-') && f.endsWith('.png'));
+      tempFiles.forEach((file: string) => {
+        const filePath = path.join(tempDir, file);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
+
       console.error(`   ❌ OCR failed: ${error.message}`);
       throw error;
     }

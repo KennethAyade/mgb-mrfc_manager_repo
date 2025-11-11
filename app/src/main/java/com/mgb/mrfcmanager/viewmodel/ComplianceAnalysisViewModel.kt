@@ -63,6 +63,27 @@ class ComplianceAnalysisViewModel(
     }
 
     /**
+     * Force re-analysis of a document
+     * Deletes cached results and triggers fresh analysis
+     */
+    fun reanalyzeCompliance(documentId: Long) {
+        viewModelScope.launch {
+            _analysisState.value = ComplianceAnalysisState.Loading
+            when (val result = repository.reanalyzeCompliance(documentId)) {
+                is Result.Success -> {
+                    _analysisState.value = ComplianceAnalysisState.Success(result.data)
+                }
+                is Result.Error -> {
+                    _analysisState.value = ComplianceAnalysisState.Error(result.message)
+                }
+                is Result.Loading -> {
+                    _analysisState.value = ComplianceAnalysisState.Loading
+                }
+            }
+        }
+    }
+
+    /**
      * Update compliance analysis with admin adjustments
      */
     fun updateComplianceAnalysis(

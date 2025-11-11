@@ -71,6 +71,7 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
     private lateinit var btnResetAdjustments: MaterialButton
     private lateinit var btnSaveAdjustments: MaterialButton
     private lateinit var btnDownloadPdf: MaterialButton
+    private lateinit var btnReanalyze: MaterialButton
 
     private var documentId: Long = -1
     private var documentName: String = ""
@@ -161,6 +162,7 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         btnResetAdjustments = findViewById(R.id.btnResetAdjustments)
         btnSaveAdjustments = findViewById(R.id.btnSaveAdjustments)
         btnDownloadPdf = findViewById(R.id.btnDownloadPdf)
+        btnReanalyze = findViewById(R.id.btnReanalyze)
     }
 
     private fun setupViewModel() {
@@ -198,6 +200,10 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         btnDownloadPdf.setOnClickListener {
             downloadAndOpenPdf()
+        }
+
+        btnReanalyze.setOnClickListener {
+            reanalyzeDocument()
         }
 
         btnResetAdjustments.setOnClickListener {
@@ -556,6 +562,22 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
                 ).show()
             }
         }
+    }
+
+    private fun reanalyzeDocument() {
+        // Show confirmation dialog
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Reanalyze Document?")
+            .setMessage("This will delete the existing analysis and perform a fresh analysis. This process may take several minutes.")
+            .setPositiveButton("Reanalyze") { _, _ ->
+                // Trigger reanalysis
+                android.util.Log.d("ComplianceAnalysis", "🔄 Starting reanalysis...")
+                showState(State.PROGRESS, "Re-analyzing document...")
+                startProgressPolling()
+                viewModel.reanalyzeCompliance(documentId)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private suspend fun downloadPdfFromBackend(documentId: Long, fileName: String): java.io.File = withContext(Dispatchers.IO) {
