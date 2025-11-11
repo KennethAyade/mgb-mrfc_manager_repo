@@ -6,9 +6,18 @@
 -- Stores AI-powered compliance analysis results with OCR caching
 -- ==========================================
 
--- Create ENUM types for compliance analysis
-CREATE TYPE IF NOT EXISTS analysis_status AS ENUM ('PENDING', 'COMPLETED', 'FAILED');
-CREATE TYPE IF NOT EXISTS compliance_rating AS ENUM ('FULLY_COMPLIANT', 'PARTIALLY_COMPLIANT', 'NON_COMPLIANT');
+-- Create ENUM types for compliance analysis (if they don't exist)
+DO $$ BEGIN
+    CREATE TYPE analysis_status AS ENUM ('PENDING', 'COMPLETED', 'FAILED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE compliance_rating AS ENUM ('FULLY_COMPLIANT', 'PARTIALLY_COMPLIANT', 'NON_COMPLIANT');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Create compliance_analyses table
 CREATE TABLE IF NOT EXISTS compliance_analyses (
