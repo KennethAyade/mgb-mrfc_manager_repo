@@ -35,14 +35,22 @@ if (!process.env.DATABASE_URL) {
 console.log('✅ DATABASE_URL found\n');
 
 // Step 2: Run main schema (create all base tables)
-const schemaSuccess = runCommand(
-  'node scripts/run-schema.js',
-  'Step 2: Creating database schema (tables, types, indexes)'
-);
-
-if (!schemaSuccess) {
-  console.error('⚠️  Warning: Schema creation had issues, but continuing...');
-  console.error('Tables may already exist from previous deployment.');
+console.log('📍 Step 2: Creating database schema (tables, types, indexes)...');
+try {
+  execSync('node scripts/run-schema.js', {
+    stdio: 'inherit',
+    cwd: path.join(__dirname, '..')
+  });
+  console.log('✅ Step 2: Creating database schema - SUCCESS\n');
+} catch (error) {
+  // Schema creation failed - this is critical, don't continue
+  console.error('❌ CRITICAL: Schema creation failed!');
+  console.error('Cannot start server without database tables.');
+  console.error('\nPlease check:');
+  console.error('1. DATABASE_URL is correct');
+  console.error('2. Database is accessible');
+  console.error('3. schema.sql file exists');
+  process.exit(1);
 }
 
 // Step 3: Run migrations (additional table modifications)

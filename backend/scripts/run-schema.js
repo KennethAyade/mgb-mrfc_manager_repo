@@ -9,15 +9,22 @@ const path = require('path');
 require('dotenv').config();
 
 async function runSchema() {
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ DATABASE_URL not found!');
+    process.exit(1);
+  }
+
+  console.log('📡 Connecting to database...');
+  console.log(`   URL: ${process.env.DATABASE_URL.substring(0, 30)}...`);
+
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
+    ssl: process.env.NODE_ENV === 'production' ? {
       rejectUnauthorized: false
-    }
+    } : false
   });
 
   try {
-    console.log('📡 Connecting to database...');
     await client.connect();
     console.log('✅ Connected to database\n');
 
@@ -46,11 +53,17 @@ async function runSchema() {
     console.log(`\n✅ Total tables created: ${result.rows.length}`);
 
   } catch (error) {
-    console.error('❌ Error running schema:', error.message);
+    console.error('❌ Error running schema:');
+    console.error(error);
+    await client.end();
     process.exit(1);
   } finally {
-    await client.end();
-    console.log('\n🔌 Disconnected from database');
+    try {
+      await client.end();
+      console.log('\n🔌 Disconnected from database');
+    } catch (e) {
+      // Ignore disconnect errors
+    }
   }
 }
 
