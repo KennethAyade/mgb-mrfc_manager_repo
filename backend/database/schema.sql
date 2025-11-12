@@ -342,81 +342,83 @@ COMMENT ON COLUMN audit_logs.new_values IS 'JSON snapshot of record after change
 -- ==========================================
 -- CREATE INDEXES FOR PERFORMANCE
 -- ==========================================
+-- FIXED: Added IF NOT EXISTS to all indexes for idempotent schema execution
 
 -- User indexes
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
 -- MRFC indexes
-CREATE INDEX idx_mrfcs_municipality ON mrfcs(municipality);
-CREATE INDEX idx_mrfcs_province ON mrfcs(province);
-CREATE INDEX idx_mrfcs_is_active ON mrfcs(is_active);
+CREATE INDEX IF NOT EXISTS idx_mrfcs_municipality ON mrfcs(municipality);
+CREATE INDEX IF NOT EXISTS idx_mrfcs_province ON mrfcs(province);
+CREATE INDEX IF NOT EXISTS idx_mrfcs_is_active ON mrfcs(is_active);
 
 -- Proponent indexes
-CREATE INDEX idx_proponents_mrfc ON proponents(mrfc_id);
-CREATE INDEX idx_proponents_status ON proponents(status);
-CREATE INDEX idx_proponents_permit_number ON proponents(permit_number);
+CREATE INDEX IF NOT EXISTS idx_proponents_mrfc ON proponents(mrfc_id);
+CREATE INDEX IF NOT EXISTS idx_proponents_status ON proponents(status);
+CREATE INDEX IF NOT EXISTS idx_proponents_permit_number ON proponents(permit_number);
 
 -- Quarter indexes
-CREATE INDEX idx_quarters_year ON quarters(year);
-CREATE INDEX idx_quarters_is_current ON quarters(is_current);
+CREATE INDEX IF NOT EXISTS idx_quarters_year ON quarters(year);
+CREATE INDEX IF NOT EXISTS idx_quarters_is_current ON quarters(is_current);
 
 -- Agenda indexes
-CREATE INDEX idx_agendas_mrfc ON agendas(mrfc_id);
-CREATE INDEX idx_agendas_quarter ON agendas(quarter_id);
-CREATE INDEX idx_agendas_meeting_date ON agendas(meeting_date);
-CREATE INDEX idx_agendas_status ON agendas(status);
+CREATE INDEX IF NOT EXISTS idx_agendas_mrfc ON agendas(mrfc_id);
+CREATE INDEX IF NOT EXISTS idx_agendas_quarter ON agendas(quarter_id);
+CREATE INDEX IF NOT EXISTS idx_agendas_meeting_date ON agendas(meeting_date);
+CREATE INDEX IF NOT EXISTS idx_agendas_status ON agendas(status);
 
 -- Matters arising indexes
-CREATE INDEX idx_matters_arising_agenda ON matters_arising(agenda_id);
-CREATE INDEX idx_matters_arising_status ON matters_arising(status);
+CREATE INDEX IF NOT EXISTS idx_matters_arising_agenda ON matters_arising(agenda_id);
+CREATE INDEX IF NOT EXISTS idx_matters_arising_status ON matters_arising(status);
 
 -- Attendance indexes
-CREATE INDEX idx_attendance_agenda ON attendance(agenda_id);
-CREATE INDEX idx_attendance_proponent ON attendance(proponent_id);
-CREATE INDEX idx_attendance_is_present ON attendance(is_present);
+CREATE INDEX IF NOT EXISTS idx_attendance_agenda ON attendance(agenda_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_proponent ON attendance(proponent_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_is_present ON attendance(is_present);
 
 -- Document indexes
-CREATE INDEX idx_documents_proponent ON documents(proponent_id);
-CREATE INDEX idx_documents_quarter ON documents(quarter_id);
-CREATE INDEX idx_documents_category ON documents(category);
-CREATE INDEX idx_documents_status ON documents(status);
-CREATE INDEX idx_documents_upload_date ON documents(upload_date);
+CREATE INDEX IF NOT EXISTS idx_documents_proponent ON documents(proponent_id);
+CREATE INDEX IF NOT EXISTS idx_documents_quarter ON documents(quarter_id);
+CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
+CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
+CREATE INDEX IF NOT EXISTS idx_documents_upload_date ON documents(upload_date);
 
 -- Voice recording indexes
-CREATE INDEX idx_voice_recordings_agenda ON voice_recordings(agenda_id);
+CREATE INDEX IF NOT EXISTS idx_voice_recordings_agenda ON voice_recordings(agenda_id);
 
 -- Notes indexes
-CREATE INDEX idx_notes_user ON notes(user_id);
-CREATE INDEX idx_notes_mrfc ON notes(mrfc_id);
-CREATE INDEX idx_notes_quarter ON notes(quarter_id);
+CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id);
+CREATE INDEX IF NOT EXISTS idx_notes_mrfc ON notes(mrfc_id);
+CREATE INDEX IF NOT EXISTS idx_notes_quarter ON notes(quarter_id);
 
 -- Notification indexes
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_type ON notifications(type);
-CREATE INDEX idx_notifications_is_read ON notifications(is_read);
-CREATE INDEX idx_notifications_created_at ON notifications(created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
 
 -- User MRFC access indexes
-CREATE INDEX idx_user_mrfc_access_user ON user_mrfc_access(user_id);
-CREATE INDEX idx_user_mrfc_access_mrfc ON user_mrfc_access(mrfc_id);
+CREATE INDEX IF NOT EXISTS idx_user_mrfc_access_user ON user_mrfc_access(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_mrfc_access_mrfc ON user_mrfc_access(mrfc_id);
 
 -- Compliance log indexes
-CREATE INDEX idx_compliance_logs_proponent ON compliance_logs(proponent_id);
-CREATE INDEX idx_compliance_logs_quarter ON compliance_logs(quarter_id);
-CREATE INDEX idx_compliance_logs_status ON compliance_logs(status);
-CREATE INDEX idx_compliance_logs_calculated_at ON compliance_logs(calculated_at);
+CREATE INDEX IF NOT EXISTS idx_compliance_logs_proponent ON compliance_logs(proponent_id);
+CREATE INDEX IF NOT EXISTS idx_compliance_logs_quarter ON compliance_logs(quarter_id);
+CREATE INDEX IF NOT EXISTS idx_compliance_logs_status ON compliance_logs(status);
+CREATE INDEX IF NOT EXISTS idx_compliance_logs_calculated_at ON compliance_logs(calculated_at);
 
 -- Audit log indexes
-CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
-CREATE INDEX idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 
 -- ==========================================
 -- CREATE TRIGGERS FOR UPDATED_AT
 -- ==========================================
+-- FIXED: Added DROP TRIGGER IF EXISTS for idempotent schema execution
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -428,37 +430,46 @@ END;
 $$ language 'plpgsql';
 
 -- Apply trigger to all tables with updated_at column
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_mrfcs_updated_at ON mrfcs;
 CREATE TRIGGER update_mrfcs_updated_at BEFORE UPDATE ON mrfcs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_proponents_updated_at ON proponents;
 CREATE TRIGGER update_proponents_updated_at BEFORE UPDATE ON proponents
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_agendas_updated_at ON agendas;
 CREATE TRIGGER update_agendas_updated_at BEFORE UPDATE ON agendas
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_matters_arising_updated_at ON matters_arising;
 CREATE TRIGGER update_matters_arising_updated_at BEFORE UPDATE ON matters_arising
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_documents_updated_at ON documents;
 CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_notes_updated_at ON notes;
 CREATE TRIGGER update_notes_updated_at BEFORE UPDATE ON notes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ==========================================
 -- INSERT DEFAULT DATA
 -- ==========================================
+-- FIXED: Added ON CONFLICT DO NOTHING for idempotent schema execution
 
 -- Insert default quarters for 2025
 INSERT INTO quarters (name, year, quarter_number, start_date, end_date, is_current) VALUES
 ('Q1 2025', 2025, 1, '2025-01-01', '2025-03-31', FALSE),
 ('Q2 2025', 2025, 2, '2025-04-01', '2025-06-30', FALSE),
 ('Q3 2025', 2025, 3, '2025-07-01', '2025-09-30', FALSE),
-('Q4 2025', 2025, 4, '2025-10-01', '2025-12-31', TRUE);
+('Q4 2025', 2025, 4, '2025-10-01', '2025-12-31', TRUE)
+ON CONFLICT (name) DO NOTHING;
 
 -- Note: Super admin user will be created by the application on first run
 -- See: src/server.ts -> initializeDatabase()
