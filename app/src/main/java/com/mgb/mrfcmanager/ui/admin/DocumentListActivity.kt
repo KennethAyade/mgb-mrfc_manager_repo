@@ -10,8 +10,8 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
@@ -38,7 +38,7 @@ import java.util.Locale
  * DocumentListActivity - Shows documents filtered by category
  * Accessed from quarterly services buttons in ProponentDetailActivity
  */
-class DocumentListActivity : AppCompatActivity() {
+class DocumentListActivity : BaseActivity() {
 
     private lateinit var btnFilterAll: MaterialButton
     private lateinit var btnFilterQ1: MaterialButton
@@ -92,6 +92,7 @@ class DocumentListActivity : AppCompatActivity() {
         setupQuarterFilter()
         setupRecyclerView()
         setupFAB()
+        setupHomeFab() // Enable home button
         observeDocuments()
         loadQuarters()
     }
@@ -144,9 +145,9 @@ class DocumentListActivity : AppCompatActivity() {
         // Helper function to update filter button states
         fun updateFilterButtonStates(selectedButton: MaterialButton) {
             val selectedColor = getColor(R.color.primary)
-            val unselectedColor = getColor(R.color.background_light)
+            val unselectedColor = getColor(android.R.color.white)
             val selectedTextColor = getColor(android.R.color.white)
-            val unselectedTextColor = getColor(R.color.text_primary)
+            val unselectedTextColor = getColor(R.color.primary) // Changed to primary green for visibility
             
             filterButtons.forEach { button ->
                 if (button == selectedButton) {
@@ -156,8 +157,8 @@ class DocumentListActivity : AppCompatActivity() {
                 } else {
                     button.backgroundTintList = android.content.res.ColorStateList.valueOf(unselectedColor)
                     button.setTextColor(unselectedTextColor)
-                    button.strokeWidth = 2
-                    button.strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.border))
+                    button.strokeWidth = 3 // Make border more visible
+                    button.strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.primary))
                 }
             }
         }

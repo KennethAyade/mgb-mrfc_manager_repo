@@ -8,8 +8,8 @@ import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.coordinatorlayout.widget.CoordinatorLayout
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -35,7 +35,7 @@ import java.util.Locale
  * Activity to display and adjust CMVR compliance analysis results
  * Completely rewritten for better state management and UI clarity
  */
-class ComplianceAnalysisActivity : AppCompatActivity() {
+class ComplianceAnalysisActivity : BaseActivity() {
 
     companion object {
         const val EXTRA_DOCUMENT_ID = "document_id"
@@ -107,6 +107,7 @@ class ComplianceAnalysisActivity : AppCompatActivity() {
         setupRecyclerViews()
         setupRatingSpinner()
         setupClickListeners()
+        setupHomeFab() // Enable home button
         observeViewModel()
 
         // Set document name

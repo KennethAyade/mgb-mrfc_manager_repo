@@ -10,18 +10,20 @@
     <!-- AppBar -->
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fitsSystemWindows="true">
+        android:layout_height="wrap_content">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:minHeight="?attr/actionBarSize"
             android:background="@color/primary"
             app:title="Meetings"
             app:titleTextColor="@color/text_on_primary"
             app:navigationIcon="@drawable/ic_back"
-            app:navigationIconTint="@color/text_on_primary" />
+            app:navigationIconTint="@color/text_on_primary"
+            app:contentInsetStartWithNavigation="0dp"
+            android:elevation="4dp" />
 
     </com.google.android.material.appbar.AppBarLayout>
 

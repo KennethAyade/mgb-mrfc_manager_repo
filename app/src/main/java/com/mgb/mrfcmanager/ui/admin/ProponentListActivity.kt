@@ -8,8 +8,8 @@ import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -32,7 +32,7 @@ import java.util.Locale
  * Proponent List Activity - Displays proponents for a specific MRFC
  * Integrated with backend API
  */
-class ProponentListActivity : AppCompatActivity() {
+class ProponentListActivity : BaseActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ProponentAdapter
@@ -57,6 +57,7 @@ class ProponentListActivity : AppCompatActivity() {
         observeProponentList()
         setupFAB()
         setupSwipeRefresh()
+        setupHomeFab() // Enable home button
 
         // Load proponents for this MRFC
         if (mrfcId != -1L) {

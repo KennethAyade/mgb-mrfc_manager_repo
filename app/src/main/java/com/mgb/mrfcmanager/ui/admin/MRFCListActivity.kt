@@ -48,6 +48,7 @@ class MRFCListActivity : BaseActivity() {
         observeMrfcList()
         setupFAB()
         setupSwipeRefresh()
+        setupHomeFab() // Enable home button
 
         // Load data
         viewModel.loadAllMrfcs()

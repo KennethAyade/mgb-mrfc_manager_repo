@@ -9,8 +9,8 @@ import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import com.mgb.mrfcmanager.ui.base.BaseActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -37,7 +37,7 @@ import java.util.Locale
  * Shows all meetings for the selected quarter
  * Allows creating new meetings (Admin/SuperAdmin only)
  */
-class MeetingListActivity : AppCompatActivity() {
+class MeetingListActivity : BaseActivity() {
 
     private lateinit var toolbar: Toolbar
     private lateinit var rvMeetings: RecyclerView
@@ -65,6 +65,7 @@ class MeetingListActivity : AppCompatActivity() {
         initializeViews()
         setupViewModel()
         setupRecyclerView()
+        setupHomeFab() // Enable home button
         observeViewModel()
         loadMeetings()
     }
