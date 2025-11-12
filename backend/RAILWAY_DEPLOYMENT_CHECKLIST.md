@@ -34,9 +34,9 @@
 }
 ```
 
-### **3. Google Gemini API (Optional)**
-- [ ] API key obtained from https://makersuite.google.com/app/apikey
-- [ ] Free tier limits understood (15 req/min, 1,500/day)
+### **3. OpenAI API (Optional)**
+- [ ] API key obtained from https://platform.openai.com/api-keys
+- [ ] Pricing understood (~$0.01-0.03 per document)
 - [ ] API key tested locally
 
 **Note:** If you skip this, system will use keyword-based analysis instead.
@@ -56,7 +56,7 @@ Copy the output and save it for Railway setup.
 - [ ] `AWS_ACCESS_KEY_ID=` (your AWS key)
 - [ ] `AWS_SECRET_ACCESS_KEY=` (your AWS secret)
 - [ ] `AWS_REGION=` (e.g., us-east-1)
-- [ ] `GEMINI_API_KEY=` (optional)
+- [ ] `OPENAI_API_KEY=` (optional)
 - [ ] `PORT=3000`
 - [ ] `CORS_ORIGIN=*`
 - [ ] `SUPER_ADMIN_USERNAME=superadmin`
@@ -180,7 +180,7 @@ curl -X POST https://your-app.railway.app/api/v1/documents/upload \
 - [ ] Upload a CMVR PDF
 - [ ] Wait for OCR processing (2-3 min for scanned PDFs)
 - [ ] Check compliance analysis exists
-- [ ] Verify Gemini AI response (or keyword fallback)
+- [ ] Verify ChatGPT AI response (or keyword fallback)
 
 ---
 

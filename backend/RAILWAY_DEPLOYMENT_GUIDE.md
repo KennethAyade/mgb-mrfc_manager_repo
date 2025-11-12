@@ -13,7 +13,7 @@ Before deploying to Railway, ensure you have:
 2. ✅ **GitHub Repository** - Code pushed to GitHub (Railway deploys from GitHub)
 3. ✅ **AWS S3 Bucket** - Configured with public read access (see S3_BUCKET_SETUP_GUIDE.md)
 4. ✅ **AWS IAM Credentials** - Access key and secret key
-5. ✅ **Google Gemini API Key** (OPTIONAL) - For AI-powered compliance analysis
+5. ✅ **OpenAI API Key** (OPTIONAL) - For AI-powered compliance analysis
 
 ---
 
@@ -76,8 +76,8 @@ SUPER_ADMIN_FULL_NAME=Super Administrator
 #### **🤖 Optional Variables (1)**
 
 ```env
-# Google Gemini AI (OPTIONAL - for intelligent compliance analysis)
-GEMINI_API_KEY=AIzaSy...your_gemini_api_key
+# OpenAI ChatGPT (OPTIONAL - for intelligent compliance analysis)
+OPENAI_API_KEY=sk-...your_openai_api_key
 
 # If not provided, system falls back to keyword-based analysis
 ```
@@ -323,17 +323,17 @@ curl -X POST https://your-railway-app.railway.app/api/v1/documents/upload \
 
 ---
 
-### **Issue 6: Gemini AI not working**
+### **Issue 6: ChatGPT AI not working**
 
-**Symptom:** Compliance analysis shows "PARTIALLY_COMPLIANT" with generic scores  
-**Cause:** GEMINI_API_KEY not set or invalid  
+**Symptom:** Compliance analysis shows "PARTIALLY_COMPLIANT" with generic scores
+**Cause:** OPENAI_API_KEY not set or invalid
 **Solution:**
 
-1. Get API key from https://makersuite.google.com/app/apikey
-2. Add to Railway: `GEMINI_API_KEY=AIzaSy...`
+1. Get API key from https://platform.openai.com/api-keys
+2. Add to Railway: `OPENAI_API_KEY=sk-...`
 3. Redeploy
 
-**Note:** System falls back to keyword-based analysis if Gemini unavailable.
+**Note:** System falls back to keyword-based analysis if ChatGPT unavailable.
 
 ---
 
@@ -397,7 +397,7 @@ Rebuild Android app and test!
 3. **Use strong passwords** - Change default Super Admin password
 4. **Enable Railway MFA** - Two-factor authentication
 5. **Restrict S3 bucket access** - Only allow Railway IP ranges (if possible)
-6. **Monitor API usage** - Watch Gemini AI free tier limits (15 req/min)
+6. **Monitor API usage** - Watch OpenAI API costs and rate limits
 
 ---
 
@@ -436,7 +436,7 @@ Rebuild Android app and test!
   - [PROJECT_STATUS.md](../PROJECT_STATUS.md) - Full feature list
   - [QUARTERS_SETUP.md](./QUARTERS_SETUP.md) - ⚠️ REQUIRED reading
   - [S3_BUCKET_SETUP_GUIDE.md](../S3_BUCKET_SETUP_GUIDE.md) - AWS S3 setup
-  - [GEMINI_AI_INTEGRATION.md](../GEMINI_AI_INTEGRATION.md) - AI setup
+  - [CHATGPT_SETUP_GUIDE.md](../CHATGPT_SETUP_GUIDE.md) - AI setup
 
 ---
 

@@ -15,7 +15,7 @@ import { ComplianceAnalysis, AnalysisStatus, ComplianceRating, Document } from '
 import AnalysisProgress from '../models/AnalysisProgress';
 import sequelize from '../config/database';
 import { downloadFromS3 } from '../config/s3';
-import { analyzeComplianceWithGemini, analyzeComplianceWithGeminiPDF, isGeminiConfigured } from '../config/gemini';
+import { analyzeComplianceWithClaude, analyzeComplianceWithClaudePDF, isClaudeConfigured } from '../config/claude';
 
 // Using Tesseract.js for OCR text extraction from scanned PDFs
 const Tesseract = require('tesseract.js');
@@ -543,12 +543,12 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
       AnalysisProgress.update(documentId, 80, 'Analyzing compliance with AI...');
       
       let analysis;
-      if (isGeminiConfigured()) {
+      if (isClaudeConfigured()) {
         try {
-          console.log('🤖 Using Gemini AI for intelligent analysis...');
-          analysis = await analyzeComplianceWithGemini(cachedText, document.original_name);
-        } catch (geminiError: any) {
-          console.warn(`⚠️  Gemini AI failed: ${geminiError.message}`);
+          console.log('🤖 Using Claude AI for intelligent analysis...');
+          analysis = await analyzeComplianceWithClaude(cachedText, document.original_name);
+        } catch (claudeError: any) {
+          console.warn(`⚠️  Claude AI failed: ${claudeError.message}`);
           console.log('📊 Falling back to keyword-based analysis...');
           analysis = analyzeComplianceText(cachedText, 0);
         }
@@ -607,18 +607,18 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
       AnalysisProgress.update(documentId, 80, 'Analyzing compliance with AI...');
       
       let analysis;
-      if (isGeminiConfigured()) {
+      if (isClaudeConfigured()) {
         try {
-          console.log('🤖 Using Gemini AI for intelligent analysis...');
-          analysis = await analyzeComplianceWithGemini(quickText, document.original_name);
-          console.log('✅ Gemini AI analysis successful');
-        } catch (geminiError: any) {
-          console.warn(`⚠️  Gemini AI failed: ${geminiError.message}`);
+          console.log('🤖 Using Claude AI for intelligent analysis...');
+          analysis = await analyzeComplianceWithClaude(quickText, document.original_name);
+          console.log('✅ Claude AI analysis successful');
+        } catch (claudeError: any) {
+          console.warn(`⚠️  Claude AI failed: ${claudeError.message}`);
           console.log('📊 Falling back to keyword-based analysis...');
           analysis = analyzeComplianceText(quickText, numPages);
         }
       } else {
-        console.log('📊 Using keyword-based analysis (Gemini not configured)...');
+        console.log('📊 Using keyword-based analysis (Claude not configured)...');
         analysis = analyzeComplianceText(quickText, numPages);
       }
       
@@ -633,39 +633,39 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
       return analysis;
     }
     
-    // Step 3: For scanned PDFs, use Gemini AI directly (skip OCR)
+    // Step 3: For scanned PDFs, use Claude AI directly (skip OCR)
     console.log(`⚠️  PDF appears to be scanned (no text)`);
     console.log('');
     
-    if (isGeminiConfigured()) {
-      console.log('🔍 STEP 3: Using Gemini AI to analyze scanned PDF directly...');
+    if (isClaudeConfigured()) {
+      console.log('🔍 STEP 3: Using Claude AI to analyze scanned PDF directly...');
       console.log('   This may take 30-60 seconds...');
       console.log('');
-      
-      AnalysisProgress.update(documentId, 50, 'Analyzing scanned PDF with Gemini AI...');
-      
+
+      AnalysisProgress.update(documentId, 50, 'Analyzing scanned PDF with Claude AI...');
+
       try {
-        const analysis = await analyzeComplianceWithGeminiPDF(pdfBuffer, document.original_name);
-        
+        const analysis = await analyzeComplianceWithClaudePDF(pdfBuffer, document.original_name);
+
         AnalysisProgress.complete(documentId);
-        
+
         const totalTime = Date.now() - startTime;
         console.log('========================================');
-        console.log(`✅ ANALYSIS COMPLETED (Gemini AI - Scanned PDF)`);
+        console.log(`✅ ANALYSIS COMPLETED (Claude AI - Scanned PDF)`);
         console.log(`⏱️  Total processing time: ${totalTime}ms`);
         console.log('========================================\n');
-        
+
         return analysis;
-        
-      } catch (geminiError: any) {
-        console.warn(`⚠️  Gemini AI failed: ${geminiError.message}`);
+
+      } catch (claudeError: any) {
+        console.warn(`⚠️  Claude AI failed: ${claudeError.message}`);
         console.log('📊 Falling back to OCR + text analysis...');
       }
     } else {
-      console.log('⚠️  Gemini AI not configured, falling back to OCR...');
+      console.log('⚠️  Claude AI not configured, falling back to OCR...');
     }
     
-    // Fallback: Perform OCR for scanned PDFs (only if Gemini fails or not configured)
+    // Fallback: Perform OCR for scanned PDFs (only if ChatGPT fails or not configured)
     console.log('');
     console.log('🔍 STEP 3 (FALLBACK): Performing OCR on PDF pages...');
     console.log(`   Languages: English + Filipino`);
@@ -826,19 +826,19 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
     
     let analysis;
     
-    // Try Gemini AI first, fallback to keyword analysis
-    if (isGeminiConfigured()) {
+    // Try Claude AI first, fallback to keyword analysis
+    if (isClaudeConfigured()) {
       try {
-        console.log('🤖 Using Gemini AI for intelligent analysis...');
-        analysis = await analyzeComplianceWithGemini(ocrText, document.original_name);
-        console.log('✅ Gemini AI analysis successful');
-      } catch (geminiError: any) {
-        console.warn(`⚠️  Gemini AI failed: ${geminiError.message}`);
+        console.log('🤖 Using Claude AI for intelligent analysis...');
+        analysis = await analyzeComplianceWithClaude(ocrText, document.original_name);
+        console.log('✅ Claude AI analysis successful');
+      } catch (claudeError: any) {
+        console.warn(`⚠️  Claude AI failed: ${claudeError.message}`);
         console.log('📊 Falling back to keyword-based analysis...');
         analysis = analyzeComplianceText(ocrText, numPages);
       }
     } else {
-      console.log('📊 Using keyword-based analysis (Gemini not configured)...');
+      console.log('📊 Using keyword-based analysis (Claude not configured)...');
       analysis = analyzeComplianceText(ocrText, numPages);
     }
     
