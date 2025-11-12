@@ -13,20 +13,34 @@ ALTER TABLE mrfcs ADD COLUMN IF NOT EXISTS assigned_admin_id BIGINT REFERENCES u
 ALTER TABLE mrfcs ADD COLUMN IF NOT EXISTS mrfc_code VARCHAR(50) NULL;
 
 -- Add constraint for compliance_percentage (must be between 0 and 100)
-ALTER TABLE mrfcs ADD CONSTRAINT check_compliance_range
-  CHECK (compliance_percentage IS NULL OR (compliance_percentage >= 0 AND compliance_percentage <= 100));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_compliance_range'
+  ) THEN
+    ALTER TABLE mrfcs ADD CONSTRAINT check_compliance_range
+      CHECK (compliance_percentage IS NULL OR (compliance_percentage >= 0 AND compliance_percentage <= 100));
+  END IF;
+END $$;
 
 -- Add constraint for compliance_status enum
-ALTER TABLE mrfcs ADD CONSTRAINT check_compliance_status
-  CHECK (compliance_status IN ('COMPLIANT', 'NON_COMPLIANT', 'PARTIAL', 'NOT_ASSESSED'));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_compliance_status'
+  ) THEN
+    ALTER TABLE mrfcs ADD CONSTRAINT check_compliance_status
+      CHECK (compliance_status IN ('COMPLIANT', 'NON_COMPLIANT', 'PARTIAL', 'NOT_ASSESSED'));
+  END IF;
+END $$;
 
 -- Add unique constraint for mrfc_code (if not null)
-CREATE UNIQUE INDEX idx_mrfcs_code_unique ON mrfcs(mrfc_code) WHERE mrfc_code IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mrfcs_code_unique ON mrfcs(mrfc_code) WHERE mrfc_code IS NOT NULL;
 
 -- Add indexes for faster queries
-CREATE INDEX idx_mrfcs_compliance_status ON mrfcs(compliance_status);
-CREATE INDEX idx_mrfcs_assigned_admin ON mrfcs(assigned_admin_id);
-CREATE INDEX idx_mrfcs_active_status ON mrfcs(is_active);
+CREATE INDEX IF NOT EXISTS idx_mrfcs_compliance_status ON mrfcs(compliance_status);
+CREATE INDEX IF NOT EXISTS idx_mrfcs_assigned_admin ON mrfcs(assigned_admin_id);
+CREATE INDEX IF NOT EXISTS idx_mrfcs_active_status ON mrfcs(is_active);
 
 -- Add comments for documentation
 COMMENT ON COLUMN mrfcs.compliance_percentage IS 'Manual compliance percentage (0-100) entered by admin';
