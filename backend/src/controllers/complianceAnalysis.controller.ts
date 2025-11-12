@@ -15,7 +15,7 @@ import { ComplianceAnalysis, AnalysisStatus, ComplianceRating, Document } from '
 import AnalysisProgress from '../models/AnalysisProgress';
 import sequelize from '../config/database';
 import { downloadFromS3 } from '../config/s3';
-import { analyzeComplianceWithGemini, isGeminiConfigured } from '../config/gemini';
+import { analyzeComplianceWithGemini, analyzeComplianceWithGeminiPDF, isGeminiConfigured } from '../config/gemini';
 
 // Using Tesseract.js for OCR text extraction from scanned PDFs
 const Tesseract = require('tesseract.js');
@@ -633,10 +633,41 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
       return analysis;
     }
     
-    // Step 3: Perform OCR for scanned PDFs
-    console.log(`⚠️  PDF appears to be scanned (no text), starting OCR...`);
+    // Step 3: For scanned PDFs, use Gemini AI directly (skip OCR)
+    console.log(`⚠️  PDF appears to be scanned (no text)`);
     console.log('');
-    console.log('🔍 STEP 3: Performing OCR on PDF pages...');
+    
+    if (isGeminiConfigured()) {
+      console.log('🔍 STEP 3: Using Gemini AI to analyze scanned PDF directly...');
+      console.log('   This may take 30-60 seconds...');
+      console.log('');
+      
+      AnalysisProgress.update(documentId, 50, 'Analyzing scanned PDF with Gemini AI...');
+      
+      try {
+        const analysis = await analyzeComplianceWithGeminiPDF(pdfBuffer, document.original_name);
+        
+        AnalysisProgress.complete(documentId);
+        
+        const totalTime = Date.now() - startTime;
+        console.log('========================================');
+        console.log(`✅ ANALYSIS COMPLETED (Gemini AI - Scanned PDF)`);
+        console.log(`⏱️  Total processing time: ${totalTime}ms`);
+        console.log('========================================\n');
+        
+        return analysis;
+        
+      } catch (geminiError: any) {
+        console.warn(`⚠️  Gemini AI failed: ${geminiError.message}`);
+        console.log('📊 Falling back to OCR + text analysis...');
+      }
+    } else {
+      console.log('⚠️  Gemini AI not configured, falling back to OCR...');
+    }
+    
+    // Fallback: Perform OCR for scanned PDFs (only if Gemini fails or not configured)
+    console.log('');
+    console.log('🔍 STEP 3 (FALLBACK): Performing OCR on PDF pages...');
     console.log(`   Languages: English + Filipino`);
     console.log(`   This may take 30-60 seconds...`);
     console.log('');
