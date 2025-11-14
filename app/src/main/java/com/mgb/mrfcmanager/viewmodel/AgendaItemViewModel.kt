@@ -73,6 +73,9 @@ class AgendaItemViewModel(private val repository: AgendaItemRepository) : ViewMo
         title: String,
         description: String? = null,
         orderIndex: Int = 0,
+        mrfcId: Long? = null,
+        proponentId: Long? = null,
+        fileCategory: String? = null,
         onComplete: (Result<AgendaItemDto>) -> Unit
     ) {
         viewModelScope.launch {
@@ -80,7 +83,10 @@ class AgendaItemViewModel(private val repository: AgendaItemRepository) : ViewMo
                 agendaId = agendaId,
                 title = title,
                 description = description,
-                orderIndex = orderIndex
+                orderIndex = orderIndex,
+                mrfcId = mrfcId,
+                proponentId = proponentId,
+                fileCategory = fileCategory
             )
             val result = repository.createItem(request)
             onComplete(result)

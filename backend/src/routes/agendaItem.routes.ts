@@ -184,7 +184,7 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
     const { AgendaItem, Agenda, User, AuditLog } = require('../models');
 
     // Validate required fields
-    const { agenda_id, title, description, order_index } = req.body;
+    const { agenda_id, title, description, order_index, mrfc_id, proponent_id, file_category } = req.body;
 
     if (!agenda_id || !title) {
       return res.status(400).json({
@@ -242,7 +242,10 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
       added_by: req.user?.userId,
       added_by_name: fullName,
       added_by_username: username,
-      order_index: order_index || 0
+      order_index: order_index || 0,
+      mrfc_id: mrfc_id || null,
+      proponent_id: proponent_id || null,
+      file_category: file_category || null
     });
 
     // Create audit log

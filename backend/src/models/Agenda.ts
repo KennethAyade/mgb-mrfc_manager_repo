@@ -23,8 +23,10 @@ export interface AgendaAttributes {
   id: number;
   mrfc_id: number | null; // null for general meetings not tied to specific MRFC
   quarter_id: number;
+  meeting_title: string | null;
   meeting_date: Date;
   meeting_time: string | null;
+  meeting_end_time: string | null;
   location: string | null;
   status: AgendaStatus;
   proposed_by: number | null; // User who proposed (for PROPOSED status)
@@ -39,15 +41,17 @@ export interface AgendaAttributes {
 }
 
 // Define attributes for creation (id, timestamps, and mrfc_id are optional)
-export interface AgendaCreationAttributes extends Optional<AgendaAttributes, 'id' | 'mrfc_id' | 'meeting_time' | 'location' | 'status' | 'created_at' | 'updated_at'> {}
+export interface AgendaCreationAttributes extends Optional<AgendaAttributes, 'id' | 'mrfc_id' | 'meeting_title' | 'meeting_time' | 'meeting_end_time' | 'location' | 'status' | 'created_at' | 'updated_at'> {}
 
 // Define the Agenda model class
 export class Agenda extends Model<AgendaAttributes, AgendaCreationAttributes> implements AgendaAttributes {
   public id!: number;
   public mrfc_id!: number | null; // null for general meetings
   public quarter_id!: number;
+  public meeting_title!: string | null;
   public meeting_date!: Date;
   public meeting_time!: string | null;
+  public meeting_end_time!: string | null;
   public location!: string | null;
   public status!: AgendaStatus;
   public proposed_by!: number | null;
@@ -90,12 +94,20 @@ Agenda.init(
         key: 'id',
       },
     },
+    meeting_title: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
     meeting_date: {
       type: DataTypes.DATEONLY,
       allowNull: false,
     },
     meeting_time: {
-      type: DataTypes.TIME,
+      type: DataTypes.STRING(10),
+      allowNull: true,
+    },
+    meeting_end_time: {
+      type: DataTypes.STRING(10),
       allowNull: true,
     },
     location: {

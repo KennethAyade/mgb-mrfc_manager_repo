@@ -124,7 +124,11 @@ export const markAsRead = async (req: Request, res: Response): Promise<void> => 
     res.json({
       success: true,
       message: 'Notification marked as read',
-      data: notification
+      data: {
+        ...notification.toJSON(),
+        id: Number(notification.id),
+        user_id: Number(notification.user_id)
+      }
     });
   } catch (error: any) {
     console.error('Mark notification as read error:', error);

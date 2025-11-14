@@ -97,7 +97,13 @@ export const createNote = async (req: Request, res: Response): Promise<void> => 
     res.status(201).json({
       success: true,
       message: 'Note created successfully',
-      data: note
+      data: {
+        ...note.toJSON(),
+        id: Number(note.id),
+        user_id: Number(note.user_id),
+        mrfc_id: note.mrfc_id ? Number(note.mrfc_id) : null,
+        quarter_id: note.quarter_id ? Number(note.quarter_id) : null
+      }
     });
   } catch (error: any) {
     console.error('Note creation error:', error);
@@ -147,7 +153,13 @@ export const updateNote = async (req: Request, res: Response): Promise<void> => 
     res.json({
       success: true,
       message: 'Note updated successfully',
-      data: note
+      data: {
+        ...note.toJSON(),
+        id: Number(note.id),
+        user_id: Number(note.user_id),
+        mrfc_id: note.mrfc_id ? Number(note.mrfc_id) : null,
+        quarter_id: note.quarter_id ? Number(note.quarter_id) : null
+      }
     });
   } catch (error: any) {
     console.error('Note update error:', error);

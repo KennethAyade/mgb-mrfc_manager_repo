@@ -214,6 +214,10 @@ class ProponentDetailActivity : BaseActivity() {
         findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewResearch).setOnClickListener {
             openDocumentList("RESEARCH_ACCOMPLISHMENTS")
         }
+
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewOther).setOnClickListener {
+            openDocumentList("OTHER")
+        }
     }
 
     private fun showLoading(isLoading: Boolean) {

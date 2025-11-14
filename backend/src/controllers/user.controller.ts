@@ -500,7 +500,7 @@ export const toggleUserStatus = async (req: Request, res: Response): Promise<voi
       success: true,
       message: `User ${user.is_active ? 'activated' : 'deactivated'} successfully`,
       data: {
-        id: user.id,
+        id: Number(user.id),
         username: user.username,
         is_active: user.is_active
       }

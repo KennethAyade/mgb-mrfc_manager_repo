@@ -32,6 +32,9 @@ export interface AgendaItemAttributes {
   denied_by: number | null;
   denied_at: Date | null;
   denial_remarks: string | null;
+  mrfc_id: number | null;
+  proponent_id: number | null;
+  file_category: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -55,6 +58,9 @@ export class AgendaItem extends Model<AgendaItemAttributes, AgendaItemCreationAt
   public denied_by!: number | null;
   public denied_at!: Date | null;
   public denial_remarks!: string | null;
+  public mrfc_id!: number | null;
+  public proponent_id!: number | null;
+  public file_category!: string | null;
   public created_at!: Date;
   public updated_at!: Date;
 
@@ -138,6 +144,28 @@ AgendaItem.init(
     },
     denial_remarks: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    mrfc_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'mrfcs',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
+    },
+    proponent_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'proponents',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
+    },
+    file_category: {
+      type: DataTypes.STRING(50),
       allowNull: true,
     },
     created_at: {

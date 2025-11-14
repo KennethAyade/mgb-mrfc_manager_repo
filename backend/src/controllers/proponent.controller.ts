@@ -79,8 +79,8 @@ export const listProponents = async (req: Request, res: Response): Promise<void>
       success: true,
       data: {
         proponents: proponents.map(p => ({
-          id: p.id,
-          mrfc_id: p.mrfc_id,
+          id: Number(p.id),
+          mrfc_id: Number(p.mrfc_id),
           name: p.name,
           company_name: p.company_name,
           permit_number: p.permit_number,
@@ -159,8 +159,8 @@ export const getProponentById = async (req: Request, res: Response): Promise<voi
     res.status(200).json({
       success: true,
       data: {
-        id: proponent.id,
-        mrfc_id: proponent.mrfc_id,
+        id: Number(proponent.id),
+        mrfc_id: Number(proponent.mrfc_id),
         name: proponent.name,
         company_name: proponent.company_name,
         permit_number: proponent.permit_number,
@@ -286,8 +286,8 @@ export const createProponent = async (req: Request, res: Response): Promise<void
       success: true,
       message: 'Proponent created successfully',
       data: {
-        id: proponent.id,
-        mrfc_id: proponent.mrfc_id,
+        id: Number(proponent.id),
+        mrfc_id: Number(proponent.mrfc_id),
         name: proponent.name,
         company_name: proponent.company_name,
         permit_number: proponent.permit_number,
@@ -423,8 +423,8 @@ export const updateProponent = async (req: Request, res: Response): Promise<void
       success: true,
       message: 'Proponent updated successfully',
       data: {
-        id: proponent.id,
-        mrfc_id: proponent.mrfc_id,
+        id: Number(proponent.id),
+        mrfc_id: Number(proponent.mrfc_id),
         name: proponent.name,
         company_name: proponent.company_name,
         permit_number: proponent.permit_number,

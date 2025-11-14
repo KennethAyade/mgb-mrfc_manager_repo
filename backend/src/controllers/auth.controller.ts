@@ -64,7 +64,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       success: true,
       message: 'Registration successful. Please wait for admin approval.',
       data: {
-        id: user.id,
+        id: Number(user.id),
         username: user.username,
         full_name: user.full_name,
         email: user.email,
@@ -163,7 +163,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       success: true,
       data: {
         user: {
-          id: user.id,
+          id: Number(user.id),
           username: user.username,
           full_name: user.full_name,
           email: user.email,

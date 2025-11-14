@@ -17,11 +17,17 @@ data class AgendaDto(
     @Json(name = "quarter_id")
     val quarterId: Long,
 
+    @Json(name = "meeting_title")
+    val meetingTitle: String? = null,
+
     @Json(name = "meeting_date")
     val meetingDate: String?, // ISO date format: YYYY-MM-DD
 
     @Json(name = "meeting_time")
-    val meetingTime: String? = null, // HH:MM:SS format
+    val meetingTime: String? = null, // Start time e.g., "09:00 AM"
+
+    @Json(name = "meeting_end_time")
+    val meetingEndTime: String? = null, // End time e.g., "05:00 PM"
 
     @Json(name = "location")
     val location: String? = null,
@@ -128,6 +134,15 @@ data class AgendaItemDto(
     @Json(name = "denial_remarks")
     val denialRemarks: String? = null,
 
+    @Json(name = "mrfc_id")
+    val mrfcId: Long? = null,
+
+    @Json(name = "proponent_id")
+    val proponentId: Long? = null,
+
+    @Json(name = "file_category")
+    val fileCategory: String? = null,
+
     @Json(name = "created_at")
     val createdAt: String,
 
@@ -199,7 +214,16 @@ data class CreateAgendaItemRequest(
     val description: String? = null,
 
     @Json(name = "order_index")
-    val orderIndex: Int = 0
+    val orderIndex: Int = 0,
+
+    @Json(name = "mrfc_id")
+    val mrfcId: Long? = null,
+
+    @Json(name = "proponent_id")
+    val proponentId: Long? = null,
+
+    @Json(name = "file_category")
+    val fileCategory: String? = null
 )
 
 /**

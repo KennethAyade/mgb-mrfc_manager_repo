@@ -8,12 +8,14 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
+import kotlinx.coroutines.launch
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.AgendaItemApiService
 import com.mgb.mrfcmanager.data.remote.dto.AgendaItemDto
@@ -41,6 +43,20 @@ class AgendaFragment : Fragment() {
     private val agendaItems = mutableListOf<AgendaItemDto>()
     private var agendaId: Long = 0L
     private var mrfcId: Long = 0L
+
+    // Data for dropdowns
+    private val mrfcList = mutableListOf<Pair<Long, String>>() // ID to Name
+    private val proponentList = mutableListOf<Pair<Long, String>>() // ID to Name
+    private val fileCategoryList = listOf(
+        "CMVR" to "CMVR",
+        "RESEARCH_ACCOMPLISHMENTS" to "Research Accomplishments",
+        "SDMP" to "SDMP",
+        "PRODUCTION_REPORT" to "Production Report",
+        "SAFETY_REPORT" to "Safety Report",
+        "MTF_REPORT" to "MTF Disbursement",
+        "AEPEP" to "AEPEP Report",
+        "OTHER" to "Other"
+    )
 
     companion object {
         private const val ARG_AGENDA_ID = "agenda_id"
@@ -162,8 +178,39 @@ class AgendaFragment : Fragment() {
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_add_agenda_item, null)
 
+        val spinnerMrfc = dialogView.findViewById<AutoCompleteTextView>(R.id.spinnerMrfc)
+        val spinnerProponent = dialogView.findViewById<AutoCompleteTextView>(R.id.spinnerProponent)
+        val spinnerFileCategory = dialogView.findViewById<AutoCompleteTextView>(R.id.spinnerFileCategory)
         val etTitle = dialogView.findViewById<EditText>(R.id.etTitle)
         val etDescription = dialogView.findViewById<EditText>(R.id.etDescription)
+
+        // Populate File Category dropdown
+        val categoryAdapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_dropdown_item_1line,
+            fileCategoryList.map { it.second }
+        )
+        spinnerFileCategory.setAdapter(categoryAdapter)
+
+        // Load MRFCs and Proponents for dropdowns
+        loadMRFCsAndProponents(spinnerMrfc, spinnerProponent)
+
+        // Track selected values
+        var selectedMrfcId: Long? = null
+        var selectedProponentId: Long? = null
+        var selectedFileCategory: String? = null
+
+        spinnerMrfc.setOnItemClickListener { _, _, position, _ ->
+            selectedMrfcId = mrfcList[position].first
+        }
+
+        spinnerProponent.setOnItemClickListener { _, _, position, _ ->
+            selectedProponentId = proponentList[position].first
+        }
+
+        spinnerFileCategory.setOnItemClickListener { _, _, position, _ ->
+            selectedFileCategory = fileCategoryList[position].first
+        }
 
         AlertDialog.Builder(requireContext())
             .setTitle("Add Agenda Item")
@@ -173,7 +220,13 @@ class AgendaFragment : Fragment() {
                 val description = etDescription.text.toString().trim()
 
                 if (title.isNotEmpty()) {
-                    addAgendaItem(title, description)
+                    addAgendaItem(
+                        title = title,
+                        description = description,
+                        mrfcId = selectedMrfcId,
+                        proponentId = selectedProponentId,
+                        fileCategory = selectedFileCategory
+                    )
                 } else {
                     Toast.makeText(requireContext(), "Title is required", Toast.LENGTH_SHORT).show()
                 }
@@ -182,7 +235,66 @@ class AgendaFragment : Fragment() {
             .show()
     }
 
-    private fun addAgendaItem(title: String, description: String) {
+    private fun loadMRFCsAndProponents(spinnerMrfc: AutoCompleteTextView, spinnerProponent: AutoCompleteTextView) {
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+
+        // Load MRFCs from API
+        lifecycleScope.launch {
+            try {
+                val mrfcApiService = retrofit.create(com.mgb.mrfcmanager.data.remote.api.MrfcApiService::class.java)
+                val response = mrfcApiService.getAllMrfcs(page = 1, limit = 100)
+                val apiResponse = response.body()
+                if (response.isSuccessful && apiResponse?.success == true) {
+                    mrfcList.clear()
+                    apiResponse.data?.mrfcs?.forEach { mrfc ->
+                        mrfcList.add(mrfc.id to mrfc.name)
+                    }
+
+                    val mrfcAdapter = ArrayAdapter(
+                        requireContext(),
+                        android.R.layout.simple_dropdown_item_1line,
+                        mrfcList.map { it.second }
+                    )
+                    spinnerMrfc.setAdapter(mrfcAdapter)
+                }
+            } catch (e: Exception) {
+                // Silently fail - dropdowns will remain empty
+            }
+        }
+
+        // Load Proponents from API
+        lifecycleScope.launch {
+            try {
+                val proponentApiService = retrofit.create(com.mgb.mrfcmanager.data.remote.api.ProponentApiService::class.java)
+                val response = proponentApiService.getAllProponents(page = 1, limit = 100, mrfcId = mrfcId)
+                val apiResponse = response.body()
+                if (response.isSuccessful && apiResponse?.success == true) {
+                    proponentList.clear()
+                    apiResponse.data?.proponents?.forEach { proponent ->
+                        proponentList.add(proponent.id to proponent.name)
+                    }
+
+                    val proponentAdapter = ArrayAdapter(
+                        requireContext(),
+                        android.R.layout.simple_dropdown_item_1line,
+                        proponentList.map { it.second }
+                    )
+                    spinnerProponent.setAdapter(proponentAdapter)
+                }
+            } catch (e: Exception) {
+                // Silently fail - dropdowns will remain empty
+            }
+        }
+    }
+
+    private fun addAgendaItem(
+        title: String,
+        description: String,
+        mrfcId: Long? = null,
+        proponentId: Long? = null,
+        fileCategory: String? = null
+    ) {
         val orderIndex = agendaItems.size
 
         // Check user role for appropriate success message
@@ -194,7 +306,10 @@ class AgendaFragment : Fragment() {
             agendaId = agendaId,
             title = title,
             description = description,
-            orderIndex = orderIndex
+            orderIndex = orderIndex,
+            mrfcId = mrfcId,
+            proponentId = proponentId,
+            fileCategory = fileCategory
         ) { result ->
             when (result) {
                 is Result.Success -> {
