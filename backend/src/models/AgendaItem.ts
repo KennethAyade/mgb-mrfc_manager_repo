@@ -9,6 +9,13 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
+// Enum for agenda item status
+export enum AgendaItemStatus {
+  PROPOSED = 'PROPOSED',  // User-proposed, awaiting approval
+  APPROVED = 'APPROVED',  // Approved by admin
+  DENIED = 'DENIED'       // Denied by admin
+}
+
 // Define model attributes interface
 export interface AgendaItemAttributes {
   id: number;
@@ -19,6 +26,12 @@ export interface AgendaItemAttributes {
   added_by_name: string;
   added_by_username: string;
   order_index: number;
+  status: AgendaItemStatus;
+  approved_by: number | null;
+  approved_at: Date | null;
+  denied_by: number | null;
+  denied_at: Date | null;
+  denial_remarks: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -36,6 +49,12 @@ export class AgendaItem extends Model<AgendaItemAttributes, AgendaItemCreationAt
   public added_by_name!: string;
   public added_by_username!: string;
   public order_index!: number;
+  public status!: AgendaItemStatus;
+  public approved_by!: number | null;
+  public approved_at!: Date | null;
+  public denied_by!: number | null;
+  public denied_at!: Date | null;
+  public denial_remarks!: string | null;
   public created_at!: Date;
   public updated_at!: Date;
 
@@ -88,6 +107,38 @@ AgendaItem.init(
     order_index: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
+    },
+    status: {
+      type: DataTypes.ENUM('PROPOSED', 'APPROVED', 'DENIED'),
+      defaultValue: 'APPROVED',
+    },
+    approved_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    approved_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    denied_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    denied_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    denial_remarks: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,

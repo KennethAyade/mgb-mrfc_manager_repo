@@ -61,4 +61,30 @@ interface AgendaApiService {
     suspend fun deleteAgenda(
         @Path("id") id: Long
     ): Response<ApiResponse<Unit>>
+
+    /**
+     * Get pending agenda proposals (ADMIN only)
+     * GET /agendas/pending-proposals
+     */
+    @GET("agendas/pending-proposals")
+    suspend fun getPendingProposals(): Response<ApiResponse<List<AgendaDto>>>
+
+    /**
+     * Approve an agenda proposal (ADMIN only)
+     * POST /agendas/:id/approve
+     */
+    @POST("agendas/{id}/approve")
+    suspend fun approveProposal(
+        @Path("id") id: Long
+    ): Response<ApiResponse<AgendaDto>>
+
+    /**
+     * Deny an agenda proposal with remarks (ADMIN only)
+     * POST /agendas/:id/deny
+     */
+    @POST("agendas/{id}/deny")
+    suspend fun denyProposal(
+        @Path("id") id: Long,
+        @Body request: DenyProposalRequest
+    ): Response<ApiResponse<AgendaDto>>
 }

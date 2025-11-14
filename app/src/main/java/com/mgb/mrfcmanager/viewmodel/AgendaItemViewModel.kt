@@ -170,6 +170,27 @@ class AgendaItemViewModel(private val repository: AgendaItemRepository) : ViewMo
     fun clearSelectedItem() {
         _itemDetailState.value = ItemDetailState.Idle
     }
+
+    /**
+     * Get current user's proposed agenda items (all statuses)
+     */
+    suspend fun getMyProposals(): Result<List<AgendaItemDto>> {
+        return repository.getMyProposals()
+    }
+
+    /**
+     * Approve a proposed agenda item (ADMIN only)
+     */
+    suspend fun approveItem(itemId: Long): Result<AgendaItemDto> {
+        return repository.approveItem(itemId)
+    }
+
+    /**
+     * Deny a proposed agenda item with remarks (ADMIN only)
+     */
+    suspend fun denyItem(itemId: Long, remarks: String): Result<AgendaItemDto> {
+        return repository.denyItem(itemId, remarks)
+    }
 }
 
 /**

@@ -67,6 +67,32 @@ interface AgendaItemApiService {
     suspend fun deleteItem(
         @Path("id") id: Long
     ): Response<ApiResponse<Unit>>
+
+    /**
+     * Get current user's proposed items (all statuses)
+     * GET /agenda-items/my-proposals
+     */
+    @GET("agenda-items/my-proposals")
+    suspend fun getMyProposals(): Response<ApiResponse<List<AgendaItemDto>>>
+
+    /**
+     * Approve a proposed item (ADMIN only)
+     * POST /agenda-items/:id/approve
+     */
+    @POST("agenda-items/{id}/approve")
+    suspend fun approveItem(
+        @Path("id") id: Long
+    ): Response<ApiResponse<AgendaItemDto>>
+
+    /**
+     * Deny a proposed item with remarks (ADMIN only)
+     * POST /agenda-items/:id/deny
+     */
+    @POST("agenda-items/{id}/deny")
+    suspend fun denyItem(
+        @Path("id") id: Long,
+        @Body request: com.mgb.mrfcmanager.data.remote.dto.DenyProposalRequest
+    ): Response<ApiResponse<AgendaItemDto>>
 }
 
 /**

@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.snackbar.Snackbar
 import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
@@ -85,6 +86,13 @@ class AgendaFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Reload data when fragment becomes visible
+        // This ensures data is fresh when switching tabs
+        loadAgendaItems()
+    }
+
     private fun initializeViews(view: View) {
         rvAgendaItems = view.findViewById(R.id.rvAgendaItems)
         tvEmptyState = view.findViewById(R.id.tvEmptyState)
@@ -134,12 +142,16 @@ class AgendaFragment : Fragment() {
 
     private fun updateAgendaItems(items: List<AgendaItemDto>) {
         agendaItems.clear()
-        agendaItems.addAll(items)
+        // DOUBLE-CHECK: Only show APPROVED items in Agenda tab
+        // (Backend should filter, but this is a safety check)
+        val approvedItems = items.filter { it.status == "APPROVED" }
+        agendaItems.addAll(approvedItems)
         agendaItemAdapter.notifyDataSetChanged()
 
         if (agendaItems.isEmpty()) {
             rvAgendaItems.visibility = View.GONE
             tvEmptyState.visibility = View.VISIBLE
+            tvEmptyState.text = "No agenda items yet.\n\nAdd items using the + button.\n(Regular users: Your proposals will appear after admin approval)"
         } else {
             rvAgendaItems.visibility = View.VISIBLE
             tvEmptyState.visibility = View.GONE
@@ -173,6 +185,11 @@ class AgendaFragment : Fragment() {
     private fun addAgendaItem(title: String, description: String) {
         val orderIndex = agendaItems.size
 
+        // Check user role for appropriate success message
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        val isAdmin = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
+
         viewModel.createItem(
             agendaId = agendaId,
             title = title,
@@ -181,7 +198,19 @@ class AgendaFragment : Fragment() {
         ) { result ->
             when (result) {
                 is Result.Success -> {
-                    Toast.makeText(requireContext(), "Agenda item added", Toast.LENGTH_SHORT).show()
+                    val message = if (isAdmin) {
+                        "✅ Agenda item added successfully!"
+                    } else {
+                        "✅ Proposal Submitted Successfully!\n\nYour proposal is pending admin review. Check the Proposals tab to track its status."
+                    }
+
+                    // Use Snackbar for better visibility and multi-line support
+                    view?.let {
+                        Snackbar.make(it, message, Snackbar.LENGTH_LONG)
+                            .setAction("OK") { /* Dismiss */ }
+                            .setTextMaxLines(5)
+                            .show()
+                    }
                 }
                 is Result.Error -> {
                     showError("Failed to add item: ${result.message}")

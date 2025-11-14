@@ -99,6 +99,11 @@ class UserDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationIt
             intent.putExtra("MRFC_ID", 0L) // 0 = general meetings
             startActivity(intent)
         }
+
+        // My Proposals - NEW: View proposed agenda items with status
+        findViewById<MaterialCardView>(R.id.cardViewMyProposals).setOnClickListener {
+            startActivity(Intent(this, MyProposalsActivity::class.java))
+        }
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {

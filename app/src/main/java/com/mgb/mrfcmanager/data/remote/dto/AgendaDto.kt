@@ -27,7 +27,28 @@ data class AgendaDto(
     val location: String? = null,
 
     @Json(name = "status")
-    val status: String, // DRAFT, PUBLISHED, COMPLETED, CANCELLED
+    val status: String, // DRAFT, PROPOSED, PUBLISHED, COMPLETED, CANCELLED
+
+    @Json(name = "proposed_by")
+    val proposedBy: Long? = null,
+
+    @Json(name = "proposed_at")
+    val proposedAt: String? = null,
+
+    @Json(name = "approved_by")
+    val approvedBy: Long? = null,
+
+    @Json(name = "approved_at")
+    val approvedAt: String? = null,
+
+    @Json(name = "denied_by")
+    val deniedBy: Long? = null,
+
+    @Json(name = "denied_at")
+    val deniedAt: String? = null,
+
+    @Json(name = "denial_remarks")
+    val denialRemarks: String? = null,
 
     @Json(name = "created_at")
     val createdAt: String,
@@ -46,12 +67,23 @@ data class AgendaDto(
     val agendaItems: List<AgendaItemDto>? = null,
 
     @Json(name = "meeting_minutes")
-    val meetingMinutes: MeetingMinutesDto? = null
-)
+    val meetingMinutes: MeetingMinutesDto? = null,
+
+    @Json(name = "proposed_by_user")
+    val proposedByUser: SimpleUserDto? = null
+) {
+    // Helper property for UI
+    val mrfcName: String?
+        get() = mrfc?.name
+
+    // Helper property for proposed by user name
+    val proposedByName: String?
+        get() = proposedByUser?.fullName
+}
 
 /**
  * Agenda Item DTO (discussion topics within an agenda)
- * Updated to match backend schema
+ * Updated to match backend schema with proposal workflow
  */
 data class AgendaItemDto(
     @Json(name = "id")
@@ -77,6 +109,24 @@ data class AgendaItemDto(
 
     @Json(name = "order_index")
     val orderIndex: Int = 0,
+
+    @Json(name = "status")
+    val status: String = "APPROVED", // PROPOSED, APPROVED, DENIED
+
+    @Json(name = "approved_by")
+    val approvedBy: Long? = null,
+
+    @Json(name = "approved_at")
+    val approvedAt: String? = null,
+
+    @Json(name = "denied_by")
+    val deniedBy: Long? = null,
+
+    @Json(name = "denied_at")
+    val deniedAt: String? = null,
+
+    @Json(name = "denial_remarks")
+    val denialRemarks: String? = null,
 
     @Json(name = "created_at")
     val createdAt: String,
@@ -150,6 +200,28 @@ data class CreateAgendaItemRequest(
 
     @Json(name = "order_index")
     val orderIndex: Int = 0
+)
+
+/**
+ * Simple User DTO for nested responses
+ */
+data class SimpleUserDto(
+    @Json(name = "id")
+    val id: Long,
+
+    @Json(name = "username")
+    val username: String,
+
+    @Json(name = "full_name")
+    val fullName: String
+)
+
+/**
+ * Deny Proposal Request
+ */
+data class DenyProposalRequest(
+    @Json(name = "denial_remarks")
+    val denialRemarks: String
 )
 
 /**

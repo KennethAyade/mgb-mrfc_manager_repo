@@ -181,11 +181,24 @@ class ProponentDetailActivity : BaseActivity() {
     }
 
     private fun setupQuarterlyServices() {
-        // Service buttons - Open file upload or document viewers
-        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnFileUpload).setOnClickListener {
-            openFileUpload()
+        // BUG FIX 1: Hide File Upload button for regular users (only admins can upload)
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        val isAdmin = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
+        
+        val btnFileUpload = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnFileUpload)
+        
+        // Only show File Upload button for admins
+        if (isAdmin) {
+            btnFileUpload.visibility = View.VISIBLE
+            btnFileUpload.setOnClickListener {
+                openFileUpload()
+            }
+        } else {
+            btnFileUpload.visibility = View.GONE
         }
 
+        // View buttons are available for all users
         findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewMTF).setOnClickListener {
             openDocumentList("MTF_REPORT")
         }

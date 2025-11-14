@@ -228,6 +228,11 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
         findViewById<MaterialCardView>(R.id.cardReports).setOnClickListener {
             Toast.makeText(this, "Reports - Coming Soon", Toast.LENGTH_SHORT).show()
         }
+
+        // Pending Proposals Card - NEW
+        findViewById<MaterialCardView>(R.id.cardPendingProposals).setOnClickListener {
+            startActivity(Intent(this, PendingProposalsActivity::class.java))
+        }
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {

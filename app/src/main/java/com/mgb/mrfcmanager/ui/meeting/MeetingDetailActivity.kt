@@ -22,10 +22,11 @@ import com.mgb.mrfcmanager.viewmodel.AgendaViewModelFactory
 
 /**
  * Meeting Detail Screen
- * Shows meeting details with 3 tabs:
- * 1. Agenda - View/add agenda items (all users)
- * 2. Attendance - Log attendance with photo (all users)
- * 3. Minutes - View/edit minutes (organizer only)
+ * Shows meeting details with 4 tabs:
+ * 1. Attendance - Log attendance with photo (all users)
+ * 2. Agenda - View approved agenda items (all users)
+ * 3. Proposals - View/approve proposals (admins see all, users see own)
+ * 4. Minutes - View/edit minutes (organizer only)
  */
 class MeetingDetailActivity : BaseActivity() {
 
@@ -106,7 +107,8 @@ class MeetingDetailActivity : BaseActivity() {
             tab.text = when (position) {
                 0 -> "Attendance"
                 1 -> "Agenda"
-                2 -> "Minutes"
+                2 -> "Proposals"
+                3 -> "Minutes"
                 else -> "Tab $position"
             }
 
@@ -114,7 +116,8 @@ class MeetingDetailActivity : BaseActivity() {
             tab.icon = when (position) {
                 0 -> getDrawable(R.drawable.ic_people)
                 1 -> getDrawable(R.drawable.ic_note)
-                2 -> getDrawable(R.drawable.ic_document)
+                2 -> getDrawable(R.drawable.ic_note)
+                3 -> getDrawable(R.drawable.ic_document)
                 else -> null
             }
         }.attach()

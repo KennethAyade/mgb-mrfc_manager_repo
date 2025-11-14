@@ -12,6 +12,7 @@ import sequelize from '../config/database';
 // Enum for agenda status matching PostgreSQL enum
 export enum AgendaStatus {
   DRAFT = 'DRAFT',
+  PROPOSED = 'PROPOSED',  // New: User-proposed agenda awaiting admin approval
   PUBLISHED = 'PUBLISHED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED'
@@ -26,6 +27,13 @@ export interface AgendaAttributes {
   meeting_time: string | null;
   location: string | null;
   status: AgendaStatus;
+  proposed_by: number | null; // User who proposed (for PROPOSED status)
+  proposed_at: Date | null;
+  approved_by: number | null; // Admin who approved
+  approved_at: Date | null;
+  denied_by: number | null; // Admin who denied
+  denied_at: Date | null;
+  denial_remarks: string | null; // Admin's reason for denial
   created_at: Date;
   updated_at: Date;
 }
@@ -42,6 +50,13 @@ export class Agenda extends Model<AgendaAttributes, AgendaCreationAttributes> im
   public meeting_time!: string | null;
   public location!: string | null;
   public status!: AgendaStatus;
+  public proposed_by!: number | null;
+  public proposed_at!: Date | null;
+  public approved_by!: number | null;
+  public approved_at!: Date | null;
+  public denied_by!: number | null;
+  public denied_at!: Date | null;
+  public denial_remarks!: string | null;
   public created_at!: Date;
   public updated_at!: Date;
 
@@ -90,6 +105,46 @@ Agenda.init(
     status: {
       type: DataTypes.ENUM(...Object.values(AgendaStatus)),
       defaultValue: AgendaStatus.DRAFT,
+    },
+    proposed_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    proposed_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    approved_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    approved_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    denied_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    denied_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    denial_remarks: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,

@@ -94,13 +94,38 @@ const getAgendaItemsHandler = async (req: Request, res: Response) => {
     }
 
     // Get all agenda items for this meeting
-    const agendaItems = await AgendaItem.findAll({
-      where: { agenda_id: agendaId },
-      order: [
-        ['order_index', 'ASC'],
-        ['created_at', 'ASC']
-      ]
-    });
+    // Regular users see APPROVED items + their own PROPOSED/DENIED items
+    // Admins see all items (PROPOSED, APPROVED, DENIED) so they can review
+    let agendaItems;
+
+    if (req.user?.role === 'USER') {
+      // Regular users see:
+      // 1. All APPROVED items (for the Agenda tab)
+      // 2. Their own PROPOSED and DENIED items (for the Proposals tab)
+      const { Op } = require('sequelize');
+      agendaItems = await AgendaItem.findAll({
+        where: {
+          agenda_id: agendaId,
+          [Op.or]: [
+            { status: 'APPROVED' },
+            { added_by: req.user.userId }
+          ]
+        },
+        order: [
+          ['order_index', 'ASC'],
+          ['created_at', 'ASC']
+        ]
+      });
+    } else {
+      // Admins see all items
+      agendaItems = await AgendaItem.findAll({
+        where: { agenda_id: agendaId },
+        order: [
+          ['order_index', 'ASC'],
+          ['created_at', 'ASC']
+        ]
+      });
+    }
 
     return res.json({
       success: true,
@@ -202,11 +227,18 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
     const fullName = contributor?.full_name || contributorName;
     const username = contributor?.username || contributorName;
 
+    // Determine status based on user role
+    // Regular users create PROPOSED items, Admins create APPROVED items
+    const userRole = req.user?.role;
+    const isAdmin = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
+    const itemStatus = isAdmin ? 'APPROVED' : 'PROPOSED';
+
     // Create agenda item with auto-tagging
     const agendaItem = await AgendaItem.create({
       agenda_id,
       title,
       description: description || null,
+      status: itemStatus,
       added_by: req.user?.userId,
       added_by_name: fullName,
       added_by_username: username,
@@ -433,6 +465,160 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
       error: {
         code: 'DELETE_AGENDA_ITEM_FAILED',
         message: error.message || 'Failed to delete agenda item'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * GET /agenda-items/my-proposals
+ * ================================================
+ * Get current user's proposed agenda items (all statuses)
+ * Regular users can see their own PROPOSED, APPROVED, DENIED items
+ */
+router.get('/my-proposals', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { AgendaItem } = require('../models');
+
+    const items = await AgendaItem.findAll({
+      where: { added_by: req.user?.userId },
+      order: [['created_at', 'DESC']]
+    });
+
+    console.log(`📋 Found ${items.length} proposal(s) for user ${req.user?.userId}`);
+
+    res.json({
+      success: true,
+      data: items
+    });
+  } catch (error: any) {
+    console.error('Get my proposals error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_FAILED',
+        message: error.message || 'Failed to fetch proposals'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * POST /agenda-items/:id/approve
+ * ================================================
+ * Approve a proposed agenda item (ADMIN only)
+ */
+router.post('/:id/approve', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { AgendaItem } = require('../models');
+    const itemId = parseInt(req.params.id);
+
+    const item = await AgendaItem.findByPk(itemId);
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'ITEM_NOT_FOUND', message: 'Agenda item not found' }
+      });
+    }
+
+    if (item.status !== 'PROPOSED') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Only PROPOSED items can be approved'
+        }
+      });
+    }
+
+    await item.update({
+      status: 'APPROVED',
+      approved_by: req.user?.userId,
+      approved_at: new Date()
+    });
+
+    console.log(`✅ Agenda item ${itemId} approved by user ${req.user?.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Agenda item approved',
+      data: item
+    });
+  } catch (error: any) {
+    console.error('Approve agenda item error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'APPROVAL_FAILED',
+        message: error.message || 'Failed to approve item'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * POST /agenda-items/:id/deny
+ * ================================================
+ * Deny a proposed agenda item with remarks (ADMIN only)
+ */
+router.post('/:id/deny', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { AgendaItem } = require('../models');
+    const itemId = parseInt(req.params.id);
+    const { denial_remarks } = req.body;
+
+    if (!denial_remarks || denial_remarks.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'REMARKS_REQUIRED',
+          message: 'Denial remarks are required'
+        }
+      });
+    }
+
+    const item = await AgendaItem.findByPk(itemId);
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'ITEM_NOT_FOUND', message: 'Agenda item not found' }
+      });
+    }
+
+    if (item.status !== 'PROPOSED') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Only PROPOSED items can be denied'
+        }
+      });
+    }
+
+    await item.update({
+      status: 'DENIED',
+      denied_by: req.user?.userId,
+      denied_at: new Date(),
+      denial_remarks: denial_remarks.trim()
+    });
+
+    console.log(`❌ Agenda item ${itemId} denied by user ${req.user?.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Agenda item denied',
+      data: item
+    });
+  } catch (error: any) {
+    console.error('Deny agenda item error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DENIAL_FAILED',
+        message: error.message || 'Failed to deny item'
       }
     });
   }

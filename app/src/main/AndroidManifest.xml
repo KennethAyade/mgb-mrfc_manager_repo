@@ -130,6 +130,11 @@
             android:exported="false"
             android:parentActivityName=".ui.admin.AdminDashboardActivity" />
 
+        <activity
+            android:name=".ui.admin.PendingProposalsActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
         <!-- SUPER_ADMIN User Management Activities -->
         <activity
             android:name=".ui.admin.UserManagementActivity"
@@ -189,6 +194,11 @@
 
         <activity
             android:name=".ui.user.DocumentListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.user.UserDashboardActivity" />
+
+        <activity
+            android:name=".ui.user.MyProposalsActivity"
             android:exported="false"
             android:parentActivityName=".ui.user.UserDashboardActivity" />
 

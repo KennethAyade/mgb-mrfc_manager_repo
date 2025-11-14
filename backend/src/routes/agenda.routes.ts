@@ -355,7 +355,7 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     }
     // For general meetings (mrfc_id is null), allow multiple meetings per quarter
 
-    // Step 5: Create meeting (agenda)
+    // Step 5: Create meeting (agenda) - ADMIN only
     const agenda = await Agenda.create({
       mrfc_id,
       quarter_id,
@@ -399,9 +399,9 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     });
 
     // Step 8: Transform agenda to include 'quarter' field for Android compatibility
-    const agendaData = createdAgenda?.toJSON();
-    if (agendaData && agendaData.quarter && agendaData.quarter.quarter_number) {
-      agendaData.quarter.quarter = `Q${agendaData.quarter.quarter_number}`;
+    const responseData = createdAgenda?.toJSON();
+    if (responseData && responseData.quarter && responseData.quarter.quarter_number) {
+      responseData.quarter.quarter = `Q${responseData.quarter.quarter_number}`;
     }
 
     // Step 9: Return created meeting
@@ -409,7 +409,7 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     return res.status(201).json({
       success: true,
       message: `Meeting created successfully for ${meetingType}`,
-      data: agendaData
+      data: responseData
     });
   } catch (error: any) {
     console.error('Agenda creation error:', error);
@@ -885,6 +885,195 @@ router.delete('/:id', authenticate, adminOnly, async (req: Request, res: Respons
       error: {
         code: 'AGENDA_DELETION_FAILED',
         message: error.message || 'Failed to delete meeting'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * POST /agendas/:id/approve
+ * ================================================
+ * Approve a proposed agenda (ADMIN only)
+ * Changes status from PROPOSED to PUBLISHED
+ */
+router.post('/:id/approve', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { Agenda } = require('../models');
+    const agendaId = parseInt(req.params.id);
+
+    // Find agenda
+    const agenda = await Agenda.findByPk(agendaId);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'AGENDA_NOT_FOUND',
+          message: 'Agenda not found'
+        }
+      });
+    }
+
+    // Check if agenda is in PROPOSED status
+    if (agenda.status !== 'PROPOSED') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Only PROPOSED agendas can be approved'
+        }
+      });
+    }
+
+    // Approve agenda
+    await agenda.update({
+      status: 'PUBLISHED',
+      approved_by: req.user?.userId,
+      approved_at: new Date()
+    });
+
+    console.log(`✅ Agenda ${agendaId} approved by user ${req.user?.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Agenda approved successfully',
+      data: agenda
+    });
+  } catch (error: any) {
+    console.error('Agenda approval error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'APPROVAL_FAILED',
+        message: error.message || 'Failed to approve agenda'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * POST /agendas/:id/deny
+ * ================================================
+ * Deny a proposed agenda with remarks (ADMIN only)
+ * Changes status from PROPOSED to CANCELLED
+ * Requires denial_remarks in body
+ */
+router.post('/:id/deny', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { Agenda } = require('../models');
+    const agendaId = parseInt(req.params.id);
+    const { denial_remarks } = req.body;
+
+    // Validate denial remarks
+    if (!denial_remarks || denial_remarks.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'REMARKS_REQUIRED',
+          message: 'Denial remarks are required'
+        }
+      });
+    }
+
+    // Find agenda
+    const agenda = await Agenda.findByPk(agendaId);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'AGENDA_NOT_FOUND',
+          message: 'Agenda not found'
+        }
+      });
+    }
+
+    // Check if agenda is in PROPOSED status
+    if (agenda.status !== 'PROPOSED') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Only PROPOSED agendas can be denied'
+        }
+      });
+    }
+
+    // Deny agenda
+    await agenda.update({
+      status: 'CANCELLED',
+      denied_by: req.user?.userId,
+      denied_at: new Date(),
+      denial_remarks: denial_remarks.trim()
+    });
+
+    console.log(`❌ Agenda ${agendaId} denied by user ${req.user?.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Agenda denied',
+      data: agenda
+    });
+  } catch (error: any) {
+    console.error('Agenda denial error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DENIAL_FAILED',
+        message: error.message || 'Failed to deny agenda'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * GET /agendas/pending-proposals
+ * ================================================
+ * Get list of pending agenda proposals (status = PROPOSED)
+ * ADMIN only
+ */
+router.get('/pending-proposals', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { Agenda, Quarter, Mrfc, User } = require('../models');
+
+    const proposals = await Agenda.findAll({
+      where: { status: 'PROPOSED' },
+      include: [
+        {
+          model: Quarter,
+          as: 'quarter',
+          attributes: ['id', 'name', 'quarter_number', 'year']
+        },
+        {
+          model: Mrfc,
+          as: 'mrfc',
+          attributes: ['id', 'name', 'municipality'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'proposed_by_user',
+          attributes: ['id', 'username', 'full_name'],
+          required: false
+        }
+      ],
+      order: [['proposed_at', 'DESC']]
+    });
+
+    console.log(`📋 Found ${proposals.length} pending proposal(s)`);
+
+    res.json({
+      success: true,
+      data: proposals
+    });
+  } catch (error: any) {
+    console.error('Error fetching pending proposals:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_FAILED',
+        message: error.message || 'Failed to fetch pending proposals'
       }
     });
   }
