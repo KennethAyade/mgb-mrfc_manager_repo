@@ -47,10 +47,14 @@ class MRFCDetailActivity : com.mgb.mrfcmanager.ui.base.BaseActivity() {
     private lateinit var viewModel: MrfcViewModel
     private var mrfcId: Long = -1
     private var currentMRFC: MrfcDto? = null
+    private var isReadOnly: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_mrfc_detail)
+
+        // Check if this is read-only mode (for regular users)
+        isReadOnly = intent.getBooleanExtra("READ_ONLY", false)
 
         setupToolbar()
         initializeViews()
@@ -176,6 +180,27 @@ class MRFCDetailActivity : com.mgb.mrfcmanager.ui.base.BaseActivity() {
         etEmail.setText(mrfc.email ?: "")
 
         supportActionBar?.title = mrfc.name
+        
+        // Apply read-only mode if needed
+        if (isReadOnly) {
+            applyReadOnlyMode()
+        }
+    }
+    
+    private fun applyReadOnlyMode() {
+        // Hide Save button
+        btnSave.visibility = View.GONE
+        
+        // Disable all input fields
+        etMRFCName.isEnabled = false
+        etMrfcCode.isEnabled = false
+        etMunicipality.isEnabled = false
+        etProvince.isEnabled = false
+        etRegion.isEnabled = false
+        etAddress.isEnabled = false
+        etContactPerson.isEnabled = false
+        etContactNumber.isEnabled = false
+        etEmail.isEnabled = false
     }
 
     private fun setupListeners() {
@@ -284,6 +309,10 @@ class MRFCDetailActivity : com.mgb.mrfcmanager.ui.base.BaseActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_mrfc_detail, menu)
+        // Hide Edit menu item if in read-only mode
+        if (isReadOnly) {
+            menu?.findItem(R.id.action_edit)?.isVisible = false
+        }
         return true
     }
 

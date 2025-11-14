@@ -65,9 +65,11 @@ class MinutesFragment : Fragment() {
             mrfcId = it.getLong(ARG_MRFC_ID)
         }
 
-        // TODO: BACKEND - Determine if current user is the meeting organizer
-        // For now, assume admin users are organizers
-        isOrganizer = true
+        // Check user role from TokenManager
+        // Only ADMIN and SUPER_ADMIN can edit/approve minutes
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        isOrganizer = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
     }
 
     override fun onCreateView(
@@ -198,9 +200,10 @@ class MinutesFragment : Fragment() {
         } else {
             tvMinutesContent.visibility = View.VISIBLE
             etMinutesSummary.visibility = View.GONE
-            btnEdit.visibility = View.VISIBLE
+            // BUG FIX 4: Only show edit/approve buttons for organizers (ADMIN/SUPER_ADMIN)
+            btnEdit.visibility = if (isOrganizer) View.VISIBLE else View.GONE
             btnSave.visibility = View.GONE
-            btnApprove.visibility = if (minutesId != null) View.VISIBLE else View.GONE
+            btnApprove.visibility = if (isOrganizer && minutesId != null) View.VISIBLE else View.GONE
         }
     }
 

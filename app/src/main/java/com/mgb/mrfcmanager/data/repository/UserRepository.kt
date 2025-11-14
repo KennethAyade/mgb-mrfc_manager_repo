@@ -221,4 +221,38 @@ class UserRepository(private val userApiService: UserApiService) {
             }
         }
     }
+
+    /**
+     * Grant MRFC access to user
+     */
+    suspend fun grantMrfcAccess(id: Long, mrfcIds: List<Long>): Result<UserDto> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = GrantMrfcAccessRequest(mrfcIds = mrfcIds)
+                val response = userApiService.grantMrfcAccess(id, request)
+
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body?.success == true && body.data != null) {
+                        Result.Success(body.data)
+                    } else {
+                        Result.Error(
+                            message = body?.error?.message ?: "Failed to grant MRFC access",
+                            code = body?.error?.code
+                        )
+                    }
+                } else {
+                    Result.Error(
+                        message = "HTTP ${response.code()}: ${response.message()}",
+                        code = response.code().toString()
+                    )
+                }
+            } catch (e: Exception) {
+                Result.Error(
+                    message = e.localizedMessage ?: "Network error",
+                    code = "NETWORK_ERROR"
+                )
+            }
+        }
+    }
 }

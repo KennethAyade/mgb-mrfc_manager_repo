@@ -9,7 +9,7 @@ import com.mgb.mrfcmanager.ui.meeting.fragments.MinutesFragment
 
 /**
  * ViewPager adapter for Meeting Detail tabs
- * Manages 3 fragments: Agenda, Attendance, Minutes
+ * Manages 3 fragments: Attendance, Agenda, Minutes
  */
 class MeetingDetailPagerAdapter(
     activity: FragmentActivity,
@@ -21,10 +21,10 @@ class MeetingDetailPagerAdapter(
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            0 -> AgendaFragment.newInstance(agendaId, mrfcId)
-            1 -> AttendanceFragment.newInstance(agendaId, mrfcId)
+            0 -> AttendanceFragment.newInstance(agendaId, mrfcId)
+            1 -> AgendaFragment.newInstance(agendaId, mrfcId)
             2 -> MinutesFragment.newInstance(agendaId, mrfcId)
-            else -> AgendaFragment.newInstance(agendaId, mrfcId)
+            else -> AttendanceFragment.newInstance(agendaId, mrfcId)
         }
     }
 }

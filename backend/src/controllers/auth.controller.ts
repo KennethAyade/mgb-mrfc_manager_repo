@@ -140,7 +140,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         where: { user_id: user.id, is_active: true },
         attributes: ['mrfc_id']
       });
-      mrfcAccess = access.map(a => a.mrfc_id);
+      // Explicitly convert to numbers (PostgreSQL BIGINT may return strings)
+      mrfcAccess = access.map(a => Number(a.mrfc_id));
     }
 
     // Generate JWT tokens

@@ -77,5 +77,16 @@ interface UserApiService {
     suspend fun toggleUserStatus(
         @Path("id") id: Long
     ): Response<ApiResponse<UserDto>>
+
+    /**
+     * Grant MRFC access to user
+     * POST /users/:id/grant-mrfc-access
+     * Requires admin authentication
+     */
+    @POST("users/{id}/grant-mrfc-access")
+    suspend fun grantMrfcAccess(
+        @Path("id") id: Long,
+        @Body request: GrantMrfcAccessRequest
+    ): Response<ApiResponse<UserDto>>
 }
 

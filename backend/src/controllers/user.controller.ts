@@ -600,13 +600,30 @@ export const grantMrfcAccess = async (req: Request, res: Response): Promise<void
       );
     });
 
+    // Fetch updated user with MRFC access
+    const updatedUser = await User.findByPk(id, {
+      attributes: { exclude: ['password_hash'] },
+      include: [
+        {
+          model: UserMrfcAccess,
+          as: 'mrfc_access',
+          where: { is_active: true },
+          required: false,
+          include: [
+            {
+              model: Mrfc,
+              as: 'mrfc',
+              attributes: ['id', 'name', 'municipality']
+            }
+          ]
+        }
+      ]
+    });
+
     res.json({
       success: true,
       message: 'MRFC access granted successfully',
-      data: {
-        user_id: user.id,
-        mrfc_count: mrfc_ids.length
-      }
+      data: updatedUser
     });
   } catch (error) {
     console.error('Error granting MRFC access:', error);
