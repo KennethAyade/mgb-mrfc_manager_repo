@@ -187,11 +187,17 @@ data class CreateAgendaRequest(
     @Json(name = "quarter_id")
     val quarterId: Long,
 
+    @Json(name = "meeting_title")
+    val meetingTitle: String? = null,
+
     @Json(name = "meeting_date")
     val meetingDate: String, // YYYY-MM-DD
 
     @Json(name = "meeting_time")
-    val meetingTime: String? = null, // HH:MM:SS
+    val meetingTime: String? = null, // Start time (e.g., "09:00 AM")
+
+    @Json(name = "meeting_end_time")
+    val meetingEndTime: String? = null, // End time (e.g., "05:00 PM")
 
     @Json(name = "location")
     val location: String? = null,

@@ -180,72 +180,159 @@ class MeetingListActivity : BaseActivity() {
     }
 
     private fun createNewMeeting() {
-        // Show date picker to select meeting date
+        val dialogView = layoutInflater.inflate(R.layout.dialog_create_meeting, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+
+        // Get views from dialog
+        val etMeetingTitle = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etMeetingTitle)
+        val etMeetingDate = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etMeetingDate)
+        val etLocation = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etLocation)
+        val etStartTime = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etStartTime)
+        val etEndTime = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etEndTime)
+        val btnCancel = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnCancel)
+        val btnCreate = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnCreate)
+
         val calendar = Calendar.getInstance()
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+        var selectedDate = ""
+        var selectedStartTime = ""
+        var selectedEndTime = ""
 
         // Calculate date range for the selected quarter
         val (startDate, endDate) = getQuarterDateRange()
 
-        DatePickerDialog(
-            this,
-            { _, selectedYear, selectedMonth, selectedDay ->
-                calendar.set(selectedYear, selectedMonth, selectedDay)
-                val meetingDate = dateFormat.format(calendar.time)
+        // Date picker click listener
+        etMeetingDate.setOnClickListener {
+            DatePickerDialog(
+                this,
+                { _, selectedYear, selectedMonth, selectedDay ->
+                    calendar.set(selectedYear, selectedMonth, selectedDay)
+                    selectedDate = dateFormat.format(calendar.time)
 
-                // Validate that the selected date falls within the quarter
-                if (!isDateInQuarter(calendar, startDate, endDate)) {
-                    Toast.makeText(
-                        this,
-                        "Meeting date must be within $quarterDisplay (${formatDateForDisplay(startDate)} - ${formatDateForDisplay(endDate)})",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    return@DatePickerDialog
-                }
+                    // Validate that the selected date falls within the quarter
+                    if (!isDateInQuarter(calendar, startDate, endDate)) {
+                        Toast.makeText(
+                            this,
+                            "Meeting date must be within $quarterDisplay (${formatDateForDisplay(startDate)} - ${formatDateForDisplay(endDate)})",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        selectedDate = ""
+                        etMeetingDate.setText("")
+                        return@DatePickerDialog
+                    }
 
-                // Create agenda via ViewModel
-                val agendaRequest = CreateAgendaRequest(
-                    mrfcId = if (mrfcId == 0L) null else mrfcId, // null for general meetings
-                    quarterId = getQuarterId(),
-                    meetingDate = meetingDate,
-                    meetingTime = null,
-                    location = null,
-                    status = "DRAFT"
-                )
+                    etMeetingDate.setText(formatDateForDisplay(calendar))
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+            ).show()
+        }
 
-                showLoading(true)
-                lifecycleScope.launch {
-                    when (val result = viewModel.createAgenda(agendaRequest)) {
-                        is Result.Success -> {
-                            showLoading(false)
-                            Toast.makeText(
-                                this@MeetingListActivity,
-                                "Meeting created successfully",
-                                Toast.LENGTH_SHORT
-                            ).show()
+        // Start time picker
+        etStartTime.setOnClickListener {
+            android.app.TimePickerDialog(
+                this,
+                { _, hourOfDay, minute ->
+                    calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                    calendar.set(Calendar.MINUTE, minute)
+                    selectedStartTime = timeFormat.format(calendar.time)
+                    etStartTime.setText(selectedStartTime)
+                },
+                calendar.get(Calendar.HOUR_OF_DAY),
+                calendar.get(Calendar.MINUTE),
+                false // 12-hour format
+            ).show()
+        }
 
-                            // Navigate to meeting detail
-                            val intent = Intent(this@MeetingListActivity, MeetingDetailActivity::class.java).apply {
-                                putExtra("AGENDA_ID", result.data.id)
-                                putExtra("MEETING_TITLE", "Meeting #${result.data.id}")
-                                putExtra("MRFC_ID", mrfcId)
-                            }
-                            startActivity(intent)
+        // End time picker
+        etEndTime.setOnClickListener {
+            android.app.TimePickerDialog(
+                this,
+                { _, hourOfDay, minute ->
+                    calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                    calendar.set(Calendar.MINUTE, minute)
+                    selectedEndTime = timeFormat.format(calendar.time)
+                    etEndTime.setText(selectedEndTime)
+                },
+                calendar.get(Calendar.HOUR_OF_DAY),
+                calendar.get(Calendar.MINUTE),
+                false // 12-hour format
+            ).show()
+        }
+
+        // Cancel button
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        // Create button
+        btnCreate.setOnClickListener {
+            val meetingTitle = etMeetingTitle.text.toString().trim()
+            val meetingDate = selectedDate
+            val location = etLocation.text.toString().trim()
+            val startTime = selectedStartTime
+            val endTime = selectedEndTime
+
+            // Validation
+            if (meetingTitle.isEmpty()) {
+                Toast.makeText(this, "Please enter meeting title", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (meetingDate.isEmpty()) {
+                Toast.makeText(this, "Please select meeting date", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Create agenda via ViewModel
+            val agendaRequest = CreateAgendaRequest(
+                mrfcId = if (mrfcId == 0L) null else mrfcId, // null for general meetings
+                quarterId = getQuarterId(),
+                meetingDate = meetingDate,
+                meetingTime = startTime.ifEmpty { null },
+                meetingEndTime = endTime.ifEmpty { null },
+                location = location.ifEmpty { null },
+                meetingTitle = meetingTitle,
+                status = "DRAFT"
+            )
+
+            dialog.dismiss()
+            showLoading(true)
+
+            lifecycleScope.launch {
+                when (val result = viewModel.createAgenda(agendaRequest)) {
+                    is Result.Success -> {
+                        showLoading(false)
+                        Toast.makeText(
+                            this@MeetingListActivity,
+                            "Meeting created successfully",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        // Navigate to meeting detail
+                        val intent = Intent(this@MeetingListActivity, MeetingDetailActivity::class.java).apply {
+                            putExtra("AGENDA_ID", result.data.id)
+                            putExtra("MEETING_TITLE", result.data.meetingTitle ?: "Meeting #${result.data.id}")
+                            putExtra("MRFC_ID", mrfcId)
                         }
-                        is Result.Error -> {
-                            showLoading(false)
-                            showError(result.message)
-                        }
-                        is Result.Loading -> {
-                            // Already showing loading
-                        }
+                        startActivity(intent)
+                    }
+                    is Result.Error -> {
+                        showLoading(false)
+                        showError(result.message)
+                    }
+                    is Result.Loading -> {
+                        // Already showing loading
                     }
                 }
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        ).show()
+            }
+        }
+
+        dialog.show()
     }
 
     private fun getQuarterDateRange(): Pair<Calendar, Calendar> {
