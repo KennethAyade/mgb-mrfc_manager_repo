@@ -66,7 +66,7 @@ interface AgendaItemApiService {
     @DELETE("agenda-items/{id}")
     suspend fun deleteItem(
         @Path("id") id: Long
-    ): Response<ApiResponse<Unit>>
+    ): Response<Any>
 
     /**
      * Get current user's proposed items (all statuses)

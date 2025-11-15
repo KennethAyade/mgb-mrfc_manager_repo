@@ -186,19 +186,11 @@ class AgendaItemRepository(private val agendaItemApiService: AgendaItemApiServic
             try {
                 val response = agendaItemApiService.deleteItem(id)
 
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body?.success == true) {
-                        Result.Success(Unit)
-                    } else {
-                        Result.Error(
-                            message = body?.error?.message ?: "Failed to delete agenda item",
-                            code = body?.error?.code
-                        )
-                    }
+                if (response.isSuccessful && response.body() != null) {
+                    Result.Success(Unit)
                 } else {
                     Result.Error(
-                        message = "HTTP ${response.code()}: ${response.message()}",
+                        message = "Failed to delete agenda item: HTTP ${response.code()}",
                         code = response.code().toString()
                     )
                 }
