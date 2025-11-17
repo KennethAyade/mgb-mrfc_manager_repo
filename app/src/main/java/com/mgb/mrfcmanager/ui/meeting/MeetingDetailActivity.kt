@@ -1,13 +1,26 @@
 package com.mgb.mrfcmanager.ui.meeting
 
+import android.content.res.ColorStateList
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.button.MaterialButton
+import com.mgb.mrfcmanager.data.remote.dto.AgendaDto
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import com.mgb.mrfcmanager.MRFCManagerApp
@@ -25,7 +38,7 @@ import com.mgb.mrfcmanager.viewmodel.AgendaViewModelFactory
  * Shows meeting details with 4 tabs:
  * 1. Attendance - Log attendance with photo (all users)
  * 2. Agenda - View approved agenda items (all users)
- * 3. Proposals - View/approve proposals (admins see all, users see own)
+ * 3. Other Matters - View/approve other matters (admins see all, users see own)
  * 4. Minutes - View/edit minutes (organizer only)
  */
 class MeetingDetailActivity : BaseActivity() {
@@ -37,12 +50,23 @@ class MeetingDetailActivity : BaseActivity() {
     private lateinit var viewPager: ViewPager2
     private lateinit var progressBar: ProgressBar
 
+    // Timer views
+    private lateinit var layoutTimer: LinearLayout
+    private lateinit var tvTimerStatus: TextView
+    private lateinit var btnStartMeeting: MaterialButton
+    private lateinit var btnEndMeeting: MaterialButton
+
     private lateinit var viewModel: AgendaViewModel
     private lateinit var pagerAdapter: MeetingDetailPagerAdapter
 
     private var agendaId: Long = 0L
     private var mrfcId: Long = 0L
     private var meetingTitle: String = ""
+    private var currentAgenda: AgendaDto? = null
+
+    // Timer handler for real-time updates
+    private val timerHandler = Handler(Looper.getMainLooper())
+    private var timerRunnable: Runnable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,9 +77,10 @@ class MeetingDetailActivity : BaseActivity() {
         initializeViews()
         setupViewModel()
         setupViewPager()
+        setupTimerSection()
         observeViewModel()
         loadMeetingDetails()
-        
+
         // Setup floating home button
         setupHomeFab()
     }
@@ -87,6 +112,12 @@ class MeetingDetailActivity : BaseActivity() {
         tabLayout = findViewById(R.id.tabLayout)
         viewPager = findViewById(R.id.viewPager)
         progressBar = findViewById(R.id.progressBar)
+
+        // Timer views
+        layoutTimer = findViewById(R.id.layoutTimer)
+        tvTimerStatus = findViewById(R.id.tvTimerStatus)
+        btnStartMeeting = findViewById(R.id.btnStartMeeting)
+        btnEndMeeting = findViewById(R.id.btnEndMeeting)
     }
 
     private fun setupViewModel() {
@@ -107,18 +138,36 @@ class MeetingDetailActivity : BaseActivity() {
             tab.text = when (position) {
                 0 -> "Attendance"
                 1 -> "Agenda"
-                2 -> "Proposals"
+                2 -> "Other Matters"
                 3 -> "Minutes"
                 else -> "Tab $position"
             }
 
-            // Add icons to tabs
-            tab.icon = when (position) {
-                0 -> getDrawable(R.drawable.ic_people)
-                1 -> getDrawable(R.drawable.ic_note)
-                2 -> getDrawable(R.drawable.ic_note)
-                3 -> getDrawable(R.drawable.ic_document)
+            // Add icons to tabs with distinct colors
+            val iconRes = when (position) {
+                0 -> R.drawable.ic_people
+                1 -> R.drawable.ic_note
+                2 -> R.drawable.ic_list // Changed from ic_note to ic_list
+                3 -> R.drawable.ic_document
                 else -> null
+            }
+
+            val colorRes = when (position) {
+                0 -> R.color.tab_icon_attendance
+                1 -> R.color.tab_icon_agenda
+                2 -> R.color.tab_icon_other_matters
+                3 -> R.color.tab_icon_minutes
+                else -> null
+            }
+
+            if (iconRes != null && colorRes != null) {
+                val icon = ContextCompat.getDrawable(this, iconRes)?.mutate()
+                icon?.let {
+                    val wrappedIcon = DrawableCompat.wrap(it)
+                    val colorStateList = ContextCompat.getColorStateList(this, colorRes)
+                    DrawableCompat.setTintList(wrappedIcon, colorStateList)
+                    tab.icon = wrappedIcon
+                }
             }
         }.attach()
     }
@@ -131,6 +180,7 @@ class MeetingDetailActivity : BaseActivity() {
                 }
                 is AgendaDetailState.Success -> {
                     showLoading(false)
+                    currentAgenda = state.data
                     val agenda = state.data
                     tvMeetingTitle.text = "Meeting #${agenda.id}"
 
@@ -141,6 +191,9 @@ class MeetingDetailActivity : BaseActivity() {
                     } ?: run {
                         tvMeetingDate.visibility = View.GONE
                     }
+
+                    // Update timer UI
+                    updateTimerUI(agenda)
                 }
                 is AgendaDetailState.Error -> {
                     showLoading(false)
@@ -157,11 +210,159 @@ class MeetingDetailActivity : BaseActivity() {
         viewModel.loadAgendaById(agendaId)
     }
 
+    private fun setupTimerSection() {
+        // Show timer section only for ADMIN and SUPER_ADMIN
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+
+        if (userRole == "ADMIN" || userRole == "SUPER_ADMIN") {
+            layoutTimer.visibility = View.VISIBLE
+
+            // Setup button click listeners
+            btnStartMeeting.setOnClickListener {
+                startMeeting()
+            }
+
+            btnEndMeeting.setOnClickListener {
+                endMeeting()
+            }
+        } else {
+            layoutTimer.visibility = View.GONE
+        }
+    }
+
+    private fun updateTimerUI(agenda: AgendaDto) {
+        // Stop any existing timer updates
+        timerRunnable?.let { timerHandler.removeCallbacks(it) }
+
+        when {
+            // Meeting has ended
+            agenda.actualEndTime != null && agenda.actualStartTime != null -> {
+                val duration = agenda.durationMinutes ?: 0
+                tvTimerStatus.text = "Meeting Completed: ${formatDuration(duration)}"
+                btnStartMeeting.isEnabled = false
+                btnEndMeeting.isEnabled = false
+            }
+            // Meeting is in progress
+            agenda.actualStartTime != null && agenda.actualEndTime == null -> {
+                btnStartMeeting.isEnabled = false
+                btnEndMeeting.isEnabled = true
+
+                // Start real-time timer updates
+                timerRunnable = object : Runnable {
+                    override fun run() {
+                        try {
+                            val startTime = parseISOTimestamp(agenda.actualStartTime)
+                            val currentTime = System.currentTimeMillis()
+                            val elapsedMinutes = ((currentTime - startTime) / 60000).toInt()
+                            tvTimerStatus.text = "Meeting In Progress: ${formatDuration(elapsedMinutes)}"
+
+                            // Update every minute
+                            timerHandler.postDelayed(this, 60000)
+                        } catch (e: Exception) {
+                            tvTimerStatus.text = "Meeting In Progress"
+                        }
+                    }
+                }
+                timerRunnable?.run()
+            }
+            // Meeting not started
+            else -> {
+                tvTimerStatus.text = "Meeting Not Started"
+                btnStartMeeting.isEnabled = true
+                btnEndMeeting.isEnabled = false
+            }
+        }
+    }
+
+    private fun startMeeting() {
+        lifecycleScope.launch {
+            try {
+                val tokenManager = MRFCManagerApp.getTokenManager()
+                val retrofit = RetrofitClient.getInstance(tokenManager)
+                val apiService = retrofit.create(AgendaApiService::class.java)
+
+                val response = apiService.startMeeting(agendaId)
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    Toast.makeText(this@MeetingDetailActivity, "Meeting started successfully", Toast.LENGTH_SHORT).show()
+                    // Reload meeting details to get updated timer info
+                    loadMeetingDetails()
+                } else {
+                    val errorMsg = response.body()?.error?.message ?: "Failed to start meeting"
+                    Toast.makeText(this@MeetingDetailActivity, errorMsg, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MeetingDetailActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun endMeeting() {
+        lifecycleScope.launch {
+            try {
+                val tokenManager = MRFCManagerApp.getTokenManager()
+                val retrofit = RetrofitClient.getInstance(tokenManager)
+                val apiService = retrofit.create(AgendaApiService::class.java)
+
+                val response = apiService.endMeeting(agendaId)
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val duration = response.body()?.data?.durationMinutes ?: 0
+                    Toast.makeText(
+                        this@MeetingDetailActivity,
+                        "Meeting ended. Duration: ${formatDuration(duration)}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    // Reload meeting details to get updated timer info
+                    loadMeetingDetails()
+                } else {
+                    val errorMsg = response.body()?.error?.message ?: "Failed to end meeting"
+                    Toast.makeText(this@MeetingDetailActivity, errorMsg, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MeetingDetailActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun formatDuration(minutes: Int): String {
+        val hours = minutes / 60
+        val mins = minutes % 60
+        return when {
+            hours > 0 -> "${hours}h ${mins}m"
+            else -> "${mins}m"
+        }
+    }
+
+    private fun parseISOTimestamp(timestamp: String): Long {
+        return try {
+            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+            format.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            format.parse(timestamp)?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            // Try without milliseconds
+            try {
+                val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                format.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                format.parse(timestamp)?.time ?: System.currentTimeMillis()
+            } catch (e2: Exception) {
+                System.currentTimeMillis()
+            }
+        }
+    }
+
     private fun showLoading(isLoading: Boolean) {
         progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
     }
 
     private fun showError(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Stop timer updates when activity is destroyed
+        timerRunnable?.let { timerHandler.removeCallbacks(it) }
     }
 }

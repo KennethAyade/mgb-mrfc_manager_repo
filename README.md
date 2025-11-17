@@ -24,7 +24,7 @@ This application follows the **DENR/MGB visual aesthetic**:
 - ✅ **AWS S3 Storage**: File uploads/downloads (up to 100MB)
 - ✅ **JWT Authentication**: Secure token-based auth
 - ✅ **Auto Compliance Analysis**: Automatic CMVR analysis with real OCR
-- ✅ **AI-Powered Analysis**: Google Gemini AI for intelligent compliance detection
+- ✅ **AI-Powered Analysis**: Anthropic Claude (Haiku 4.5) for intelligent compliance detection
 - ✅ **Real OCR**: pdfjs-dist + Tesseract.js for scanned PDFs
 - ✅ **Smart Fallback**: Keyword analysis if AI unavailable
 - ✅ **Error Handling**: Failed analyses marked as "Pending Manual Review"
@@ -42,7 +42,7 @@ This application follows the **DENR/MGB visual aesthetic**:
 
 ### Compliance Analysis Features
 - ✅ **Auto-Trigger**: Analyzes documents automatically when viewed
-- ✅ **AI-Powered**: Google Gemini AI for intelligent analysis
+- ✅ **AI-Powered**: Anthropic Claude (Haiku 4.5) for intelligent analysis
 - ✅ **Real OCR**: Extracts text from scanned PDFs
 - ✅ **Digital PDF Support**: Fast text extraction for searchable PDFs
 - ✅ **Smart Analysis**: Context-aware compliance detection with AI
@@ -85,9 +85,9 @@ This application follows the **DENR/MGB visual aesthetic**:
    AWS_ACCESS_KEY_ID=AKIA...
    AWS_SECRET_ACCESS_KEY=...
    AWS_REGION=us-east-1
-   
-   # Google Gemini AI (Optional - for intelligent compliance analysis)
-   GEMINI_API_KEY=AIzaSy...
+
+   # Anthropic Claude AI (Optional - for intelligent compliance analysis)
+   ANTHROPIC_API_KEY=sk-ant-...
    
    # Server
    PORT=3000

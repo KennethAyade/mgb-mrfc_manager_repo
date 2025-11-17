@@ -36,6 +36,11 @@ export interface AgendaAttributes {
   denied_by: number | null; // Admin who denied
   denied_at: Date | null;
   denial_remarks: string | null; // Admin's reason for denial
+  actual_start_time: Date | null; // Real-time meeting start
+  actual_end_time: Date | null; // Real-time meeting end
+  duration_minutes: number | null; // Actual meeting duration
+  started_by: number | null; // Admin who started the meeting
+  ended_by: number | null; // Admin who ended the meeting
   created_at: Date;
   updated_at: Date;
 }
@@ -61,6 +66,11 @@ export class Agenda extends Model<AgendaAttributes, AgendaCreationAttributes> im
   public denied_by!: number | null;
   public denied_at!: Date | null;
   public denial_remarks!: string | null;
+  public actual_start_time!: Date | null;
+  public actual_end_time!: Date | null;
+  public duration_minutes!: number | null;
+  public started_by!: number | null;
+  public ended_by!: number | null;
   public created_at!: Date;
   public updated_at!: Date;
 
@@ -157,6 +167,34 @@ Agenda.init(
     denial_remarks: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    actual_start_time: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    actual_end_time: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    duration_minutes: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    started_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    ended_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
     },
     created_at: {
       type: DataTypes.DATE,

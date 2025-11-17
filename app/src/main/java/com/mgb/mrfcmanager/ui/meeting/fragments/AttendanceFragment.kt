@@ -11,7 +11,7 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.google.android.material.button.MaterialButton
@@ -46,7 +46,7 @@ class AttendanceFragment : Fragment() {
     private lateinit var progressBar: ProgressBar
 
     private lateinit var viewModel: AttendanceViewModel
-    private lateinit var attendanceAdapter: AttendanceListAdapter
+    private lateinit var attendanceAdapter: TabletAttendanceAdapter
 
     private val attendanceList = mutableListOf<AttendanceDto>()
     private var agendaId: Long = 0L
@@ -147,30 +147,36 @@ class AttendanceFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        attendanceAdapter = AttendanceListAdapter(attendanceList) { attendance ->
-            showAttendanceDetails(attendance)
+        // Use GridLayoutManager with 3 columns for tablet cards
+        val gridLayoutManager = GridLayoutManager(requireContext(), 3)
+        rvAttendance.layoutManager = gridLayoutManager
+
+        // Use tablet adapter with 2-parameter callback (attendance, tablet number)
+        attendanceAdapter = TabletAttendanceAdapter(attendanceList) { attendance, tabletNum ->
+            showAttendanceDetails(attendance, tabletNum)
         }
-        rvAttendance.layoutManager = LinearLayoutManager(requireContext())
         rvAttendance.adapter = attendanceAdapter
     }
 
-    private fun showAttendanceDetails(attendance: AttendanceDto) {
+    private fun showAttendanceDetails(attendance: AttendanceDto, tabletNumber: Int) {
         android.util.Log.d("AttendanceDetails", "=== Showing Attendance Details ===")
         android.util.Log.d("AttendanceDetails", "ID: ${attendance.id}")
+        android.util.Log.d("AttendanceDetails", "Tablet: $tabletNumber")
         android.util.Log.d("AttendanceDetails", "Name: ${attendance.attendeeName}")
         android.util.Log.d("AttendanceDetails", "Photo URL: ${attendance.photoUrl}")
         android.util.Log.d("AttendanceDetails", "Photo Cloudinary ID: ${attendance.photoCloudinaryId}")
-        
+
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_attendance_detail, null)
 
         val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Tablet $tabletNumber Details")
             .setView(dialogView)
             .create()
 
         // Set data
         dialogView.findViewById<TextView>(R.id.tvDetailName).text =
-            attendance.attendeeName ?: "Attendee #${attendance.id}"
+            attendance.attendeeName ?: "Tablet $tabletNumber"
         dialogView.findViewById<TextView>(R.id.tvDetailPosition).text =
             attendance.attendeePosition ?: "N/A"
         dialogView.findViewById<TextView>(R.id.tvDetailDepartment).text =

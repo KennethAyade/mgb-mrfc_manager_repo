@@ -87,4 +87,22 @@ interface AgendaApiService {
         @Path("id") id: Long,
         @Body request: DenyProposalRequest
     ): Response<ApiResponse<AgendaDto>>
+
+    /**
+     * Start meeting timer (ADMIN only)
+     * POST /agendas/:id/start
+     */
+    @POST("agendas/{id}/start")
+    suspend fun startMeeting(
+        @Path("id") id: Long
+    ): Response<ApiResponse<MeetingTimerResponse>>
+
+    /**
+     * End meeting timer (ADMIN only)
+     * POST /agendas/:id/end
+     */
+    @POST("agendas/{id}/end")
+    suspend fun endMeeting(
+        @Path("id") id: Long
+    ): Response<ApiResponse<MeetingTimerResponse>>
 }

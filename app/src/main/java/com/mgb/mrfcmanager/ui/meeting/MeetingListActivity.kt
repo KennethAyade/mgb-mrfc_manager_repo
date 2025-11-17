@@ -431,15 +431,21 @@ class MeetingAdapter(
         private val apiDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
         fun bind(meeting: AgendaDto, onClick: (AgendaDto) -> Unit) {
-            tvMeetingTitle.text = "Meeting #${meeting.id}"
+            // Show meeting title or fallback to "Meeting #X"
+            tvMeetingTitle.text = meeting.meetingTitle?.takeIf { it.isNotBlank() }
+                ?: "Meeting #${meeting.id}"
 
-            // Format date
-            meeting.meetingDate?.let {
+            // Format date with time if available
+            meeting.meetingDate?.let { dateStr ->
                 try {
-                    val parsedDate = apiDateFormat.parse(it)
-                    tvMeetingDate.text = parsedDate?.let { date -> dateFormat.format(date) } ?: it
+                    val parsedDate = apiDateFormat.parse(dateStr)
+                    val formattedDate = parsedDate?.let { date -> dateFormat.format(date) } ?: dateStr
+
+                    // Append time if available
+                    val timeStr = meeting.meetingTime?.let { " at $it" } ?: ""
+                    tvMeetingDate.text = formattedDate + timeStr
                 } catch (e: Exception) {
-                    tvMeetingDate.text = it
+                    tvMeetingDate.text = dateStr
                 }
             } ?: run {
                 tvMeetingDate.text = "Date not set"
@@ -449,7 +455,8 @@ class MeetingAdapter(
             tvMeetingStatus.text = meeting.status
 
             // Show location
-            tvMeetingLocation.text = meeting.location ?: "Location TBD"
+            tvMeetingLocation.text = meeting.location?.takeIf { it.isNotBlank() }
+                ?: "Location TBD"
 
             itemView.setOnClickListener { onClick(meeting) }
         }

@@ -56,6 +56,21 @@ data class AgendaDto(
     @Json(name = "denial_remarks")
     val denialRemarks: String? = null,
 
+    @Json(name = "actual_start_time")
+    val actualStartTime: String? = null,
+
+    @Json(name = "actual_end_time")
+    val actualEndTime: String? = null,
+
+    @Json(name = "duration_minutes")
+    val durationMinutes: Int? = null,
+
+    @Json(name = "started_by")
+    val startedBy: Long? = null,
+
+    @Json(name = "ended_by")
+    val endedBy: Long? = null,
+
     @Json(name = "created_at")
     val createdAt: String,
 
@@ -269,4 +284,28 @@ data class AgendaListResponse(
 
     @Json(name = "limit")
     val limit: Int
+)
+
+/**
+ * Meeting Timer Response
+ * Response from start/end meeting endpoints
+ */
+data class MeetingTimerResponse(
+    @Json(name = "id")
+    val id: Long,
+
+    @Json(name = "actual_start_time")
+    val actualStartTime: String? = null,
+
+    @Json(name = "actual_end_time")
+    val actualEndTime: String? = null,
+
+    @Json(name = "duration_minutes")
+    val durationMinutes: Int? = null,
+
+    @Json(name = "started_by")
+    val startedBy: Long? = null,
+
+    @Json(name = "ended_by")
+    val endedBy: Long? = null
 )

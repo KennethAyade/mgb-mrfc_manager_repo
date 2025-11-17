@@ -103,6 +103,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
       page = '1',
       limit = '20',
       quarter_id,
+      quarter, // Support both quarter_id (1-4) and quarter ("Q1"-"Q4")
       mrfc_id,
       status,
       sort_by = 'meeting_date',
@@ -116,7 +117,18 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
     // Step 3: Build filter conditions
     const where: any = {};
-    if (quarter_id) where.quarter_id = parseInt(quarter_id as string);
+
+    // Handle quarter filtering - support both formats
+    if (quarter_id) {
+      where.quarter_id = parseInt(quarter_id as string);
+    } else if (quarter) {
+      // Convert quarter string ("Q1", "Q2", etc.) to quarter_id (1, 2, 3, 4)
+      const quarterStr = (quarter as string).toUpperCase();
+      if (quarterStr === 'Q1') where.quarter_id = 1;
+      else if (quarterStr === 'Q2') where.quarter_id = 2;
+      else if (quarterStr === 'Q3') where.quarter_id = 3;
+      else if (quarterStr === 'Q4') where.quarter_id = 4;
+    }
 
     // Handle mrfc_id filtering: 0 means general meetings (NULL), otherwise filter by specific MRFC
     let requestingGeneralMeetings = false;
@@ -1074,6 +1086,181 @@ router.get('/pending-proposals', authenticate, adminOnly, async (req: Request, r
       error: {
         code: 'FETCH_FAILED',
         message: error.message || 'Failed to fetch pending proposals'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * POST /agendas/:id/start
+ * ================================================
+ * Start the meeting timer
+ * ADMIN/SUPER_ADMIN only
+ *
+ * Records the actual start time and the admin who started the meeting
+ *
+ * RESPONSE (200):
+ * {
+ *   "success": true,
+ *   "message": "Meeting started successfully",
+ *   "data": {
+ *     "id": 123,
+ *     "actual_start_time": "2025-11-17T10:30:00Z",
+ *     "started_by": 5
+ *   }
+ * }
+ */
+router.post('/:id/start', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { Agenda } = require('../models');
+
+    // Find the agenda
+    const agenda = await Agenda.findByPk(id);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'AGENDA_NOT_FOUND',
+          message: 'Meeting not found'
+        }
+      });
+    }
+
+    // Check if meeting already started
+    if (agenda.actual_start_time) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'ALREADY_STARTED',
+          message: 'Meeting has already been started'
+        }
+      });
+    }
+
+    // Start the meeting
+    agenda.actual_start_time = new Date();
+    agenda.started_by = req.user?.userId;
+    await agenda.save();
+
+    console.log(`⏱️ Meeting ${id} started at ${agenda.actual_start_time} by user ${req.user?.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Meeting started successfully',
+      data: {
+        id: agenda.id,
+        actual_start_time: agenda.actual_start_time,
+        started_by: agenda.started_by
+      }
+    });
+  } catch (error: any) {
+    console.error('Error starting meeting:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'START_FAILED',
+        message: error.message || 'Failed to start meeting'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * POST /agendas/:id/end
+ * ================================================
+ * End the meeting timer
+ * ADMIN/SUPER_ADMIN only
+ *
+ * Records the actual end time, calculates duration, and logs the admin who ended the meeting
+ *
+ * RESPONSE (200):
+ * {
+ *   "success": true,
+ *   "message": "Meeting ended successfully",
+ *   "data": {
+ *     "id": 123,
+ *     "actual_start_time": "2025-11-17T10:30:00Z",
+ *     "actual_end_time": "2025-11-17T12:15:00Z",
+ *     "duration_minutes": 105,
+ *     "ended_by": 5
+ *   }
+ * }
+ */
+router.post('/:id/end', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { Agenda } = require('../models');
+
+    // Find the agenda
+    const agenda = await Agenda.findByPk(id);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'AGENDA_NOT_FOUND',
+          message: 'Meeting not found'
+        }
+      });
+    }
+
+    // Check if meeting has been started
+    if (!agenda.actual_start_time) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NOT_STARTED',
+          message: 'Meeting has not been started yet'
+        }
+      });
+    }
+
+    // Check if meeting already ended
+    if (agenda.actual_end_time) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'ALREADY_ENDED',
+          message: 'Meeting has already been ended'
+        }
+      });
+    }
+
+    // End the meeting
+    const endTime = new Date();
+    agenda.actual_end_time = endTime;
+    agenda.ended_by = req.user?.userId;
+
+    // Calculate duration in minutes
+    const startTime = new Date(agenda.actual_start_time);
+    const durationMs = endTime.getTime() - startTime.getTime();
+    agenda.duration_minutes = Math.round(durationMs / 60000); // Convert ms to minutes
+
+    await agenda.save();
+
+    console.log(`⏱️ Meeting ${id} ended at ${agenda.actual_end_time} by user ${req.user?.userId}`);
+    console.log(`⏱️ Duration: ${agenda.duration_minutes} minutes`);
+
+    res.json({
+      success: true,
+      message: 'Meeting ended successfully',
+      data: {
+        id: agenda.id,
+        actual_start_time: agenda.actual_start_time,
+        actual_end_time: agenda.actual_end_time,
+        duration_minutes: agenda.duration_minutes,
+        ended_by: agenda.ended_by
+      }
+    });
+  } catch (error: any) {
+    console.error('Error ending meeting:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'END_FAILED',
+        message: error.message || 'Failed to end meeting'
       }
     });
   }
