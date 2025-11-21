@@ -60,7 +60,7 @@ interface AgendaApiService {
     @DELETE("agendas/{id}")
     suspend fun deleteAgenda(
         @Path("id") id: Long
-    ): Response<ApiResponse<Unit>>
+    ): Response<ApiResponse<Any?>>
 
     /**
      * Get pending agenda proposals (ADMIN only)

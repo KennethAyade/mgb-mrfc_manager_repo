@@ -26,7 +26,10 @@ class TabletAttendanceAdapter(
     }
 
     override fun onBindViewHolder(holder: TabletViewHolder, position: Int) {
-        holder.bind(attendanceList[position], position + 1, onTabletClick)
+        val attendance = attendanceList[position]
+        // Use tablet number from backend if available, otherwise fallback to position
+        val tabletNum = attendance.tabletNumber ?: (position + 1)
+        holder.bind(attendance, tabletNum, onTabletClick)
     }
 
     override fun getItemCount() = attendanceList.size

@@ -26,6 +26,9 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
     private val _attendanceSummary = MutableLiveData<AttendanceSummary?>()
     val attendanceSummary: LiveData<AttendanceSummary?> = _attendanceSummary
 
+    private val _currentUserLogged = MutableLiveData<Boolean>()
+    val currentUserLogged: LiveData<Boolean> = _currentUserLogged
+
     private val _photoUploadState = MutableLiveData<PhotoUploadState>()
     val photoUploadState: LiveData<PhotoUploadState> = _photoUploadState
 
@@ -40,10 +43,12 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
                 is Result.Success -> {
                     _attendanceListState.value = AttendanceListState.Success(result.data.attendance)
                     _attendanceSummary.value = result.data.summary
+                    _currentUserLogged.value = result.data.currentUserLogged
                 }
                 is Result.Error -> {
                     _attendanceListState.value = AttendanceListState.Error(result.message)
                     _attendanceSummary.value = null
+                    _currentUserLogged.value = false
                 }
                 is Result.Loading -> {
                     _attendanceListState.value = AttendanceListState.Loading

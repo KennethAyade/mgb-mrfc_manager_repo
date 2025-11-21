@@ -315,7 +315,7 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     const { Agenda, Quarter, Mrfc, AuditLog } = require('../models');
 
     // Step 1: Validate required fields
-    const { mrfc_id, quarter_id, meeting_date, meeting_time, location, status } = req.body;
+    const { mrfc_id, quarter_id, meeting_title, meeting_date, meeting_time, meeting_end_time, location, status } = req.body;
 
     // mrfc_id can be null for general meetings, but quarter_id and meeting_date are required
     if (quarter_id === undefined || quarter_id === null || !meeting_date) {
@@ -371,8 +371,10 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     const agenda = await Agenda.create({
       mrfc_id,
       quarter_id,
+      meeting_title: meeting_title || null,
       meeting_date,
       meeting_time: meeting_time || null,
+      meeting_end_time: meeting_end_time || null,
       location: location || null,
       status: status || 'DRAFT'
     });
@@ -697,7 +699,7 @@ router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) 
     };
 
     // Step 4: Extract updatable fields from request body
-    const { meeting_date, meeting_time, location, status } = req.body;
+    const { meeting_title, meeting_date, meeting_time, meeting_end_time, location, status } = req.body;
 
     // Step 5: Validate status if provided
     const validStatuses = ['DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED'];
@@ -712,8 +714,10 @@ router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) 
     }
 
     // Step 6: Update meeting fields
+    if (meeting_title !== undefined) agenda.meeting_title = meeting_title;
     if (meeting_date) agenda.meeting_date = meeting_date;
     if (meeting_time !== undefined) agenda.meeting_time = meeting_time;
+    if (meeting_end_time !== undefined) agenda.meeting_end_time = meeting_end_time;
     if (location !== undefined) agenda.location = location;
     if (status) agenda.status = status;
 

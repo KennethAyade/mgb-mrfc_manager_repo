@@ -49,7 +49,11 @@ data class AttendanceDto(
     val proponent: ProponentDto? = null,
 
     @Json(name = "marker")
-    val marker: UserDto? = null
+    val marker: UserDto? = null,
+
+    // Tablet number assigned based on order of attendance logging
+    @Json(name = "tablet_number")
+    val tabletNumber: Int? = null
 )
 
 /**
@@ -87,7 +91,10 @@ data class AttendanceListResponse(
     val attendance: List<AttendanceDto>,
 
     @Json(name = "summary")
-    val summary: AttendanceSummary
+    val summary: AttendanceSummary,
+
+    @Json(name = "current_user_logged")
+    val currentUserLogged: Boolean = false
 )
 
 /**

@@ -13,8 +13,8 @@ android {
         applicationId = "com.mgb.mrfcmanager"
         minSdk = 25
         targetSdk = 36
-        versionCode = 25
-        versionName = "2.0.25"
+        versionCode = 27
+        versionName = "2.0.27"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

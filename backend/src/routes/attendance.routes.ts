@@ -111,16 +111,33 @@ router.get('/meeting/:agendaId', authenticate, async (req: Request, res: Respons
     const absent = total - present;
     const rate = total > 0 ? (present / total) * 100 : 0;
 
+    // Check if current user has already logged attendance for this meeting
+    const currentUserId = req.user?.userId;
+    const currentUserLogged = attendance.some((a: any) =>
+      a.marked_by === currentUserId || a.marked_by === Number(currentUserId)
+    );
+
+    // Add tablet number (position) to each attendance record
+    // Sort by marked_at ASC to get proper tablet order
+    const sortedAttendance = [...attendanceWithSignedUrls].sort((a: any, b: any) =>
+      new Date(a.marked_at).getTime() - new Date(b.marked_at).getTime()
+    );
+    const attendanceWithTabletNumbers = sortedAttendance.map((record: any, index: number) => ({
+      ...record,
+      tablet_number: index + 1
+    }));
+
     return res.json({
       success: true,
       data: {
-        attendance: attendanceWithSignedUrls,
+        attendance: attendanceWithTabletNumbers,
         summary: {
           total_attendees: total,
           present,
           absent,
           attendance_rate: parseFloat(rate.toFixed(2))
-        }
+        },
+        current_user_logged: currentUserLogged
       }
     });
   } catch (error: any) {
@@ -227,21 +244,19 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
       }
     }
 
-    // Check for duplicate attendance
-    const whereClause: any = { agenda_id };
-    if (proponent_id) {
-      whereClause.proponent_id = proponent_id;
-    } else {
-      whereClause.attendee_name = attendee_name;
-    }
-
-    const existing = await Attendance.findOne({ where: whereClause });
-    if (existing) {
+    // Check for duplicate attendance - one per user account per meeting
+    const existingByUser = await Attendance.findOne({
+      where: {
+        agenda_id,
+        marked_by: req.user?.userId
+      }
+    });
+    if (existingByUser) {
       return res.status(409).json({
         success: false,
         error: {
           code: 'ATTENDANCE_EXISTS',
-          message: 'Attendance already recorded for this person'
+          message: 'You have already logged attendance for this meeting'
         }
       });
     }

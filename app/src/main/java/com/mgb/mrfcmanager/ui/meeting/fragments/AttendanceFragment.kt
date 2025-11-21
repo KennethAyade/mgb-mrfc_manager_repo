@@ -296,6 +296,11 @@ class AttendanceFragment : Fragment() {
                 }
             }
         }
+
+        // Hide "Log My Attendance" button if user already logged for this meeting
+        viewModel.currentUserLogged.observe(viewLifecycleOwner) { hasLogged ->
+            btnLogAttendance.visibility = if (hasLogged) View.GONE else View.VISIBLE
+        }
     }
 
     private fun loadAttendance() {

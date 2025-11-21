@@ -374,9 +374,11 @@ class MeetingListActivity : BaseActivity() {
     private fun openMeetingDetail(meeting: AgendaDto) {
         // Navigate to MeetingDetailActivity for Meeting Management flow
         // Quarter → Meeting → (Agenda/Attendance/Minutes tabs)
+        val title = meeting.meetingTitle?.takeIf { it.isNotBlank() }
+            ?: "Meeting #${meeting.id}"
         val intent = Intent(this, MeetingDetailActivity::class.java).apply {
             putExtra("AGENDA_ID", meeting.id)
-            putExtra("MEETING_TITLE", "Meeting #${meeting.id}")
+            putExtra("MEETING_TITLE", title)
             putExtra("MRFC_ID", mrfcId)
         }
         startActivity(intent)

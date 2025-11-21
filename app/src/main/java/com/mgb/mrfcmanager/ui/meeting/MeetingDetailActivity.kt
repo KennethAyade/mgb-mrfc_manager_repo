@@ -1,14 +1,21 @@
 package com.mgb.mrfcmanager.ui.meeting
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
@@ -16,9 +23,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
 import com.mgb.mrfcmanager.data.remote.dto.AgendaDto
+import com.mgb.mrfcmanager.data.remote.dto.CreateAgendaRequest
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import com.google.android.material.tabs.TabLayout
@@ -68,6 +79,9 @@ class MeetingDetailActivity : BaseActivity() {
     private val timerHandler = Handler(Looper.getMainLooper())
     private var timerRunnable: Runnable? = null
 
+    // For role-based menu visibility
+    private var isAdminOrSuperAdmin = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_meeting_detail)
@@ -94,6 +108,11 @@ class MeetingDetailActivity : BaseActivity() {
             Toast.makeText(this, "Invalid meeting ID", Toast.LENGTH_SHORT).show()
             finish()
         }
+
+        // Check user role for menu visibility
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        isAdminOrSuperAdmin = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
     }
 
     private fun setupToolbar() {
@@ -182,15 +201,24 @@ class MeetingDetailActivity : BaseActivity() {
                     showLoading(false)
                     currentAgenda = state.data
                     val agenda = state.data
-                    tvMeetingTitle.text = "Meeting #${agenda.id}"
 
-                    // Format and display meeting date
-                    agenda.meetingDate?.let {
-                        tvMeetingDate.text = "Date: $it"
-                        tvMeetingDate.visibility = View.VISIBLE
-                    } ?: run {
-                        tvMeetingDate.visibility = View.GONE
+                    // Show meeting title or fallback
+                    tvMeetingTitle.text = agenda.meetingTitle?.takeIf { it.isNotBlank() }
+                        ?: "Meeting #${agenda.id}"
+
+                    // Update toolbar title as well
+                    supportActionBar?.title = tvMeetingTitle.text
+
+                    // Format and display meeting date with location
+                    val dateStr = agenda.meetingDate ?: "Date not set"
+                    val locationStr = agenda.location?.takeIf { it.isNotBlank() }
+
+                    if (locationStr != null) {
+                        tvMeetingDate.text = "Date: $dateStr | Location: $locationStr"
+                    } else {
+                        tvMeetingDate.text = "Date: $dateStr"
                     }
+                    tvMeetingDate.visibility = View.VISIBLE
 
                     // Update timer UI
                     updateTimerUI(agenda)
@@ -364,5 +392,233 @@ class MeetingDetailActivity : BaseActivity() {
         super.onDestroy()
         // Stop timer updates when activity is destroyed
         timerRunnable?.let { timerHandler.removeCallbacks(it) }
+    }
+
+    // ==================== Menu Handling ====================
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        // Only show menu for ADMIN and SUPER_ADMIN
+        if (isAdminOrSuperAdmin) {
+            menuInflater.inflate(R.menu.menu_meeting_detail, menu)
+        }
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_edit -> {
+                showEditMeetingDialog()
+                true
+            }
+            R.id.action_delete -> {
+                showDeleteConfirmationDialog()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    // ==================== Edit Meeting ====================
+
+    private fun showEditMeetingDialog() {
+        val agenda = currentAgenda ?: run {
+            Toast.makeText(this, "Meeting data not loaded", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_edit_meeting, null)
+
+        // Get views
+        val etMeetingTitle = dialogView.findViewById<TextInputEditText>(R.id.etMeetingTitle)
+        val etMeetingDate = dialogView.findViewById<TextInputEditText>(R.id.etMeetingDate)
+        val etLocation = dialogView.findViewById<TextInputEditText>(R.id.etLocation)
+        val etMeetingTime = dialogView.findViewById<TextInputEditText>(R.id.etMeetingTime)
+        val actvStatus = dialogView.findViewById<AutoCompleteTextView>(R.id.actvStatus)
+
+        // Populate current values
+        etMeetingTitle.setText(agenda.meetingTitle ?: "")
+        etMeetingDate.setText(agenda.meetingDate ?: "")
+        etLocation.setText(agenda.location ?: "")
+        etMeetingTime.setText(agenda.meetingTime ?: "")
+
+        // Setup status dropdown
+        val statuses = arrayOf("DRAFT", "PUBLISHED", "COMPLETED", "CANCELLED")
+        val statusAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, statuses)
+        actvStatus.setAdapter(statusAdapter)
+        actvStatus.setText(agenda.status ?: "DRAFT", false)
+
+        // Setup date picker
+        etMeetingDate.setOnClickListener {
+            showDatePicker(etMeetingDate, agenda.meetingDate)
+        }
+
+        // Setup time picker
+        etMeetingTime.setOnClickListener {
+            showTimePicker(etMeetingTime, agenda.meetingTime)
+        }
+
+        // Show dialog
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Edit Meeting")
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                val updatedDate = etMeetingDate.text.toString().trim()
+                if (updatedDate.isEmpty()) {
+                    Toast.makeText(this, "Meeting date is required", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val request = CreateAgendaRequest(
+                    mrfcId = agenda.mrfc?.id,
+                    quarterId = agenda.quarter?.id ?: 1L,
+                    meetingTitle = etMeetingTitle.text.toString().trim().ifEmpty { null },
+                    meetingDate = updatedDate,
+                    meetingTime = etMeetingTime.text.toString().trim().ifEmpty { null },
+                    location = etLocation.text.toString().trim().ifEmpty { null },
+                    status = actvStatus.text.toString()
+                )
+
+                updateMeeting(request)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showDatePicker(editText: TextInputEditText, currentDate: String?) {
+        val calendar = Calendar.getInstance()
+
+        // Parse current date if available
+        currentDate?.let {
+            try {
+                val parts = it.split("-")
+                if (parts.size == 3) {
+                    calendar.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
+                }
+            } catch (e: Exception) {
+                // Use current date
+            }
+        }
+
+        DatePickerDialog(
+            this,
+            { _, year, month, dayOfMonth ->
+                val formattedDate = String.format("%04d-%02d-%02d", year, month + 1, dayOfMonth)
+                editText.setText(formattedDate)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
+    private fun showTimePicker(editText: TextInputEditText, currentTime: String?) {
+        val calendar = Calendar.getInstance()
+        var hour = calendar.get(Calendar.HOUR_OF_DAY)
+        var minute = calendar.get(Calendar.MINUTE)
+
+        // Parse current time if available (format: "09:00 AM" or "14:30")
+        currentTime?.let {
+            try {
+                val parts = it.replace(" AM", "").replace(" PM", "").split(":")
+                if (parts.size >= 2) {
+                    hour = parts[0].toInt()
+                    minute = parts[1].toInt()
+                    // Adjust for PM
+                    if (it.contains("PM") && hour < 12) hour += 12
+                    if (it.contains("AM") && hour == 12) hour = 0
+                }
+            } catch (e: Exception) {
+                // Use current time
+            }
+        }
+
+        TimePickerDialog(
+            this,
+            { _, selectedHour, selectedMinute ->
+                val amPm = if (selectedHour < 12) "AM" else "PM"
+                val displayHour = when {
+                    selectedHour == 0 -> 12
+                    selectedHour > 12 -> selectedHour - 12
+                    else -> selectedHour
+                }
+                val formattedTime = String.format("%02d:%02d %s", displayHour, selectedMinute, amPm)
+                editText.setText(formattedTime)
+            },
+            hour,
+            minute,
+            false // 12-hour format
+        ).show()
+    }
+
+    private fun updateMeeting(request: CreateAgendaRequest) {
+        lifecycleScope.launch {
+            try {
+                val tokenManager = MRFCManagerApp.getTokenManager()
+                val retrofit = RetrofitClient.getInstance(tokenManager)
+                val apiService = retrofit.create(AgendaApiService::class.java)
+
+                val response = apiService.updateAgenda(agendaId, request)
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    Toast.makeText(this@MeetingDetailActivity, "Meeting updated successfully", Toast.LENGTH_SHORT).show()
+                    // Reload meeting details
+                    loadMeetingDetails()
+                } else {
+                    val errorMsg = response.body()?.error?.message ?: "Failed to update meeting"
+                    Toast.makeText(this@MeetingDetailActivity, errorMsg, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MeetingDetailActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // ==================== Delete Meeting ====================
+
+    private fun showDeleteConfirmationDialog() {
+        val agenda = currentAgenda ?: run {
+            Toast.makeText(this, "Meeting data not loaded", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Check if meeting is completed
+        if (agenda.status == "COMPLETED") {
+            Toast.makeText(this, "Cannot delete completed meetings", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Delete Meeting")
+            .setMessage("Are you sure you want to delete this meeting?\n\nThis will also delete all attendance records and other data associated with this meeting.\n\nThis action cannot be undone.")
+            .setIcon(R.drawable.ic_delete)
+            .setPositiveButton("Delete") { _, _ ->
+                deleteMeeting()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun deleteMeeting() {
+        lifecycleScope.launch {
+            try {
+                val tokenManager = MRFCManagerApp.getTokenManager()
+                val retrofit = RetrofitClient.getInstance(tokenManager)
+                val apiService = retrofit.create(AgendaApiService::class.java)
+
+                val response = apiService.deleteAgenda(agendaId)
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    Toast.makeText(this@MeetingDetailActivity, "Meeting deleted successfully", Toast.LENGTH_SHORT).show()
+                    // Close this activity and return to list
+                    setResult(RESULT_OK)
+                    finish()
+                } else {
+                    val errorMsg = response.body()?.error?.message ?: "Failed to delete meeting"
+                    Toast.makeText(this@MeetingDetailActivity, errorMsg, Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MeetingDetailActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }
