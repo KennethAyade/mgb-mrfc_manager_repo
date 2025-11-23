@@ -6,6 +6,9 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
+import coil.transform.CircleCropTransformation
+import com.google.android.material.card.MaterialCardView
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.remote.dto.AttendanceDto
 
@@ -35,7 +38,8 @@ class TabletAttendanceAdapter(
     override fun getItemCount() = attendanceList.size
 
     class TabletViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val ivTabletIcon: ImageView = itemView.findViewById(R.id.ivTabletIcon)
+        private val cardPhoto: MaterialCardView = itemView.findViewById(R.id.cardPhoto)
+        private val ivAttendeePhoto: ImageView = itemView.findViewById(R.id.ivAttendeePhoto)
         private val tvTabletNumber: TextView = itemView.findViewById(R.id.tvTabletNumber)
         private val tvAttendeeName: TextView = itemView.findViewById(R.id.tvAttendeeName)
 
@@ -47,13 +51,29 @@ class TabletAttendanceAdapter(
             tvTabletNumber.text = "Tablet $tabletNumber"
             tvAttendeeName.text = attendance.attendeeName ?: "Attendee $tabletNumber"
 
-            // Set tablet icon color based on presence status
-            val tintColor = if (attendance.isPresent) {
+            // Load attendee photo if available
+            if (!attendance.photoUrl.isNullOrEmpty()) {
+                ivAttendeePhoto.imageTintList = null // Remove tint for actual photos
+                ivAttendeePhoto.load(attendance.photoUrl) {
+                    crossfade(true)
+                    placeholder(R.drawable.ic_person)
+                    error(R.drawable.ic_person)
+                }
+            } else {
+                // Show default person icon with tint
+                ivAttendeePhoto.setImageResource(R.drawable.ic_person)
+                ivAttendeePhoto.imageTintList = android.content.res.ColorStateList.valueOf(
+                    itemView.context.getColor(R.color.text_hint)
+                )
+            }
+
+            // Set card border color based on presence status
+            val strokeColor = if (attendance.isPresent) {
                 itemView.context.getColor(R.color.status_success)
             } else {
                 itemView.context.getColor(R.color.status_pending)
             }
-            ivTabletIcon.setColorFilter(tintColor)
+            cardPhoto.strokeColor = strokeColor
 
             // Set click listener
             itemView.setOnClickListener {

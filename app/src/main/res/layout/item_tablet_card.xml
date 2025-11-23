@@ -20,39 +20,51 @@
         android:padding="20dp"
         android:minHeight="160dp">
 
-        <!-- Tablet Icon -->
-        <ImageView
-            android:id="@+id/ivTabletIcon"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:src="@drawable/ic_tablet"
-            app:tint="@color/primary"
-            android:contentDescription="Tablet" />
+        <!-- Attendee Photo (Circular) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardPhoto"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            app:cardCornerRadius="40dp"
+            app:cardElevation="2dp"
+            app:strokeWidth="3dp"
+            app:strokeColor="@color/primary">
 
-        <!-- Tablet Number -->
-        <TextView
-            android:id="@+id/tvTabletNumber"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Tablet 1"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary"
-            android:layout_marginTop="12dp"
-            tools:text="Tablet 1" />
+            <ImageView
+                android:id="@+id/ivAttendeePhoto"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_person"
+                app:tint="@color/text_hint"
+                android:contentDescription="Attendee Photo" />
 
-        <!-- Attendee Name (small) -->
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Attendee Name -->
         <TextView
             android:id="@+id/tvAttendeeName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Attendee"
-            android:textSize="14sp"
-            android:textColor="@color/text_secondary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
             android:gravity="center"
             android:maxLines="2"
             android:ellipsize="end"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             tools:text="John Doe" />
+
+        <!-- Tablet Number (secondary) -->
+        <TextView
+            android:id="@+id/tvTabletNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tablet 1"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="4dp"
+            tools:text="Tablet 1" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

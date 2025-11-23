@@ -73,24 +73,10 @@ class UserDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationIt
     }
 
     private fun setupDashboardCards() {
-        // BUG FIX 1: View MRFC - Route to MRFCListActivity (read-only mode)
+        // View MRFC - Route to MRFCListActivity (read-only mode)
         findViewById<MaterialCardView>(R.id.cardViewMRFC).setOnClickListener {
             val intent = Intent(this, com.mgb.mrfcmanager.ui.admin.MRFCListActivity::class.java)
             startActivity(intent)
-        }
-
-        // BUG FIX 2: My Notes - Route to MRFC selection first (Notes requires MRFC_ID)
-        findViewById<MaterialCardView>(R.id.cardViewNotes).setOnClickListener {
-            startActivity(Intent(this, MRFCSelectionActivity::class.java).apply {
-                putExtra("DESTINATION", "NOTES")
-            })
-        }
-
-        // BUG FIX 3: View Documents - Route to MRFC selection first (Documents requires MRFC_ID)
-        findViewById<MaterialCardView>(R.id.cardViewDocuments).setOnClickListener {
-            startActivity(Intent(this, MRFCSelectionActivity::class.java).apply {
-                putExtra("DESTINATION", "DOCUMENTS")
-            })
         }
 
         // Meeting Management access for users
@@ -100,7 +86,7 @@ class UserDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationIt
             startActivity(intent)
         }
 
-        // My Proposals - NEW: View proposed agenda items with status
+        // My Proposals - View proposed agenda items with status
         findViewById<MaterialCardView>(R.id.cardViewMyProposals).setOnClickListener {
             startActivity(Intent(this, MyProposalsActivity::class.java))
         }

@@ -2,6 +2,7 @@ package com.mgb.mrfcmanager.ui.meeting
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.os.Handler
@@ -27,6 +28,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.mgb.mrfcmanager.data.remote.dto.AgendaDto
 import com.mgb.mrfcmanager.data.remote.dto.CreateAgendaRequest
+import com.mgb.mrfcmanager.ui.user.NotesActivity
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -397,15 +399,23 @@ class MeetingDetailActivity : BaseActivity() {
     // ==================== Menu Handling ====================
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Only show menu for ADMIN and SUPER_ADMIN
-        if (isAdminOrSuperAdmin) {
-            menuInflater.inflate(R.menu.menu_meeting_detail, menu)
+        // Show menu for all users (Notes is for everyone, Edit/Delete only for admins)
+        menuInflater.inflate(R.menu.menu_meeting_detail, menu)
+
+        // Hide Edit and Delete for non-admin users
+        if (!isAdminOrSuperAdmin) {
+            menu.findItem(R.id.action_edit)?.isVisible = false
+            menu.findItem(R.id.action_delete)?.isVisible = false
         }
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_notes -> {
+                openMyNotes()
+                true
+            }
             R.id.action_edit -> {
                 showEditMeetingDialog()
                 true
@@ -416,6 +426,15 @@ class MeetingDetailActivity : BaseActivity() {
             }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun openMyNotes() {
+        val intent = Intent(this, NotesActivity::class.java).apply {
+            putExtra("AGENDA_ID", agendaId)
+            putExtra("MRFC_ID", mrfcId)
+            putExtra("MEETING_TITLE", currentAgenda?.meetingTitle ?: meetingTitle)
+        }
+        startActivity(intent)
     }
 
     // ==================== Edit Meeting ====================

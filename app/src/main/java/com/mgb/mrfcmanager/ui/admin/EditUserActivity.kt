@@ -48,6 +48,8 @@ class EditUserActivity : AppCompatActivity() {
     private lateinit var progressBarMrfcs: ProgressBar
     private lateinit var tvNoMrfcs: TextView
     private lateinit var mrfcAdapter: MrfcCheckboxAdapter
+    private lateinit var btnSelectAll: MaterialButton
+    private lateinit var btnClearAll: MaterialButton
 
     private lateinit var userViewModel: UserViewModel
     private lateinit var mrfcViewModel: MrfcViewModel
@@ -95,6 +97,8 @@ class EditUserActivity : AppCompatActivity() {
         rvMrfcList = findViewById(R.id.rvMrfcList)
         progressBarMrfcs = findViewById(R.id.progressBarMrfcs)
         tvNoMrfcs = findViewById(R.id.tvNoMrfcs)
+        btnSelectAll = findViewById(R.id.btnSelectAll)
+        btnClearAll = findViewById(R.id.btnClearAll)
     }
 
     private fun setupViewModel() {
@@ -285,6 +289,14 @@ class EditUserActivity : AppCompatActivity() {
 
         btnCancel.setOnClickListener {
             finish()
+        }
+
+        btnSelectAll.setOnClickListener {
+            mrfcAdapter.selectAll()
+        }
+
+        btnClearAll.setOnClickListener {
+            mrfcAdapter.clearAll()
         }
     }
 

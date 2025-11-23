@@ -33,6 +33,17 @@ class MrfcCheckboxAdapter : RecyclerView.Adapter<MrfcCheckboxAdapter.MrfcCheckbo
         return selectedMrfcIds.toList()
     }
 
+    fun selectAll() {
+        selectedMrfcIds.clear()
+        mrfcs.forEach { selectedMrfcIds.add(it.id) }
+        notifyDataSetChanged()
+    }
+
+    fun clearAll() {
+        selectedMrfcIds.clear()
+        notifyDataSetChanged()
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MrfcCheckboxViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_mrfc_checkbox, parent, false)
