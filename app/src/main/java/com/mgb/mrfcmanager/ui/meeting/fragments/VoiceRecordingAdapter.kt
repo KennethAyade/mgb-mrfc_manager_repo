@@ -1,11 +1,13 @@
 package com.mgb.mrfcmanager.ui.meeting.fragments
 
 import android.media.MediaPlayer
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -101,26 +103,46 @@ class VoiceRecordingAdapter(
         // Stop any current playback
         stopPlayback()
 
+        Log.d("VoiceRecordingAdapter", "Playing recording: ${recording.fileUrl}")
+
         try {
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(recording.fileUrl)
                 prepareAsync()
                 setOnPreparedListener {
+                    Log.d("VoiceRecordingAdapter", "MediaPlayer prepared, starting playback")
                     start()
                     currentlyPlayingId = recording.id
                     currentlyPlayingHolder = holder
                     holder.updatePlayButton(true)
                 }
                 setOnCompletionListener {
+                    Log.d("VoiceRecordingAdapter", "Playback completed")
                     stopPlayback()
                 }
-                setOnErrorListener { _, _, _ ->
+                setOnErrorListener { _, what, extra ->
+                    Log.e("VoiceRecordingAdapter", "MediaPlayer error: what=$what, extra=$extra")
+                    val errorMessage = when (what) {
+                        MediaPlayer.MEDIA_ERROR_UNKNOWN -> "Unknown error"
+                        MediaPlayer.MEDIA_ERROR_SERVER_DIED -> "Server died"
+                        else -> "Error code: $what"
+                    }
+                    Toast.makeText(
+                        holder.itemView.context,
+                        "Failed to play recording: $errorMessage",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     stopPlayback()
                     true
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("VoiceRecordingAdapter", "Exception playing recording", e)
+            Toast.makeText(
+                holder.itemView.context,
+                "Failed to play recording: ${e.message}",
+                Toast.LENGTH_SHORT
+            ).show()
             stopPlayback()
         }
     }

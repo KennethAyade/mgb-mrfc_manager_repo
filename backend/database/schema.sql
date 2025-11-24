@@ -220,6 +220,7 @@ CREATE TABLE voice_recordings (
     id BIGSERIAL PRIMARY KEY,
     agenda_id BIGINT NOT NULL REFERENCES agendas(id) ON DELETE CASCADE,
     recording_name VARCHAR(255) NOT NULL,
+    description TEXT,
     file_name VARCHAR(255) NOT NULL,
     file_url TEXT NOT NULL,
     file_cloudinary_id VARCHAR(255),

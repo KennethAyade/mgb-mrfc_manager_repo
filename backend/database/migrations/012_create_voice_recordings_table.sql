@@ -18,6 +18,17 @@ CREATE TABLE IF NOT EXISTS voice_recordings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Add description column if table already exists but column is missing
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'voice_recordings' AND column_name = 'description'
+    ) THEN
+        ALTER TABLE voice_recordings ADD COLUMN description TEXT;
+    END IF;
+END $$;
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_voice_recordings_agenda_id ON voice_recordings(agenda_id);
 CREATE INDEX IF NOT EXISTS idx_voice_recordings_recorded_by ON voice_recordings(recorded_by);

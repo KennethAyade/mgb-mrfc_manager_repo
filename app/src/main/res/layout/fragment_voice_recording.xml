@@ -6,10 +6,15 @@
     android:layout_height="match_parent"
     android:background="@color/background_light">
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
         <!-- Recording Control Card -->
         <com.google.android.material.card.MaterialCardView
@@ -132,14 +137,16 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvRecordings"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/spacing_small"
             android:clipToPadding="false"
             android:paddingHorizontal="@dimen/spacing_normal"
             android:paddingBottom="@dimen/spacing_normal"
+            android:nestedScrollingEnabled="false"
             tools:listitem="@layout/item_voice_recording" />
 
-    </LinearLayout>
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
