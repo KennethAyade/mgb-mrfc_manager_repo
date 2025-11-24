@@ -200,7 +200,13 @@ data class CreateAgendaRequest(
     val mrfcId: Long? = null, // null means general meeting (not tied to specific MRFC)
 
     @Json(name = "quarter_id")
-    val quarterId: Long,
+    val quarterId: Long? = null, // Can use quarterId OR (quarterNumber + year)
+
+    @Json(name = "quarter_number")
+    val quarterNumber: Int? = null, // 1, 2, 3, or 4
+
+    @Json(name = "year")
+    val year: Int? = null, // e.g., 2025
 
     @Json(name = "meeting_title")
     val meetingTitle: String? = null,

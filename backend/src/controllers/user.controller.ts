@@ -527,12 +527,12 @@ export const grantMrfcAccess = async (req: Request, res: Response): Promise<void
     const { id } = req.params;
     const { mrfc_ids } = req.body;
 
-    if (!Array.isArray(mrfc_ids) || mrfc_ids.length === 0) {
+    if (!Array.isArray(mrfc_ids)) {
       res.status(400).json({
         success: false,
         error: {
           code: 'INVALID_INPUT',
-          message: 'mrfc_ids must be a non-empty array'
+          message: 'mrfc_ids must be an array'
         }
       });
       return;
@@ -550,38 +550,47 @@ export const grantMrfcAccess = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Verify all MRFCs exist
-    const mrfcs = await Mrfc.findAll({
-      where: {
-        id: { [Op.in]: mrfc_ids },
-        is_active: true
-      }
-    });
-
-    if (mrfcs.length !== mrfc_ids.length) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'MRFC_NOT_FOUND',
-          message: 'One or more MRFCs not found or inactive'
+    // If mrfc_ids is not empty, verify all MRFCs exist
+    if (mrfc_ids.length > 0) {
+      const mrfcs = await Mrfc.findAll({
+        where: {
+          id: { [Op.in]: mrfc_ids },
+          is_active: true
         }
       });
-      return;
+
+      if (mrfcs.length !== mrfc_ids.length) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'MRFC_NOT_FOUND',
+            message: 'One or more MRFCs not found or inactive'
+          }
+        });
+        return;
+      }
     }
 
     await sequelize.transaction(async (t) => {
-      // Create access records
-      const accessRecords = mrfc_ids.map((mrfc_id: number) => ({
-        user_id: user.id,
-        mrfc_id,
-        granted_by: currentUser.userId,
-        is_active: true
-      }));
-
-      await UserMrfcAccess.bulkCreate(accessRecords, {
-        transaction: t,
-        updateOnDuplicate: ['is_active', 'granted_by']
+      // First, delete all existing access records for this user
+      await UserMrfcAccess.destroy({
+        where: { user_id: user.id },
+        transaction: t
       });
+
+      // Create new access records (if any)
+      if (mrfc_ids.length > 0) {
+        const accessRecords = mrfc_ids.map((mrfc_id: number) => ({
+          user_id: user.id,
+          mrfc_id,
+          granted_by: currentUser.userId,
+          is_active: true
+        }));
+
+        await UserMrfcAccess.bulkCreate(accessRecords, {
+          transaction: t
+        });
+      }
 
       // Create audit log
       await AuditLog.create(

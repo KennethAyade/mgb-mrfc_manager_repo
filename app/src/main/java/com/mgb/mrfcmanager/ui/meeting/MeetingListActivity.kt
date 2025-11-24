@@ -291,7 +291,8 @@ class MeetingListActivity : BaseActivity() {
             // Create agenda via ViewModel
             val agendaRequest = CreateAgendaRequest(
                 mrfcId = if (mrfcId == 0L) null else mrfcId, // null for general meetings
-                quarterId = getQuarterId(),
+                quarterNumber = getQuarterNumber(),
+                year = year,
                 meetingDate = meetingDate,
                 meetingTime = startTime.ifEmpty { null },
                 meetingEndTime = endTime.ifEmpty { null },
@@ -384,15 +385,13 @@ class MeetingListActivity : BaseActivity() {
         startActivity(intent)
     }
 
-    private fun getQuarterId(): Long {
-        // TODO: BACKEND - Get actual quarter ID from backend
-        // For now, return a placeholder based on quarter
+    private fun getQuarterNumber(): Int {
         return when (quarter) {
-            "Q1" -> 1L
-            "Q2" -> 2L
-            "Q3" -> 3L
-            "Q4" -> 4L
-            else -> 1L
+            "Q1" -> 1
+            "Q2" -> 2
+            "Q3" -> 3
+            "Q4" -> 4
+            else -> 1
         }
     }
 

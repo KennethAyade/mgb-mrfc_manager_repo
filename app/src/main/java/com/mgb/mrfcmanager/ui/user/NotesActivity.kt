@@ -170,16 +170,15 @@ class NotesActivity : AppCompatActivity() {
     }
 
     private fun loadNotes() {
-        if (mrfcId == 0L) {
-            showError("MRFC ID is required")
-            return
-        }
-
         // Load notes from backend
-        if (agendaId != null) {
+        // Notes can be loaded by agenda (for meeting-specific notes) or by MRFC
+        if (agendaId != null && agendaId != 0L) {
             viewModel.loadNotesByAgenda(agendaId!!)
-        } else {
+        } else if (mrfcId != 0L) {
             viewModel.loadNotesByMrfc(mrfcId)
+        } else {
+            showError("Please select a meeting or MRFC to view notes")
+            return
         }
     }
 

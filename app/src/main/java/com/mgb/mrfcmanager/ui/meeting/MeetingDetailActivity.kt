@@ -185,8 +185,7 @@ class MeetingDetailActivity : BaseActivity() {
                 val icon = ContextCompat.getDrawable(this, iconRes)?.mutate()
                 icon?.let {
                     val wrappedIcon = DrawableCompat.wrap(it)
-                    val colorStateList = ContextCompat.getColorStateList(this, colorRes)
-                    DrawableCompat.setTintList(wrappedIcon, colorStateList)
+                    DrawableCompat.setTint(wrappedIcon, ContextCompat.getColor(this, colorRes))
                     tab.icon = wrappedIcon
                 }
             }

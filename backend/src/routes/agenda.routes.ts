@@ -315,25 +315,71 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     const { Agenda, Quarter, Mrfc, AuditLog } = require('../models');
 
     // Step 1: Validate required fields
-    const { mrfc_id, quarter_id, meeting_title, meeting_date, meeting_time, meeting_end_time, location, status } = req.body;
+    const { mrfc_id, quarter_id, quarter_number, year, meeting_title, meeting_date, meeting_time, meeting_end_time, location, status } = req.body;
 
-    // mrfc_id can be null for general meetings, but quarter_id and meeting_date are required
-    if (quarter_id === undefined || quarter_id === null || !meeting_date) {
+    // mrfc_id can be null for general meetings, but meeting_date is required
+    // Either quarter_id OR (quarter_number + year) must be provided
+    if (!meeting_date) {
       return res.status(400).json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'Missing required fields: quarter_id, meeting_date'
+          message: 'Missing required field: meeting_date'
         }
       });
     }
 
-    // Step 2: Verify quarter exists
-    const quarter = await Quarter.findByPk(quarter_id);
-    if (!quarter) {
-      return res.status(404).json({
+    // Step 2: Find or create the quarter
+    let quarter;
+    let resolvedQuarterId = quarter_id;
+
+    if (quarter_id) {
+      // Use provided quarter_id
+      quarter = await Quarter.findByPk(quarter_id);
+      if (!quarter) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'QUARTER_NOT_FOUND',
+            message: 'Quarter not found'
+          }
+        });
+      }
+    } else if (quarter_number && year) {
+      // Find or create quarter by quarter_number and year
+      const quarterNames = ['Q1', 'Q2', 'Q3', 'Q4'];
+      const quarterName = `${quarterNames[quarter_number - 1]} ${year}`;
+
+      // Calculate start and end dates for the quarter
+      const startMonth = (quarter_number - 1) * 3; // 0, 3, 6, 9
+      const endMonth = startMonth + 2; // 2, 5, 8, 11
+      const startDate = new Date(year, startMonth, 1);
+      const endDate = new Date(year, endMonth + 1, 0); // Last day of end month
+
+      // Find or create the quarter
+      [quarter] = await Quarter.findOrCreate({
+        where: {
+          quarter_number: quarter_number,
+          year: year
+        },
+        defaults: {
+          name: quarterName,
+          quarter_number: quarter_number,
+          year: year,
+          start_date: startDate,
+          end_date: endDate
+        }
+      });
+
+      resolvedQuarterId = quarter.id;
+      console.log(`Quarter ${quarterName} ${quarter.isNewRecord ? 'created' : 'found'} with ID: ${quarter.id}`);
+    } else {
+      return res.status(400).json({
         success: false,
-        error: { code: 'QUARTER_NOT_FOUND', message: 'Quarter not found' }
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Either quarter_id or (quarter_number + year) must be provided'
+        }
       });
     }
 
@@ -351,7 +397,7 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
       // Step 4: Check for duplicate (one meeting per MRFC per quarter)
       const existing = await Agenda.findOne({
         where: {
-          quarter_id: quarter_id,
+          quarter_id: resolvedQuarterId,
           mrfc_id: mrfc_id
         }
       });
@@ -370,7 +416,7 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     // Step 5: Create meeting (agenda) - ADMIN only
     const agenda = await Agenda.create({
       mrfc_id,
-      quarter_id,
+      quarter_id: resolvedQuarterId,
       meeting_title: meeting_title || null,
       meeting_date,
       meeting_time: meeting_time || null,

@@ -186,38 +186,42 @@ class EditMRFCActivity : AppCompatActivity() {
     }
 
     private fun displayMrfcData(mrfc: MrfcDto) {
-        currentMRFC = mrfc
+        try {
+            currentMRFC = mrfc
 
-        // Basic fields
-        etMRFCName.setText(mrfc.name)
-        etMrfcCode.setText(mrfc.mrfcCode ?: "")
-        etMunicipality.setText(mrfc.municipality)
-        etProvince.setText(mrfc.province ?: "")
-        etRegion.setText(mrfc.region ?: "")
-        etContactPerson.setText(mrfc.contactPerson ?: "")
-        etContactNumber.setText(mrfc.contactNumber ?: "")
-        etEmail.setText(mrfc.email ?: "")
-        etAddress.setText(mrfc.address ?: "")
-        // Category field removed - not in MrfcDto
-        switchActive.isChecked = mrfc.isActive
+            // Basic fields
+            etMRFCName.setText(mrfc.name ?: "")
+            etMrfcCode.setText(mrfc.mrfcCode ?: "")
+            etMunicipality.setText(mrfc.municipality ?: "")
+            etProvince.setText(mrfc.province ?: "")
+            etRegion.setText(mrfc.region ?: "")
+            etContactPerson.setText(mrfc.contactPerson ?: "")
+            etContactNumber.setText(mrfc.contactNumber ?: "")
+            etEmail.setText(mrfc.email ?: "")
+            etAddress.setText(mrfc.address ?: "")
+            // Category field removed - not in MrfcDto
+            switchActive.isChecked = mrfc.isActive
 
-        // Compliance fields
-        etCompliancePercentage.setText(mrfc.compliancePercentage?.toString() ?: "")
-        actvComplianceStatus.setText(mrfc.complianceStatus.getDisplayName(), false)
-        selectedComplianceStatus = mrfc.complianceStatus
+            // Compliance fields
+            etCompliancePercentage.setText(mrfc.compliancePercentage?.toString() ?: "")
+            actvComplianceStatus.setText(mrfc.complianceStatus.getDisplayName(), false)
+            selectedComplianceStatus = mrfc.complianceStatus
 
-        // Update compliance chips
-        updateComplianceChips(mrfc.complianceStatus)
+            // Update compliance chips
+            updateComplianceChips(mrfc.complianceStatus)
 
-        // Show last updated timestamp
-        mrfc.complianceUpdatedAt?.let {
-            tvComplianceUpdatedAt.visibility = View.VISIBLE
-            tvComplianceUpdatedAt.text = "Last updated: ${formatDate(it)}"
-        } ?: run {
-            tvComplianceUpdatedAt.visibility = View.GONE
+            // Show last updated timestamp
+            mrfc.complianceUpdatedAt?.let {
+                tvComplianceUpdatedAt.visibility = View.VISIBLE
+                tvComplianceUpdatedAt.text = "Last updated: ${formatDate(it)}"
+            } ?: run {
+                tvComplianceUpdatedAt.visibility = View.GONE
+            }
+
+            supportActionBar?.title = "Edit ${mrfc.name}"
+        } catch (e: Exception) {
+            showError("Error displaying MRFC data: ${e.message}")
         }
-
-        supportActionBar?.title = "Edit ${mrfc.name}"
     }
 
     private fun updateComplianceChips(status: ComplianceStatus) {

@@ -66,7 +66,7 @@ interface UserApiService {
     @DELETE("users/{id}")
     suspend fun deleteUser(
         @Path("id") id: Long
-    ): Response<ApiResponse<Unit>>
+    ): Response<ApiResponse<Any?>>
 
     /**
      * Toggle user active status

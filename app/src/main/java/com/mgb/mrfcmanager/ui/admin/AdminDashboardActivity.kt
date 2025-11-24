@@ -52,6 +52,12 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
         Log.d("AdminDashboard", "AdminDashboardActivity setup completed")
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Refresh dashboard statistics when returning from other activities
+        loadDashboardStatistics()
+    }
+
     /**
      * Configure UI based on user role
      * Updates navigation header with user info
@@ -136,18 +142,25 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
                 }
             }
 
-            // Load Meeting count (total agendas)
+            // Load Meeting count (pending/upcoming agendas - DRAFT and PUBLISHED status)
             launch {
                 try {
                     val agendaApi = retrofit.create(AgendaApiService::class.java)
-                    val response = agendaApi.getAllAgendas(page = 1, limit = 1)
-                    if (response.isSuccessful) {
-                        val totalAgendas = response.body()?.data?.pagination?.total ?: 0
-                        findViewById<TextView>(R.id.tvUpcomingMeetings).text = totalAgendas.toString()
-                        Log.d("Dashboard", "Total Meetings/Agendas: $totalAgendas")
-                    } else {
-                        findViewById<TextView>(R.id.tvUpcomingMeetings).text = "0"
-                    }
+                    // Count DRAFT meetings
+                    val draftResponse = agendaApi.getAllAgendas(page = 1, limit = 1, status = "DRAFT")
+                    val draftCount = if (draftResponse.isSuccessful) {
+                        draftResponse.body()?.data?.pagination?.total ?: 0
+                    } else 0
+
+                    // Count PUBLISHED meetings
+                    val publishedResponse = agendaApi.getAllAgendas(page = 1, limit = 1, status = "PUBLISHED")
+                    val publishedCount = if (publishedResponse.isSuccessful) {
+                        publishedResponse.body()?.data?.pagination?.total ?: 0
+                    } else 0
+
+                    val pendingMeetings = draftCount + publishedCount
+                    findViewById<TextView>(R.id.tvUpcomingMeetings).text = pendingMeetings.toString()
+                    Log.d("Dashboard", "Pending Meetings: $pendingMeetings (Draft: $draftCount, Published: $publishedCount)")
                 } catch (e: Exception) {
                     Log.e("Dashboard", "Error loading meeting count", e)
                     findViewById<TextView>(R.id.tvUpcomingMeetings).text = "0"
