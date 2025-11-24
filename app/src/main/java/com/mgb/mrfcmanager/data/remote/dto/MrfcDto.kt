@@ -77,7 +77,7 @@ data class MrfcDto(
     val compliancePercentage: Double? = null,
 
     @Json(name = "compliance_status")
-    val complianceStatus: ComplianceStatus = ComplianceStatus.NOT_ASSESSED,
+    val complianceStatus: ComplianceStatus? = ComplianceStatus.NOT_ASSESSED,
 
     @Json(name = "compliance_updated_at")
     val complianceUpdatedAt: String? = null,
@@ -108,6 +108,10 @@ data class MrfcDto(
 
     val isCompliant: Boolean
         get() = complianceStatus == ComplianceStatus.COMPLIANT
+
+    // Safe accessor for compliance status with default
+    val safeComplianceStatus: ComplianceStatus
+        get() = complianceStatus ?: ComplianceStatus.NOT_ASSESSED
 }
 
 /**

@@ -204,11 +204,12 @@ class EditMRFCActivity : AppCompatActivity() {
 
             // Compliance fields
             etCompliancePercentage.setText(mrfc.compliancePercentage?.toString() ?: "")
-            actvComplianceStatus.setText(mrfc.complianceStatus.getDisplayName(), false)
-            selectedComplianceStatus = mrfc.complianceStatus
+            val status = mrfc.safeComplianceStatus
+            actvComplianceStatus.setText(status.getDisplayName(), false)
+            selectedComplianceStatus = status
 
             // Update compliance chips
-            updateComplianceChips(mrfc.complianceStatus)
+            updateComplianceChips(status)
 
             // Show last updated timestamp
             mrfc.complianceUpdatedAt?.let {

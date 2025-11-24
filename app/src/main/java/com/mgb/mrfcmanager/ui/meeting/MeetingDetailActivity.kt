@@ -161,6 +161,7 @@ class MeetingDetailActivity : BaseActivity() {
                 1 -> "Agenda"
                 2 -> "Other Matters"
                 3 -> "Minutes"
+                4 -> "Recordings"
                 else -> "Tab $position"
             }
 
@@ -170,6 +171,7 @@ class MeetingDetailActivity : BaseActivity() {
                 1 -> R.drawable.ic_note
                 2 -> R.drawable.ic_list // Changed from ic_note to ic_list
                 3 -> R.drawable.ic_document
+                4 -> R.drawable.ic_mic
                 else -> null
             }
 
@@ -178,6 +180,7 @@ class MeetingDetailActivity : BaseActivity() {
                 1 -> R.color.tab_icon_agenda
                 2 -> R.color.tab_icon_other_matters
                 3 -> R.color.tab_icon_minutes
+                4 -> R.color.tab_icon_recordings
                 else -> null
             }
 

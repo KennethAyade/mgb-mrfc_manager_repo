@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_light">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Recording Control Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardRecordingControl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/spacing_normal"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/spacing_normal">
+
+                <!-- Recording Timer -->
+                <TextView
+                    android:id="@+id/tvRecordingTimer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="0:00"
+                    android:textSize="48sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:fontFamily="monospace" />
+
+                <!-- Recording Status -->
+                <TextView
+                    android:id="@+id/tvRecordingStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_small"
+                    android:gravity="center"
+                    android:text="Tap to start recording"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_secondary" />
+
+                <!-- Record Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRecord"
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="@dimen/spacing_normal"
+                    android:backgroundTint="@color/error"
+                    app:icon="@drawable/ic_mic"
+                    app:iconGravity="textStart"
+                    app:iconSize="48dp"
+                    app:iconTint="@android:color/white"
+                    app:cornerRadius="60dp" />
+
+                <!-- Action Buttons (visible when recording) -->
+                <LinearLayout
+                    android:id="@+id/layoutRecordingActions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_normal"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCancel"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="@dimen/spacing_normal"
+                        android:text="Cancel"
+                        app:strokeColor="@color/error" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSave"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Save Recording"
+                        app:icon="@drawable/ic_save" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Recordings List Header -->
+        <TextView
+            android:id="@+id/tvRecordingsHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="@dimen/spacing_normal"
+            android:layout_marginTop="@dimen/spacing_small"
+            android:text="Saved Recordings"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary" />
+
+        <!-- Loading Indicator -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="@dimen/spacing_large"
+            android:visibility="gone" />
+
+        <!-- Empty State -->
+        <TextView
+            android:id="@+id/tvEmptyState"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_large"
+            android:gravity="center"
+            android:text="No recordings yet.\nTap the record button to create your first recording."
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <!-- Recordings List -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvRecordings"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="@dimen/spacing_small"
+            android:clipToPadding="false"
+            android:paddingHorizontal="@dimen/spacing_normal"
+            android:paddingBottom="@dimen/spacing_normal"
+            tools:listitem="@layout/item_voice_recording" />
+
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

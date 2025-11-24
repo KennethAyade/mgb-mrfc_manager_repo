@@ -13,6 +13,7 @@ export interface VoiceRecordingAttributes {
   id: number;
   agenda_id: number;
   recording_name: string;
+  description: string | null;
   file_name: string;
   file_url: string;
   file_cloudinary_id: string | null;
@@ -24,13 +25,14 @@ export interface VoiceRecordingAttributes {
 }
 
 // Define attributes for creation (id and optional fields)
-export interface VoiceRecordingCreationAttributes extends Optional<VoiceRecordingAttributes, 'id' | 'file_cloudinary_id' | 'duration' | 'file_size' | 'recorded_by' | 'recorded_at' | 'created_at'> {}
+export interface VoiceRecordingCreationAttributes extends Optional<VoiceRecordingAttributes, 'id' | 'description' | 'file_cloudinary_id' | 'duration' | 'file_size' | 'recorded_by' | 'recorded_at' | 'created_at'> {}
 
 // Define the VoiceRecording model class
 export class VoiceRecording extends Model<VoiceRecordingAttributes, VoiceRecordingCreationAttributes> implements VoiceRecordingAttributes {
   public id!: number;
   public agenda_id!: number;
   public recording_name!: string;
+  public description!: string | null;
   public file_name!: string;
   public file_url!: string;
   public file_cloudinary_id!: string | null;
@@ -65,6 +67,10 @@ VoiceRecording.init(
     recording_name: {
       type: DataTypes.STRING(255),
       allowNull: false,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     file_name: {
       type: DataTypes.STRING(255),

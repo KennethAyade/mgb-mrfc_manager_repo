@@ -181,11 +181,13 @@ class AgendaFragment : Fragment() {
             }
         }
 
-        // Load Proponents from API
+        // Load Proponents from API - filter by MRFC if available
         lifecycleScope.launch {
             try {
                 val proponentApiService = retrofit.create(com.mgb.mrfcmanager.data.remote.api.ProponentApiService::class.java)
-                val response = proponentApiService.getAllProponents(page = 1, limit = 100, mrfcId = null)
+                // Pass mrfcId to filter proponents by the current MRFC (0 means general meeting, show all)
+                val filterMrfcId = if (mrfcId > 0) mrfcId else null
+                val response = proponentApiService.getAllProponents(page = 1, limit = 100, mrfcId = filterMrfcId)
                 val apiResponse = response.body()
                 if (response.isSuccessful && apiResponse?.success == true) {
                     proponentList.clear()

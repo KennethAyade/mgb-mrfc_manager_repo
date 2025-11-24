@@ -104,6 +104,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
       limit = '20',
       quarter_id,
       quarter, // Support both quarter_id (1-4) and quarter ("Q1"-"Q4")
+      year, // Year filter (e.g., 2025)
       mrfc_id,
       status,
       sort_by = 'meeting_date',
@@ -117,17 +118,28 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
     // Step 3: Build filter conditions
     const where: any = {};
+    const quarterWhere: any = {}; // Filter conditions for Quarter table
 
     // Handle quarter filtering - support both formats
     if (quarter_id) {
       where.quarter_id = parseInt(quarter_id as string);
     } else if (quarter) {
-      // Convert quarter string ("Q1", "Q2", etc.) to quarter_id (1, 2, 3, 4)
+      // Convert quarter string ("Q1", "Q2", etc.) to quarter_number (1, 2, 3, 4)
       const quarterStr = (quarter as string).toUpperCase();
-      if (quarterStr === 'Q1') where.quarter_id = 1;
-      else if (quarterStr === 'Q2') where.quarter_id = 2;
-      else if (quarterStr === 'Q3') where.quarter_id = 3;
-      else if (quarterStr === 'Q4') where.quarter_id = 4;
+      let quarterNum = 0;
+      if (quarterStr === 'Q1') quarterNum = 1;
+      else if (quarterStr === 'Q2') quarterNum = 2;
+      else if (quarterStr === 'Q3') quarterNum = 3;
+      else if (quarterStr === 'Q4') quarterNum = 4;
+
+      if (quarterNum > 0) {
+        quarterWhere.quarter_number = quarterNum;
+      }
+    }
+
+    // Handle year filtering
+    if (year) {
+      quarterWhere.year = parseInt(year as string);
     }
 
     // Handle mrfc_id filtering: 0 means general meetings (NULL), otherwise filter by specific MRFC
@@ -198,7 +210,9 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
         {
           model: Quarter,
           as: 'quarter',
-          attributes: ['id', 'name', 'quarter_number', 'year', 'start_date', 'end_date']
+          attributes: ['id', 'name', 'quarter_number', 'year', 'start_date', 'end_date'],
+          where: Object.keys(quarterWhere).length > 0 ? quarterWhere : undefined,
+          required: Object.keys(quarterWhere).length > 0 // Make inner join when filtering by quarter/year
         },
         {
           model: Mrfc,

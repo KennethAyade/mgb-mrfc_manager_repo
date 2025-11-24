@@ -75,4 +75,5 @@
     <color name="tab_icon_agenda">#4CAF50</color>        <!-- Green - Agenda/Notes -->
     <color name="tab_icon_other_matters">#FF9800</color> <!-- Orange - Other Matters -->
     <color name="tab_icon_minutes">#9C27B0</color>       <!-- Purple - Minutes/Documents -->
+    <color name="tab_icon_recordings">#009688</color>    <!-- Teal - Voice Recordings -->
 </resources>

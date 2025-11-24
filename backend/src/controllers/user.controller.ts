@@ -572,11 +572,13 @@ export const grantMrfcAccess = async (req: Request, res: Response): Promise<void
     }
 
     await sequelize.transaction(async (t) => {
-      // First, delete all existing access records for this user
-      await UserMrfcAccess.destroy({
+      // First, delete all existing access records for this user (force hard delete)
+      const deletedCount = await UserMrfcAccess.destroy({
         where: { user_id: user.id },
-        transaction: t
+        transaction: t,
+        force: true // Ensure hard delete even if paranoid mode is enabled
       });
+      console.log(`Deleted ${deletedCount} existing MRFC access records for user ${user.id}`);
 
       // Create new access records (if any)
       if (mrfc_ids.length > 0) {
@@ -587,9 +589,11 @@ export const grantMrfcAccess = async (req: Request, res: Response): Promise<void
           is_active: true
         }));
 
-        await UserMrfcAccess.bulkCreate(accessRecords, {
-          transaction: t
+        const created = await UserMrfcAccess.bulkCreate(accessRecords, {
+          transaction: t,
+          ignoreDuplicates: true // Ignore if duplicate constraint exists
         });
+        console.log(`Created ${created.length} new MRFC access records for user ${user.id}`);
       }
 
       // Create audit log
