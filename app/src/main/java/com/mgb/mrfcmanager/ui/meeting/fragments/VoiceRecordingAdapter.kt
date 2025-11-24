@@ -1,5 +1,6 @@
 package com.mgb.mrfcmanager.ui.meeting.fragments
 
+import android.content.Context
 import android.media.MediaPlayer
 import android.util.Log
 import android.view.LayoutInflater
@@ -12,13 +13,16 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
+import com.mgb.mrfcmanager.data.remote.ApiConfig
 import com.mgb.mrfcmanager.data.remote.dto.VoiceRecordingDto
 
 /**
  * Adapter for displaying voice recordings in a RecyclerView
  */
 class VoiceRecordingAdapter(
+    private val context: Context,
     private val onDeleteClick: (VoiceRecordingDto) -> Unit
 ) : ListAdapter<VoiceRecordingDto, VoiceRecordingAdapter.ViewHolder>(DiffCallback()) {
 
@@ -103,11 +107,24 @@ class VoiceRecordingAdapter(
         // Stop any current playback
         stopPlayback()
 
-        Log.d("VoiceRecordingAdapter", "Playing recording: ${recording.fileUrl}")
-
         try {
+            // Get auth token using TokenManager
+            val tokenManager = MRFCManagerApp.getTokenManager()
+            val token = tokenManager.getAccessToken()
+            if (token == null) {
+                Toast.makeText(context, "Authentication required", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            // Construct backend streaming URL with token as query parameter
+            // This bypasses S3 access restrictions by streaming through the backend
+            val baseUrl = ApiConfig.BASE_URL.removeSuffix("/")
+            val streamingUrl = "$baseUrl/voice-recordings/${recording.id}/stream?token=$token"
+
+            Log.d("VoiceRecordingAdapter", "Streaming from backend: $streamingUrl")
+
             mediaPlayer = MediaPlayer().apply {
-                setDataSource(recording.fileUrl)
+                setDataSource(streamingUrl)
                 prepareAsync()
                 setOnPreparedListener {
                     Log.d("VoiceRecordingAdapter", "MediaPlayer prepared, starting playback")
@@ -128,7 +145,7 @@ class VoiceRecordingAdapter(
                         else -> "Error code: $what"
                     }
                     Toast.makeText(
-                        holder.itemView.context,
+                        context,
                         "Failed to play recording: $errorMessage",
                         Toast.LENGTH_SHORT
                     ).show()
@@ -139,7 +156,7 @@ class VoiceRecordingAdapter(
         } catch (e: Exception) {
             Log.e("VoiceRecordingAdapter", "Exception playing recording", e)
             Toast.makeText(
-                holder.itemView.context,
+                context,
                 "Failed to play recording: ${e.message}",
                 Toast.LENGTH_SHORT
             ).show()

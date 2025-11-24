@@ -167,7 +167,7 @@ class VoiceRecordingFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        adapter = VoiceRecordingAdapter { recording ->
+        adapter = VoiceRecordingAdapter(requireContext()) { recording ->
             showDeleteConfirmation(recording)
         }
         rvRecordings.layoutManager = LinearLayoutManager(requireContext())

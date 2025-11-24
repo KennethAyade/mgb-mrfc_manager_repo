@@ -39,8 +39,13 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Extract token from Authorization header
-    const token = extractTokenFromHeader(req.headers.authorization);
+    // Extract token from Authorization header OR query parameter (for media streaming)
+    let token = extractTokenFromHeader(req.headers.authorization);
+
+    // Fallback to query parameter for media streaming (MediaPlayer doesn't support custom headers)
+    if (!token && req.query.token) {
+      token = req.query.token as string;
+    }
 
     if (!token) {
       res.status(401).json({

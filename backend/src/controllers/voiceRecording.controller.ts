@@ -8,7 +8,7 @@
 
 import { Request, Response } from 'express';
 import { VoiceRecording, User, Agenda } from '../models';
-import { uploadToS3, deleteFromS3 } from '../config/s3';
+import { uploadToS3, deleteFromS3, downloadFromS3 } from '../config/s3';
 import { cleanupTempFile } from '../middleware/upload';
 import fs from 'fs';
 
@@ -334,5 +334,90 @@ export const updateVoiceRecording = async (req: Request, res: Response): Promise
         message: error.message || 'Failed to update voice recording'
       }
     });
+  }
+};
+
+/**
+ * Stream voice recording
+ * GET /api/v1/voice-recordings/:id/stream
+ * Downloads file from S3 and streams to client (bypasses S3 access restrictions)
+ */
+export const streamVoiceRecording = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = parseInt(req.params.id);
+
+    // Find recording
+    const recording = await VoiceRecording.findByPk(id);
+    if (!recording) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RECORDING_NOT_FOUND',
+          message: 'Voice recording not found'
+        }
+      });
+      return;
+    }
+
+    console.log(`📥 Streaming voice recording: ${recording.recording_name}`);
+    console.log(`📍 S3 URL: ${recording.file_url}`);
+
+    // Validate that file has S3 URL
+    if (!recording.file_url) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'MISSING_FILE_URL',
+          message: 'Recording is missing file URL'
+        }
+      });
+      return;
+    }
+
+    // Set response headers before streaming
+    res.setHeader('Content-Type', 'audio/m4a');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(recording.file_name)}"`);
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (recording.file_size) {
+      res.setHeader('Content-Length', recording.file_size.toString());
+    }
+
+    try {
+      // Download file from S3 using backend AWS credentials
+      console.log(`📥 Fetching audio file from S3`);
+      const fileBuffer = await downloadFromS3(recording.file_url);
+
+      console.log(`📤 Sending audio file to client`);
+
+      // Send the buffer to client
+      res.send(fileBuffer);
+
+      console.log(`✅ Stream complete: ${recording.recording_name}`);
+
+    } catch (downloadError: any) {
+      console.error(`❌ S3 download error:`, downloadError.message);
+
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'S3_ERROR',
+            message: 'Failed to fetch file from storage'
+          }
+        });
+      }
+    }
+
+  } catch (error: any) {
+    console.error('Voice recording stream error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'STREAM_FAILED',
+          message: error.message || 'Failed to stream voice recording'
+        }
+      });
+    }
   }
 };

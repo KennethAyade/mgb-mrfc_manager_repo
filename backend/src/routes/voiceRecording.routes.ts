@@ -21,7 +21,8 @@ import {
   getVoiceRecordingsByAgenda,
   getVoiceRecordingById,
   updateVoiceRecording,
-  deleteVoiceRecording
+  deleteVoiceRecording,
+  streamVoiceRecording
 } from '../controllers/voiceRecording.controller';
 
 const router = Router();
@@ -47,6 +48,18 @@ router.get(
   '/agenda/:agendaId',
   authenticate,
   getVoiceRecordingsByAgenda
+);
+
+/**
+ * GET /voice-recordings/:id/stream
+ * Stream voice recording audio file
+ * Downloads from S3 and streams to client (bypasses S3 access restrictions)
+ * All authenticated users can stream
+ */
+router.get(
+  '/:id/stream',
+  authenticate,
+  streamVoiceRecording
 );
 
 /**
