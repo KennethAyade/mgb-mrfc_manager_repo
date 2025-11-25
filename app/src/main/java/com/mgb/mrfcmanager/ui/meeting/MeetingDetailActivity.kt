@@ -151,7 +151,9 @@ class MeetingDetailActivity : BaseActivity() {
     }
 
     private fun setupViewPager() {
-        pagerAdapter = MeetingDetailPagerAdapter(this, agendaId, mrfcId)
+        // Show 5 tabs for Admin/SuperAdmin, 4 tabs for regular users
+        val tabCount = if (isAdminOrSuperAdmin) 5 else 4
+        pagerAdapter = MeetingDetailPagerAdapter(this, agendaId, mrfcId, tabCount)
         viewPager.adapter = pagerAdapter
 
         // Connect tabs with ViewPager
@@ -161,7 +163,7 @@ class MeetingDetailActivity : BaseActivity() {
                 1 -> "Agenda"
                 2 -> "Other Matters"
                 3 -> "Minutes"
-                4 -> "Recordings"
+                4 -> if (isAdminOrSuperAdmin) "Recordings" else ""
                 else -> "Tab $position"
             }
 
@@ -171,7 +173,7 @@ class MeetingDetailActivity : BaseActivity() {
                 1 -> R.drawable.ic_note
                 2 -> R.drawable.ic_list // Changed from ic_note to ic_list
                 3 -> R.drawable.ic_document
-                4 -> R.drawable.ic_mic
+                4 -> if (isAdminOrSuperAdmin) R.drawable.ic_mic else null
                 else -> null
             }
 
@@ -180,7 +182,7 @@ class MeetingDetailActivity : BaseActivity() {
                 1 -> R.color.tab_icon_agenda
                 2 -> R.color.tab_icon_other_matters
                 3 -> R.color.tab_icon_minutes
-                4 -> R.color.tab_icon_recordings
+                4 -> if (isAdminOrSuperAdmin) R.color.tab_icon_recordings else null
                 else -> null
             }
 

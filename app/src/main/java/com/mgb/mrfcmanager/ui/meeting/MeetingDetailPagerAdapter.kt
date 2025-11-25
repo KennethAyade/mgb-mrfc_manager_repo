@@ -11,15 +11,17 @@ import com.mgb.mrfcmanager.ui.meeting.fragments.VoiceRecordingFragment
 
 /**
  * ViewPager adapter for Meeting Detail tabs
- * Manages 5 fragments: Attendance, Agenda, Proposals, Minutes, Recordings
+ * Manages 4-5 fragments: Attendance, Agenda, Proposals, Minutes, [Recordings]
+ * Recordings tab only shown for Admin/SuperAdmin (when tabCount=5)
  */
 class MeetingDetailPagerAdapter(
     activity: FragmentActivity,
     private val agendaId: Long,
-    private val mrfcId: Long
+    private val mrfcId: Long,
+    private val tabCount: Int = 5  // Default 5 for backward compatibility
 ) : FragmentStateAdapter(activity) {
 
-    override fun getItemCount(): Int = 5
+    override fun getItemCount(): Int = tabCount
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {

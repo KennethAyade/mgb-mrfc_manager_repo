@@ -14,7 +14,7 @@
  */
 
 import { Router } from 'express';
-import { authenticate } from '../middleware/auth';
+import { authenticate, adminOnly } from '../middleware/auth';
 import { uploadAudio } from '../middleware/upload';
 import {
   uploadVoiceRecording,
@@ -30,11 +30,12 @@ const router = Router();
 /**
  * POST /voice-recordings/upload
  * Upload new voice recording
- * All authenticated users can upload
+ * ADMIN and SUPER_ADMIN only
  */
 router.post(
   '/upload',
   authenticate,
+  adminOnly,
   uploadAudio.single('audio'),
   uploadVoiceRecording
 );
@@ -76,22 +77,24 @@ router.get(
 /**
  * PUT /voice-recordings/:id
  * Update voice recording metadata (name, description)
- * All authenticated users can update
+ * ADMIN and SUPER_ADMIN only
  */
 router.put(
   '/:id',
   authenticate,
+  adminOnly,
   updateVoiceRecording
 );
 
 /**
  * DELETE /voice-recordings/:id
  * Delete voice recording
- * All authenticated users can delete
+ * ADMIN and SUPER_ADMIN only
  */
 router.delete(
   '/:id',
   authenticate,
+  adminOnly,
   deleteVoiceRecording
 );
 

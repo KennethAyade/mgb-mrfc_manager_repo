@@ -44,6 +44,9 @@
     <color name="denr_green_light">#2E7D32</color>
     <color name="background_light">#F5F7FA</color>
 
+    <!-- MGB Logo Colors -->
+    <color name="mgb_sage_green">#a2b271</color>
+
     <!-- Base Colors -->
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>

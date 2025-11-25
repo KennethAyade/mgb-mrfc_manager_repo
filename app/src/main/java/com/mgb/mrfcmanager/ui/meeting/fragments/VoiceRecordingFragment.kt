@@ -114,6 +114,28 @@ class VoiceRecordingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Defensive check - only Admin and SuperAdmin can access voice recording
+        // This should never happen if the tab is properly hidden, but acts as a safety net
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        val isAdmin = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
+
+        if (!isAdmin) {
+            Toast.makeText(
+                requireContext(),
+                "Recording feature is only available to administrators",
+                Toast.LENGTH_LONG
+            ).show()
+            // Hide recording control UI and show access denied message
+            view.findViewById<View>(R.id.cardRecordingControl)?.visibility = View.GONE
+            view.findViewById<TextView>(R.id.tvRecordingsHeader)?.visibility = View.GONE
+            view.findViewById<TextView>(R.id.tvEmptyState)?.apply {
+                visibility = View.VISIBLE
+                text = "Access denied. Voice recording is only available to administrators."
+            }
+            return
+        }
+
         initializeViews(view)
         setupViewModel()
         setupRecyclerView()
