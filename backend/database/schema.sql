@@ -244,8 +244,10 @@ CREATE TABLE notes (
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     mrfc_id BIGINT REFERENCES mrfcs(id) ON DELETE CASCADE,
     quarter_id BIGINT REFERENCES quarters(id),
+    agenda_id BIGINT REFERENCES agendas(id) ON DELETE CASCADE,
     title VARCHAR(200) NOT NULL,
     content TEXT,
+    is_pinned BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -253,6 +255,8 @@ CREATE TABLE notes (
 COMMENT ON TABLE notes IS 'Personal notes - private to each user';
 COMMENT ON COLUMN notes.mrfc_id IS 'Optional: link note to specific MRFC';
 COMMENT ON COLUMN notes.quarter_id IS 'Optional: link note to specific quarter';
+COMMENT ON COLUMN notes.agenda_id IS 'Optional: link note to specific meeting/agenda';
+COMMENT ON COLUMN notes.is_pinned IS 'Flag to mark note as pinned for priority display';
 
 -- ==========================================
 -- TABLE 11: NOTIFICATIONS
@@ -282,7 +286,7 @@ CREATE TABLE user_mrfc_access (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     mrfc_id BIGINT NOT NULL REFERENCES mrfcs(id) ON DELETE CASCADE,
-    granted_by BIGINT REFERENCES users(id),
+    granted_by BIGINT REFERENCES users(id) ON DELETE CASCADE,
     granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
     UNIQUE(user_id, mrfc_id)
@@ -393,6 +397,7 @@ CREATE INDEX IF NOT EXISTS idx_voice_recordings_agenda ON voice_recordings(agend
 CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id);
 CREATE INDEX IF NOT EXISTS idx_notes_mrfc ON notes(mrfc_id);
 CREATE INDEX IF NOT EXISTS idx_notes_quarter ON notes(quarter_id);
+CREATE INDEX IF NOT EXISTS idx_notes_agenda ON notes(agenda_id);
 
 -- Notification indexes
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);

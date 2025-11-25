@@ -325,7 +325,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
     }
 
     // Step 2: Authorization check - users can only update their own notes
-    if (Number(note.user_id) !== req.user?.userId) {
+    if (Number(note.user_id) !== Number(req.user?.userId)) {
       return res.status(403).json({
         success: false,
         error: {
@@ -409,7 +409,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
     }
 
     // Step 2: Authorization check - users can only delete their own notes
-    if (Number(note.user_id) !== req.user?.userId) {
+    if (Number(note.user_id) !== Number(req.user?.userId)) {
       return res.status(403).json({
         success: false,
         error: {
@@ -425,7 +425,8 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
     // Step 4: Return success
     return res.json({
       success: true,
-      message: 'Note deleted successfully'
+      message: 'Note deleted successfully',
+      data: null
     });
   } catch (error: any) {
     console.error('Note deletion error:', error);

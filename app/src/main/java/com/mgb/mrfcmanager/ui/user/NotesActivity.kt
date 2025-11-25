@@ -190,8 +190,8 @@ class NotesActivity : AppCompatActivity() {
         } else {
             displayedNotes.addAll(
                 allNotes.filter {
-                    it.title.contains(query, ignoreCase = true) ||
-                    it.content.contains(query, ignoreCase = true)
+                    it.title?.contains(query, ignoreCase = true) == true ||
+                    it.content?.contains(query, ignoreCase = true) == true
                 }
             )
         }
@@ -298,18 +298,13 @@ class NotesActivity : AppCompatActivity() {
     }
 
     private fun saveNote(title: String, content: String) {
-        if (mrfcId == 0L) {
-            showError("MRFC ID is required")
-            return
-        }
-
         val request = CreateNoteRequest(
-            mrfcId = mrfcId,
-            agendaId = agendaId,
+            mrfcId = if (mrfcId != 0L) mrfcId else null,
+            quarterId = null,
+            agendaId = if (agendaId != 0L) agendaId else null,
             title = title,
             content = content,
-            noteType = "MEETING",
-            isPrivate = false
+            isPinned = false
         )
 
         lifecycleScope.launch {
@@ -405,8 +400,8 @@ class NotesActivity : AppCompatActivity() {
             private val ivMenu: ImageView = itemView.findViewById(R.id.ivMenu)
 
             fun bind(note: NotesDto, onNoteClick: (NotesDto) -> Unit, onMenuClick: (NotesDto, View) -> Unit) {
-                tvNoteTitle.text = note.title
-                tvNoteContent.text = note.content
+                tvNoteTitle.text = note.title ?: "Untitled"
+                tvNoteContent.text = note.content ?: ""
 
                 // Format date
                 val date = try {
@@ -419,8 +414,13 @@ class NotesActivity : AppCompatActivity() {
                 }
                 tvNoteDate.text = date
 
-                // Display note type
-                tvNoteQuarter.text = note.noteType
+                // Display note type based on context
+                tvNoteQuarter.text = when {
+                    note.isPinned -> "📌 Pinned"
+                    note.agendaId != null -> "Meeting Note"
+                    note.quarterId != null -> "Quarter Note"
+                    else -> "General Note"
+                }
 
                 itemView.setOnClickListener {
                     onNoteClick(note)

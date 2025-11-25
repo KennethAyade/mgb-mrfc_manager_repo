@@ -3,6 +3,7 @@ package com.mgb.mrfcmanager.data.remote.api
 import com.mgb.mrfcmanager.data.remote.dto.ApiResponse
 import com.mgb.mrfcmanager.data.remote.dto.CreateNoteRequest
 import com.mgb.mrfcmanager.data.remote.dto.NotesDto
+import com.mgb.mrfcmanager.data.remote.dto.PaginatedNotesResponse
 import com.mgb.mrfcmanager.data.remote.dto.UpdateNoteRequest
 import retrofit2.Response
 import retrofit2.http.*
@@ -18,10 +19,8 @@ interface NotesApiService {
     @GET("notes")
     suspend fun getAllNotes(
         @Query("mrfc_id") mrfcId: Long? = null,
-        @Query("agenda_id") agendaId: Long? = null,
-        @Query("note_type") noteType: String? = null,
-        @Query("is_private") isPrivate: Boolean? = null
-    ): Response<ApiResponse<List<NotesDto>>>
+        @Query("agenda_id") agendaId: Long? = null
+    ): Response<ApiResponse<PaginatedNotesResponse>>
 
     /**
      * Get note by ID
@@ -54,5 +53,5 @@ interface NotesApiService {
     @DELETE("notes/{id}")
     suspend fun deleteNote(
         @Path("id") id: Long
-    ): Response<ApiResponse<Unit>>
+    ): Response<ApiResponse<Any?>>
 }

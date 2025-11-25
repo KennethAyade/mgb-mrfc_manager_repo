@@ -14,14 +14,16 @@ export interface NoteAttributes {
   user_id: number;
   mrfc_id: number | null;
   quarter_id: number | null;
+  agenda_id: number | null;
   title: string;
   content: string | null;
+  is_pinned: boolean;
   created_at: Date;
   updated_at: Date;
 }
 
 // Define attributes for creation (id, timestamps, and optional fields)
-export interface NoteCreationAttributes extends Optional<NoteAttributes, 'id' | 'mrfc_id' | 'quarter_id' | 'content' | 'created_at' | 'updated_at'> {}
+export interface NoteCreationAttributes extends Optional<NoteAttributes, 'id' | 'mrfc_id' | 'quarter_id' | 'agenda_id' | 'content' | 'is_pinned' | 'created_at' | 'updated_at'> {}
 
 // Define the Note model class
 export class Note extends Model<NoteAttributes, NoteCreationAttributes> implements NoteAttributes {
@@ -29,8 +31,10 @@ export class Note extends Model<NoteAttributes, NoteCreationAttributes> implemen
   public user_id!: number;
   public mrfc_id!: number | null;
   public quarter_id!: number | null;
+  public agenda_id!: number | null;
   public title!: string;
   public content!: string | null;
+  public is_pinned!: boolean;
   public created_at!: Date;
   public updated_at!: Date;
 
@@ -73,6 +77,15 @@ Note.init(
         key: 'id',
       },
     },
+    agenda_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'agendas',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
+    },
     title: {
       type: DataTypes.STRING(200),
       allowNull: false,
@@ -80,6 +93,11 @@ Note.init(
     content: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    is_pinned: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
     created_at: {
       type: DataTypes.DATE,
