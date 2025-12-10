@@ -1,8 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    // Temporarily disabled kapt due to Kotlin 2.0 compatibility issues
-    // id("kotlin-kapt") // For annotation processing (Room, Moshi)
+    alias(libs.plugins.ksp) // KSP for Room annotation processing (Kotlin 2.0 compatible)
 }
 
 android {
@@ -106,10 +105,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
 
     // Room (local database for offline support)
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    // Temporarily disabled kapt compiler
-    // kapt("androidx.room:room-compiler:2.6.1")
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler) // KSP for Room annotation processing
 
     // DataStore (for preferences & token storage)
     implementation("androidx.datastore:datastore-preferences:1.0.0")

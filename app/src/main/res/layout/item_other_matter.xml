@@ -24,7 +24,7 @@
             android:id="@+id/tvItemNumber"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:background="@drawable/ic_circle"
+            android:background="@drawable/ic_circle_orange"
             android:gravity="center"
             android:text="1"
             android:textColor="@android:color/white"
@@ -45,7 +45,7 @@
                 android:id="@+id/tvItemTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Approval of Agenda"
+                android:text="Other Matter Title"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary" />
@@ -55,7 +55,7 @@
                 android:id="@+id/tvItemDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Description of the agenda item"
+                android:text="Description of the other matter"
                 android:textSize="14sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp"
@@ -73,6 +73,17 @@
             android:src="@drawable/ic_check"
             android:contentDescription="Discussed"
             android:visibility="gone" />
+
+        <!-- Admin Toggle Highlight Button -->
+        <ImageButton
+            android:id="@+id/btnToggleHighlight"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_highlight"
+            android:contentDescription="Toggle Highlight"
+            android:visibility="gone"
+            app:tint="@color/text_secondary" />
 
     </LinearLayout>
 

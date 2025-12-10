@@ -8,6 +8,12 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
+// Attendance type enum
+export enum AttendanceType {
+  ONSITE = 'ONSITE',
+  ONLINE = 'ONLINE'
+}
+
 // Define model attributes interface
 export interface AttendanceAttributes {
   id: number;
@@ -16,6 +22,7 @@ export interface AttendanceAttributes {
   attendee_name: string | null;
   attendee_position: string | null;
   attendee_department: string | null;
+  attendance_type: AttendanceType;
   is_present: boolean;
   photo_url: string | null;
   photo_cloudinary_id: string | null;
@@ -25,7 +32,7 @@ export interface AttendanceAttributes {
 }
 
 // Define attributes for creation (id and some optional fields)
-export interface AttendanceCreationAttributes extends Optional<AttendanceAttributes, 'id' | 'proponent_id' | 'attendee_name' | 'attendee_position' | 'attendee_department' | 'is_present' | 'photo_url' | 'photo_cloudinary_id' | 'marked_at' | 'marked_by' | 'remarks'> {}
+export interface AttendanceCreationAttributes extends Optional<AttendanceAttributes, 'id' | 'proponent_id' | 'attendee_name' | 'attendee_position' | 'attendee_department' | 'attendance_type' | 'is_present' | 'photo_url' | 'photo_cloudinary_id' | 'marked_at' | 'marked_by' | 'remarks'> {}
 
 // Define the Attendance model class
 export class Attendance extends Model<AttendanceAttributes, AttendanceCreationAttributes> implements AttendanceAttributes {
@@ -35,6 +42,7 @@ export class Attendance extends Model<AttendanceAttributes, AttendanceCreationAt
   public attendee_name!: string | null;
   public attendee_position!: string | null;
   public attendee_department!: string | null;
+  public attendance_type!: AttendanceType;
   public is_present!: boolean;
   public photo_url!: string | null;
   public photo_cloudinary_id!: string | null;
@@ -84,6 +92,11 @@ Attendance.init(
     attendee_department: {
       type: DataTypes.STRING(100),
       allowNull: true,
+    },
+    attendance_type: {
+      type: DataTypes.ENUM('ONSITE', 'ONLINE'),
+      defaultValue: 'ONSITE',
+      allowNull: false,
     },
     is_present: {
       type: DataTypes.BOOLEAN,

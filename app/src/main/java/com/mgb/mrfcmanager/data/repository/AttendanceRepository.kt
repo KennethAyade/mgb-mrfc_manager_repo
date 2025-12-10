@@ -1,8 +1,8 @@
 package com.mgb.mrfcmanager.data.repository
 
 import com.mgb.mrfcmanager.data.remote.api.AttendanceApiService
-import com.mgb.mrfcmanager.data.remote.api.UpdateAttendanceRequest
 import com.mgb.mrfcmanager.data.remote.dto.AttendanceDto
+import com.mgb.mrfcmanager.data.remote.dto.UpdateAttendanceRequest
 import com.mgb.mrfcmanager.data.remote.dto.AttendanceListResponse
 import com.mgb.mrfcmanager.data.remote.dto.CreateAttendanceRequest
 import kotlinx.coroutines.Dispatchers
@@ -97,6 +97,7 @@ class AttendanceRepository(private val apiService: AttendanceApiService) {
         attendeeName: String? = null,
         attendeePosition: String? = null,
         attendeeDepartment: String? = null,
+        attendanceType: String = "ONSITE",
         isPresent: Boolean = true,
         remarks: String? = null,
         photoFile: File? = null
@@ -111,6 +112,7 @@ class AttendanceRepository(private val apiService: AttendanceApiService) {
                 val attendeeNameBody = attendeeName?.toRequestBody("text/plain".toMediaTypeOrNull())
                 val attendeePositionBody = attendeePosition?.toRequestBody("text/plain".toMediaTypeOrNull())
                 val attendeeDepartmentBody = attendeeDepartment?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val attendanceTypeBody = attendanceType.toRequestBody("text/plain".toMediaTypeOrNull())
                 val remarksBody = remarks?.toRequestBody("text/plain".toMediaTypeOrNull())
 
                 // Prepare photo part if file exists
@@ -125,6 +127,7 @@ class AttendanceRepository(private val apiService: AttendanceApiService) {
                     attendeeName = attendeeNameBody,
                     attendeePosition = attendeePositionBody,
                     attendeeDepartment = attendeeDepartmentBody,
+                    attendanceType = attendanceTypeBody,
                     isPresent = isPresentBody,
                     remarks = remarksBody,
                     photo = photoPart

@@ -162,7 +162,11 @@ class VoiceRecordingFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         timerHandler.removeCallbacks(timerRunnable)
-        audioRecorder.release()
+        // Feature 8 fix: Only release recorder if NOT currently recording
+        // This prevents the recording from being cancelled during config changes
+        if (!audioRecorder.isRecording()) {
+            audioRecorder.release()
+        }
         adapter.releasePlayer()
     }
 

@@ -1,0 +1,369 @@
+package com.mgb.mrfcmanager.ui.meeting.fragments
+
+import android.app.AlertDialog
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.*
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.snackbar.Snackbar
+import com.mgb.mrfcmanager.MRFCManagerApp
+import com.mgb.mrfcmanager.R
+import com.mgb.mrfcmanager.data.remote.RetrofitClient
+import com.mgb.mrfcmanager.data.remote.api.AgendaItemApiService
+import com.mgb.mrfcmanager.data.remote.dto.AgendaItemDto
+import com.mgb.mrfcmanager.data.remote.dto.CreateAgendaItemRequest
+import kotlinx.coroutines.launch
+
+/**
+ * Other Matters Fragment
+ * Shows agenda items marked as "Other Matters" - items added after the main agenda is finalized
+ * These are approved items that were discussed outside the regular agenda
+ *
+ * ALL users can view and add other matters
+ * Only ADMIN can mark existing items as "other matters"
+ */
+class OtherMattersFragment : Fragment() {
+
+    private lateinit var rvOtherMatters: RecyclerView
+    private lateinit var tvEmptyState: TextView
+    private lateinit var fabAddItem: FloatingActionButton
+    private lateinit var progressBar: ProgressBar
+
+    private lateinit var apiService: AgendaItemApiService
+    private lateinit var adapter: OtherMattersAdapter
+
+    private val otherMattersList = mutableListOf<AgendaItemDto>()
+    private var agendaId: Long = 0L
+    private var mrfcId: Long = 0L
+    private var isAdmin: Boolean = false
+
+    companion object {
+        private const val ARG_AGENDA_ID = "agenda_id"
+        private const val ARG_MRFC_ID = "mrfc_id"
+
+        fun newInstance(agendaId: Long, mrfcId: Long): OtherMattersFragment {
+            return OtherMattersFragment().apply {
+                arguments = Bundle().apply {
+                    putLong(ARG_AGENDA_ID, agendaId)
+                    putLong(ARG_MRFC_ID, mrfcId)
+                }
+            }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        arguments?.let {
+            agendaId = it.getLong(ARG_AGENDA_ID)
+            mrfcId = it.getLong(ARG_MRFC_ID)
+        }
+
+        // Check user role
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        isAdmin = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.fragment_other_matters, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        initializeViews(view)
+        setupApiService()
+        setupRecyclerView()
+        loadOtherMatters()
+
+        fabAddItem.setOnClickListener {
+            showAddOtherMatterDialog()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Reload data when fragment becomes visible
+        loadOtherMatters()
+    }
+
+    private fun initializeViews(view: View) {
+        rvOtherMatters = view.findViewById(R.id.rvOtherMatters)
+        tvEmptyState = view.findViewById(R.id.tvEmptyState)
+        fabAddItem = view.findViewById(R.id.fabAddItem)
+        progressBar = view.findViewById(R.id.progressBar)
+    }
+
+    private fun setupApiService() {
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+        apiService = retrofit.create(AgendaItemApiService::class.java)
+    }
+
+    private fun setupRecyclerView() {
+        adapter = OtherMattersAdapter(
+            items = otherMattersList,
+            isAdmin = isAdmin,
+            onItemClick = { item -> showItemDetailDialog(item) },
+            onHighlightClick = { item -> toggleHighlight(item) }
+        )
+        rvOtherMatters.layoutManager = LinearLayoutManager(requireContext())
+        rvOtherMatters.adapter = adapter
+    }
+
+    private fun loadOtherMatters() {
+        showLoading(true)
+        lifecycleScope.launch {
+            try {
+                val response = apiService.getOtherMatters(agendaId)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val items = response.body()?.data ?: emptyList()
+                    // Filter to show only APPROVED other matters
+                    val approvedItems = items.filter { it.status == "APPROVED" }
+                    updateList(approvedItems)
+                } else {
+                    showError("Failed to load other matters")
+                }
+            } catch (e: Exception) {
+                showError("Error: ${e.message}")
+            } finally {
+                showLoading(false)
+            }
+        }
+    }
+
+    private fun updateList(items: List<AgendaItemDto>) {
+        otherMattersList.clear()
+        otherMattersList.addAll(items)
+        adapter.notifyDataSetChanged()
+
+        if (otherMattersList.isEmpty()) {
+            rvOtherMatters.visibility = View.GONE
+            tvEmptyState.visibility = View.VISIBLE
+            tvEmptyState.text = "No other matters yet.\n\nUse the + button to add items discussed outside the regular agenda."
+        } else {
+            rvOtherMatters.visibility = View.VISIBLE
+            tvEmptyState.visibility = View.GONE
+        }
+    }
+
+    private fun showAddOtherMatterDialog() {
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_add_other_matter, null)
+
+        val etTitle = dialogView.findViewById<EditText>(R.id.etTitle)
+        val etDescription = dialogView.findViewById<EditText>(R.id.etDescription)
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Add Other Matter")
+            .setView(dialogView)
+            .setPositiveButton("Add") { _, _ ->
+                val title = etTitle.text.toString().trim()
+                val description = etDescription.text.toString().trim()
+
+                if (title.isNotEmpty()) {
+                    addOtherMatter(title, description)
+                } else {
+                    Toast.makeText(requireContext(), "Title is required", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun addOtherMatter(title: String, description: String) {
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        val isAdminUser = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
+
+        showLoading(true)
+        lifecycleScope.launch {
+            try {
+                val request = CreateAgendaItemRequest(
+                    agendaId = agendaId,
+                    title = title,
+                    description = description.ifEmpty { null },
+                    orderIndex = otherMattersList.size,
+                    isOtherMatter = true  // Mark as other matter
+                )
+
+                val response = apiService.createItem(request)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val message = if (isAdminUser) {
+                        "Other matter added successfully!"
+                    } else {
+                        "Proposal submitted! It will appear after admin approval."
+                    }
+
+                    view?.let {
+                        Snackbar.make(it, message, Snackbar.LENGTH_LONG).show()
+                    }
+                    loadOtherMatters()
+                } else {
+                    showError("Failed to add other matter")
+                }
+            } catch (e: Exception) {
+                showError("Error: ${e.message}")
+            } finally {
+                showLoading(false)
+            }
+        }
+    }
+
+    private fun showItemDetailDialog(item: AgendaItemDto) {
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_other_matter_detail, null)
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .create()
+
+        // Set data
+        dialogView.findViewById<TextView>(R.id.tvTitle).text = item.title
+        dialogView.findViewById<TextView>(R.id.tvDescription).apply {
+            text = item.description ?: "No description"
+            visibility = if (item.description.isNullOrEmpty()) View.GONE else View.VISIBLE
+        }
+        dialogView.findViewById<TextView>(R.id.tvAddedBy).text = "Added by: ${item.addedByName}"
+
+        // Highlight indicator
+        val tvHighlightStatus = dialogView.findViewById<TextView>(R.id.tvHighlightStatus)
+        if (item.isHighlighted) {
+            tvHighlightStatus.text = "Discussed"
+            tvHighlightStatus.setBackgroundResource(R.drawable.bg_rounded_green)
+            tvHighlightStatus.setTextColor(requireContext().getColor(android.R.color.white))
+        } else {
+            tvHighlightStatus.text = "Pending Discussion"
+            tvHighlightStatus.setBackgroundResource(R.drawable.bg_rounded_orange)
+            tvHighlightStatus.setTextColor(requireContext().getColor(android.R.color.white))
+        }
+
+        // Admin highlight toggle button
+        val btnToggleHighlight = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnToggleHighlight)
+        if (isAdmin) {
+            btnToggleHighlight.visibility = View.VISIBLE
+            btnToggleHighlight.text = if (item.isHighlighted) "Mark as Pending" else "Mark as Discussed"
+            btnToggleHighlight.setOnClickListener {
+                dialog.dismiss()
+                toggleHighlight(item)
+            }
+        } else {
+            btnToggleHighlight.visibility = View.GONE
+        }
+
+        // Close button
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnClose).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun toggleHighlight(item: AgendaItemDto) {
+        showLoading(true)
+        lifecycleScope.launch {
+            try {
+                val response = apiService.toggleHighlight(item.id)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val message = if (item.isHighlighted) "Marked as pending" else "Marked as discussed"
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    loadOtherMatters()
+                } else {
+                    showError("Failed to update highlight status")
+                }
+            } catch (e: Exception) {
+                showError("Error: ${e.message}")
+            } finally {
+                showLoading(false)
+            }
+        }
+    }
+
+    private fun showLoading(isLoading: Boolean) {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+    }
+
+    private fun showError(message: String) {
+        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+    }
+}
+
+/**
+ * Adapter for Other Matters list
+ * Shows items with highlight status (green background for discussed items)
+ */
+class OtherMattersAdapter(
+    private val items: List<AgendaItemDto>,
+    private val isAdmin: Boolean,
+    private val onItemClick: (AgendaItemDto) -> Unit,
+    private val onHighlightClick: (AgendaItemDto) -> Unit
+) : RecyclerView.Adapter<OtherMattersAdapter.ViewHolder>() {
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_other_matter, parent, false)
+        return ViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        holder.bind(items[position], position + 1, isAdmin, onItemClick, onHighlightClick)
+    }
+
+    override fun getItemCount() = items.size
+
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val cardItem: com.google.android.material.card.MaterialCardView =
+            itemView.findViewById(R.id.cardItem)
+        private val tvItemNumber: TextView = itemView.findViewById(R.id.tvItemNumber)
+        private val tvItemTitle: TextView = itemView.findViewById(R.id.tvItemTitle)
+        private val tvItemDescription: TextView = itemView.findViewById(R.id.tvItemDescription)
+        private val ivHighlightIndicator: ImageView = itemView.findViewById(R.id.ivHighlightIndicator)
+        private val btnToggleHighlight: ImageButton? = itemView.findViewById(R.id.btnToggleHighlight)
+
+        fun bind(
+            item: AgendaItemDto,
+            number: Int,
+            isAdmin: Boolean,
+            onItemClick: (AgendaItemDto) -> Unit,
+            onHighlightClick: (AgendaItemDto) -> Unit
+        ) {
+            tvItemNumber.text = "$number."
+            tvItemTitle.text = item.title
+            tvItemDescription.text = item.description ?: "No description"
+            tvItemDescription.visibility = if (item.description.isNullOrEmpty()) View.GONE else View.VISIBLE
+
+            // Apply highlight styling (green background for discussed items)
+            if (item.isHighlighted) {
+                cardItem.setCardBackgroundColor(itemView.context.getColor(R.color.agenda_item_highlighted_bg))
+                cardItem.strokeColor = itemView.context.getColor(R.color.agenda_item_highlighted_border)
+                cardItem.strokeWidth = 2
+                ivHighlightIndicator.visibility = View.VISIBLE
+                ivHighlightIndicator.setColorFilter(itemView.context.getColor(R.color.status_success))
+            } else {
+                cardItem.setCardBackgroundColor(itemView.context.getColor(R.color.surface))
+                cardItem.strokeColor = itemView.context.getColor(R.color.divider)
+                cardItem.strokeWidth = 1
+                ivHighlightIndicator.visibility = View.GONE
+            }
+
+            // Admin highlight toggle button
+            btnToggleHighlight?.apply {
+                visibility = if (isAdmin) View.VISIBLE else View.GONE
+                setOnClickListener { onHighlightClick(item) }
+            }
+
+            // Item click handler
+            itemView.setOnClickListener { onItemClick(item) }
+        }
+    }
+}

@@ -3,6 +3,7 @@ package com.mgb.mrfcmanager.data.remote.api
 import com.mgb.mrfcmanager.data.remote.dto.AgendaItemDto
 import com.mgb.mrfcmanager.data.remote.dto.ApiResponse
 import com.mgb.mrfcmanager.data.remote.dto.CreateAgendaItemRequest
+import com.mgb.mrfcmanager.data.remote.dto.MarkOtherMatterRequest
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -92,6 +93,34 @@ interface AgendaItemApiService {
     suspend fun denyItem(
         @Path("id") id: Long,
         @Body request: com.mgb.mrfcmanager.data.remote.dto.DenyProposalRequest
+    ): Response<ApiResponse<AgendaItemDto>>
+
+    /**
+     * Get "Other Matters" items for a meeting
+     * GET /agenda-items/meeting/:agendaId/other-matters
+     */
+    @GET("agenda-items/meeting/{agendaId}/other-matters")
+    suspend fun getOtherMatters(
+        @Path("agendaId") agendaId: Long
+    ): Response<ApiResponse<List<AgendaItemDto>>>
+
+    /**
+     * Toggle highlight status on an agenda item (ADMIN only)
+     * POST /agenda-items/:id/toggle-highlight
+     */
+    @POST("agenda-items/{id}/toggle-highlight")
+    suspend fun toggleHighlight(
+        @Path("id") id: Long
+    ): Response<ApiResponse<AgendaItemDto>>
+
+    /**
+     * Mark/unmark an agenda item as "Other Matter" (ADMIN only)
+     * POST /agenda-items/:id/mark-other-matter
+     */
+    @POST("agenda-items/{id}/mark-other-matter")
+    suspend fun markOtherMatter(
+        @Path("id") id: Long,
+        @Body request: MarkOtherMatterRequest
     ): Response<ApiResponse<AgendaItemDto>>
 }
 

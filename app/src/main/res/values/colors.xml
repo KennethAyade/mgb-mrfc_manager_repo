@@ -79,4 +79,9 @@
     <color name="tab_icon_other_matters">#FF9800</color> <!-- Orange - Other Matters -->
     <color name="tab_icon_minutes">#9C27B0</color>       <!-- Purple - Minutes/Documents -->
     <color name="tab_icon_recordings">#009688</color>    <!-- Teal - Voice Recordings -->
+    <color name="tab_icon_proposals">#E91E63</color>     <!-- Pink - Proposals -->
+
+    <!-- Agenda Item Highlight Colors (Feature 7) -->
+    <color name="agenda_item_highlighted_bg">#E8F5E9</color>     <!-- Light green background -->
+    <color name="agenda_item_highlighted_border">#4CAF50</color> <!-- Green border -->
 </resources>

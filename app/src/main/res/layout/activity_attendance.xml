@@ -233,6 +233,7 @@
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
                         android:hint="Department / Agency / Organization *"
                         app:boxStrokeColor="@color/primary"
                         app:hintTextColor="@color/primary"
@@ -244,6 +245,26 @@
                             android:layout_height="wrap_content"
                             android:inputType="text|textCapWords"
                             android:maxLines="2" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Attendance Type (Onsite/Online) -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilAttendanceType"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Attendance Type *"
+                        app:boxStrokeColor="@color/primary"
+                        app:hintTextColor="@color/primary"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/actvAttendanceType"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:text="Onsite"
+                            android:textSize="16sp" />
 
                     </com.google.android.material.textfield.TextInputLayout>
 

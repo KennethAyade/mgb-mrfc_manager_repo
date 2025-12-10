@@ -400,6 +400,8 @@ class AgendaFragment : Fragment() {
         val tvProponentId = dialogView.findViewById<TextView>(R.id.tvProponentId)
         val tvFileCategory = dialogView.findViewById<TextView>(R.id.tvFileCategory)
         val tvStatus = dialogView.findViewById<TextView>(R.id.tvStatus)
+        val tvHighlightStatus = dialogView.findViewById<TextView>(R.id.tvHighlightStatus)
+        val btnToggleHighlight = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnToggleHighlight)
         val btnViewRelatedFiles = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnViewRelatedFiles)
         val layoutAdminActions = dialogView.findViewById<LinearLayout>(R.id.layoutAdminActions)
         val btnEdit = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnEdit)
@@ -461,11 +463,28 @@ class AgendaFragment : Fragment() {
             navigateToFileCategoryPage(item.fileCategory, item.proponentId ?: 0)
         }
 
+        // Show highlight status
+        if (item.isHighlighted) {
+            tvHighlightStatus.visibility = View.VISIBLE
+            tvHighlightStatus.text = "Discussed"
+            tvHighlightStatus.setBackgroundResource(R.drawable.bg_rounded_green)
+        } else {
+            tvHighlightStatus.visibility = View.GONE
+        }
+
         // Show admin actions if user is admin
         val tokenManager = MRFCManagerApp.getTokenManager()
         val userRole = tokenManager.getUserRole()
         if (userRole == "ADMIN" || userRole == "SUPER_ADMIN") {
             layoutAdminActions.visibility = View.VISIBLE
+
+            // Toggle Highlight button
+            btnToggleHighlight.visibility = View.VISIBLE
+            btnToggleHighlight.text = if (item.isHighlighted) "Mark as Pending" else "Mark as Discussed"
+            btnToggleHighlight.setOnClickListener {
+                dialog.dismiss()
+                toggleHighlight(item)
+            }
 
             // Edit button
             btnEdit.setOnClickListener {
@@ -486,6 +505,27 @@ class AgendaFragment : Fragment() {
         }
 
         dialog.show()
+    }
+
+    private fun toggleHighlight(item: AgendaItemDto) {
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+        val apiService = retrofit.create(AgendaItemApiService::class.java)
+
+        lifecycleScope.launch {
+            try {
+                val response = apiService.toggleHighlight(item.id)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val message = if (item.isHighlighted) "Marked as pending" else "Marked as discussed"
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    loadAgendaItems() // Refresh the list
+                } else {
+                    Toast.makeText(requireContext(), "Failed to update highlight status", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun navigateToFileCategoryPage(category: String?, proponentId: Long) {
@@ -670,6 +710,7 @@ class AgendaFragment : Fragment() {
 
 /**
  * Adapter for displaying agenda items
+ * Shows items with highlight status (green background for discussed items)
  */
 class AgendaItemAdapter(
     private val items: List<AgendaItemDto>,
@@ -689,15 +730,32 @@ class AgendaItemAdapter(
     override fun getItemCount() = items.size
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val cardItem: com.google.android.material.card.MaterialCardView =
+            itemView.findViewById(R.id.cardItem)
         private val tvItemNumber: TextView = itemView.findViewById(R.id.tvItemNumber)
         private val tvItemTitle: TextView = itemView.findViewById(R.id.tvItemTitle)
         private val tvItemDescription: TextView = itemView.findViewById(R.id.tvItemDescription)
+        private val ivHighlightIndicator: ImageView = itemView.findViewById(R.id.ivHighlightIndicator)
 
         fun bind(item: AgendaItemDto, number: Int, onItemClick: (AgendaItemDto) -> Unit) {
             tvItemNumber.text = "$number."
             tvItemTitle.text = item.title
             tvItemDescription.text = item.description ?: "No description"
             tvItemDescription.visibility = if (item.description.isNullOrEmpty()) View.GONE else View.VISIBLE
+
+            // Apply highlight styling (green background for discussed items)
+            if (item.isHighlighted) {
+                cardItem.setCardBackgroundColor(itemView.context.getColor(R.color.agenda_item_highlighted_bg))
+                cardItem.strokeColor = itemView.context.getColor(R.color.agenda_item_highlighted_border)
+                cardItem.strokeWidth = 2
+                ivHighlightIndicator.visibility = View.VISIBLE
+                ivHighlightIndicator.setColorFilter(itemView.context.getColor(R.color.status_success))
+            } else {
+                cardItem.setCardBackgroundColor(itemView.context.getColor(R.color.surface))
+                cardItem.strokeColor = itemView.context.getColor(R.color.divider)
+                cardItem.strokeWidth = 1
+                ivHighlightIndicator.visibility = View.GONE
+            }
 
             // Set click listener on the whole item
             itemView.setOnClickListener {

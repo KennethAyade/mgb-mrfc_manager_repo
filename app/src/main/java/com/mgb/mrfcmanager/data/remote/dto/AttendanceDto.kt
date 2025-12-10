@@ -26,6 +26,9 @@ data class AttendanceDto(
     @Json(name = "attendee_department")
     val attendeeDepartment: String? = null,
 
+    @Json(name = "attendance_type")
+    val attendanceType: String = "ONSITE",  // "ONSITE" or "ONLINE"
+
     @Json(name = "is_present")
     val isPresent: Boolean = false,
 
@@ -76,8 +79,35 @@ data class CreateAttendanceRequest(
     @Json(name = "attendee_department")
     val attendeeDepartment: String? = null,
 
+    @Json(name = "attendance_type")
+    val attendanceType: String = "ONSITE",  // "ONSITE" or "ONLINE"
+
     @Json(name = "is_present")
     val isPresent: Boolean = true,
+
+    @Json(name = "remarks")
+    val remarks: String? = null
+)
+
+/**
+ * Request for updating attendance
+ * All fields are optional - only provided fields will be updated
+ */
+data class UpdateAttendanceRequest(
+    @Json(name = "attendee_name")
+    val attendeeName: String? = null,
+
+    @Json(name = "attendee_position")
+    val attendeePosition: String? = null,
+
+    @Json(name = "attendee_department")
+    val attendeeDepartment: String? = null,
+
+    @Json(name = "attendance_type")
+    val attendanceType: String? = null,
+
+    @Json(name = "is_present")
+    val isPresent: Boolean? = null,
 
     @Json(name = "remarks")
     val remarks: String? = null

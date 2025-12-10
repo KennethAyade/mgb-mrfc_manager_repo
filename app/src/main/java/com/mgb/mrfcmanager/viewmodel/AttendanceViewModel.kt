@@ -99,6 +99,7 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
         attendeeName: String? = null,
         attendeePosition: String? = null,
         attendeeDepartment: String? = null,
+        attendanceType: String = "ONSITE",
         isPresent: Boolean = true,
         remarks: String? = null,
         photoFile: File
@@ -112,6 +113,7 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
                 attendeeName = attendeeName,
                 attendeePosition = attendeePosition,
                 attendeeDepartment = attendeeDepartment,
+                attendanceType = attendanceType,
                 isPresent = isPresent,
                 remarks = remarks,
                 photoFile = photoFile

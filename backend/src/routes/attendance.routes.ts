@@ -183,6 +183,7 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
       attendee_name,
       attendee_position,
       attendee_department,
+      attendance_type,
       is_present,
       remarks
     } = req.body;
@@ -282,6 +283,11 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
       cloudinaryPublicId = photoCloudinaryId;
     }
 
+    // Validate attendance_type if provided
+    const validAttendanceType = attendance_type && ['ONSITE', 'ONLINE'].includes(attendance_type.toUpperCase())
+      ? attendance_type.toUpperCase()
+      : 'ONSITE';
+
     // Create attendance record
     const attendance = await Attendance.create({
       agenda_id: parseInt(agenda_id),
@@ -289,6 +295,7 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
       attendee_name: attendee_name || null,
       attendee_position: attendee_position || null,
       attendee_department: attendee_department || null,
+      attendance_type: validAttendanceType,
       is_present: is_present === 'true' || is_present === true || is_present === undefined,
       photo_url: photoUrl,
       photo_cloudinary_id: photoCloudinaryId,
@@ -401,12 +408,30 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
 
     // Store old values for audit
     const oldValues = {
+      attendee_name: attendance.attendee_name,
+      attendee_position: attendance.attendee_position,
+      attendee_department: attendance.attendee_department,
+      attendance_type: attendance.attendance_type,
       is_present: attendance.is_present,
       remarks: attendance.remarks
     };
 
-    // Update fields
-    const { is_present, remarks } = req.body;
+    // Update fields - expanded to include all editable fields
+    const {
+      attendee_name,
+      attendee_position,
+      attendee_department,
+      attendance_type,
+      is_present,
+      remarks
+    } = req.body;
+
+    if (attendee_name !== undefined) attendance.attendee_name = attendee_name;
+    if (attendee_position !== undefined) attendance.attendee_position = attendee_position;
+    if (attendee_department !== undefined) attendance.attendee_department = attendee_department;
+    if (attendance_type !== undefined && ['ONSITE', 'ONLINE'].includes(attendance_type.toUpperCase())) {
+      attendance.attendance_type = attendance_type.toUpperCase();
+    }
     if (is_present !== undefined) attendance.is_present = is_present;
     if (remarks !== undefined) attendance.remarks = remarks;
 
@@ -420,6 +445,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
       entity_id: attendance.id,
       old_values: oldValues,
       new_values: {
+        attendee_name: attendance.attendee_name,
+        attendee_position: attendance.attendee_position,
+        attendee_department: attendance.attendee_department,
+        attendance_type: attendance.attendance_type,
         is_present: attendance.is_present,
         remarks: attendance.remarks
       },

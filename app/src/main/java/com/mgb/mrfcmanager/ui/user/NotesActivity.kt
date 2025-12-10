@@ -299,9 +299,9 @@ class NotesActivity : AppCompatActivity() {
 
     private fun saveNote(title: String, content: String) {
         val request = CreateNoteRequest(
-            mrfcId = if (mrfcId != 0L) mrfcId else null,
+            mrfcId = mrfcId.takeIf { it > 0 },
             quarterId = null,
-            agendaId = if (agendaId != 0L) agendaId else null,
+            agendaId = agendaId?.takeIf { it > 0 },
             title = title,
             content = content,
             isPinned = false

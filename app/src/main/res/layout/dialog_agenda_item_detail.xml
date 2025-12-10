@@ -197,12 +197,12 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Status Badge -->
+        <!-- Status and Highlight Badges -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="8dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -225,7 +225,37 @@
                 android:background="@drawable/bg_rounded_green"
                 android:textColor="@android:color/white" />
 
+            <!-- Highlight Badge -->
+            <TextView
+                android:id="@+id/tvHighlightStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Discussed"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_rounded_green"
+                android:textColor="@android:color/white"
+                android:visibility="gone" />
+
         </LinearLayout>
+
+        <!-- Toggle Highlight Button (Admin only) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnToggleHighlight"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Mark as Discussed"
+            android:visibility="gone"
+            app:icon="@drawable/ic_check"
+            app:iconGravity="start"
+            app:backgroundTint="@color/status_success" />
 
         <!-- View Related Files Button -->
         <com.google.android.material.button.MaterialButton

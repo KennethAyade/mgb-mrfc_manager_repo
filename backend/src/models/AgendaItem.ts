@@ -35,12 +35,18 @@ export interface AgendaItemAttributes {
   mrfc_id: number | null;
   proponent_id: number | null;
   file_category: string | null;
+  // Feature 2: Other Matters tab
+  is_other_matter: boolean;
+  // Feature 7: Highlight discussed items
+  is_highlighted: boolean;
+  highlighted_by: number | null;
+  highlighted_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
 
 // Define attributes for creation (id, timestamps are optional)
-export interface AgendaItemCreationAttributes extends Optional<AgendaItemAttributes, 'id' | 'description' | 'order_index' | 'created_at' | 'updated_at'> {}
+export interface AgendaItemCreationAttributes extends Optional<AgendaItemAttributes, 'id' | 'description' | 'order_index' | 'is_other_matter' | 'is_highlighted' | 'highlighted_by' | 'highlighted_at' | 'created_at' | 'updated_at'> {}
 
 // Define the AgendaItem model class
 export class AgendaItem extends Model<AgendaItemAttributes, AgendaItemCreationAttributes> implements AgendaItemAttributes {
@@ -61,6 +67,12 @@ export class AgendaItem extends Model<AgendaItemAttributes, AgendaItemCreationAt
   public mrfc_id!: number | null;
   public proponent_id!: number | null;
   public file_category!: string | null;
+  // Feature 2: Other Matters tab
+  public is_other_matter!: boolean;
+  // Feature 7: Highlight discussed items
+  public is_highlighted!: boolean;
+  public highlighted_by!: number | null;
+  public highlighted_at!: Date | null;
   public created_at!: Date;
   public updated_at!: Date;
 
@@ -166,6 +178,30 @@ AgendaItem.init(
     },
     file_category: {
       type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    // Feature 2: Other Matters tab - items added after agenda is finalized
+    is_other_matter: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+    },
+    // Feature 7: Highlight discussed items (green background)
+    is_highlighted: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+    },
+    highlighted_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    highlighted_at: {
+      type: DataTypes.DATE,
       allowNull: true,
     },
     created_at: {

@@ -158,6 +158,20 @@ data class AgendaItemDto(
     @Json(name = "file_category")
     val fileCategory: String? = null,
 
+    // Feature 2: Other Matters tab - items added after agenda is finalized
+    @Json(name = "is_other_matter")
+    val isOtherMatter: Boolean = false,
+
+    // Feature 7: Highlight discussed items (green background)
+    @Json(name = "is_highlighted")
+    val isHighlighted: Boolean = false,
+
+    @Json(name = "highlighted_by")
+    val highlightedBy: Long? = null,
+
+    @Json(name = "highlighted_at")
+    val highlightedAt: String? = null,
+
     @Json(name = "created_at")
     val createdAt: String,
 
@@ -250,7 +264,19 @@ data class CreateAgendaItemRequest(
     val proponentId: Long? = null,
 
     @Json(name = "file_category")
-    val fileCategory: String? = null
+    val fileCategory: String? = null,
+
+    // Feature 2: Mark as other matter
+    @Json(name = "is_other_matter")
+    val isOtherMatter: Boolean = false
+)
+
+/**
+ * Request DTO for marking other matter status
+ */
+data class MarkOtherMatterRequest(
+    @Json(name = "is_other_matter")
+    val isOtherMatter: Boolean
 )
 
 /**

@@ -181,11 +181,11 @@ class AttendanceFragment : Fragment() {
             attendance.attendeePosition ?: "N/A"
         dialogView.findViewById<TextView>(R.id.tvDetailDepartment).text =
             attendance.attendeeDepartment ?: "N/A"
-        
+
         // Format timestamp to Philippine Time
         dialogView.findViewById<TextView>(R.id.tvDetailTimestamp).text =
             "Logged at: ${formatToPhilippineTime(attendance.markedAt)}"
-        
+
         dialogView.findViewById<TextView>(R.id.tvDetailStatus).apply {
             text = if (attendance.isPresent) "Present" else "Absent"
             setTextColor(
@@ -193,6 +193,21 @@ class AttendanceFragment : Fragment() {
                     context.getColor(R.color.status_success)
                 else
                     context.getColor(R.color.status_pending)
+            )
+        }
+
+        // Show attendance type (Onsite/Online)
+        dialogView.findViewById<TextView>(R.id.tvDetailAttendanceType)?.apply {
+            val typeDisplay = when (attendance.attendanceType.uppercase()) {
+                "ONLINE" -> "Online"
+                else -> "Onsite"
+            }
+            text = "Mode: $typeDisplay"
+            setTextColor(
+                if (attendance.attendanceType.uppercase() == "ONLINE")
+                    context.getColor(R.color.status_info)
+                else
+                    context.getColor(R.color.primary)
             )
         }
 

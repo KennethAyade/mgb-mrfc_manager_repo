@@ -210,8 +210,9 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
       });
     }
 
-    // Step 1: Verify MRFC exists (if provided)
-    if (mrfc_id) {
+    // Step 1: Verify MRFC exists (if provided and valid)
+    // Note: Also check for mrfc_id > 0 to handle cases where frontend sends 0 instead of null
+    if (mrfc_id && parseInt(mrfc_id) > 0) {
       const mrfc = await Mrfc.findByPk(mrfc_id);
       if (!mrfc) {
         return res.status(404).json({
@@ -236,10 +237,14 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
     }
 
     // Step 3: Create note
+    // Use validated mrfc_id (only if > 0, otherwise null)
+    const validMrfcId = mrfc_id && parseInt(mrfc_id) > 0 ? mrfc_id : null;
+    const validAgendaId = agenda_id && parseInt(agenda_id) > 0 ? agenda_id : null;
+
     const note = await Note.create({
       user_id: req.user?.userId,
-      mrfc_id: mrfc_id || null,
-      agenda_id: agenda_id || null,
+      mrfc_id: validMrfcId,
+      agenda_id: validAgendaId,
       title: title || null,
       content: content.trim(),
       is_pinned: is_pinned || false

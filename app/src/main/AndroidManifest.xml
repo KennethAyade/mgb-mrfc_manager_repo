@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+    <!-- WakeLock permission to keep CPU awake during audio recording (Feature 8) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Camera hardware feature (not required for ChromeOS compatibility) -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
