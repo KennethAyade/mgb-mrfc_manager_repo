@@ -1,8 +1,8 @@
 # MGB MRFC Manager - Project Status & Development Tracker
 
-**Last Updated:** November 24, 2025
-**Version:** 2.0.34 (PRODUCTION READY)
-**Status:** 🚀 **PRODUCTION LIVE (Railway)** | ✅ **Claude AI Analysis (Haiku 4.5)** | ✅ **AWS S3 Storage** | ✅ **Real Compliance Dashboard** | ✅ **Reanalysis Feature** | ✅ **OCR Working** | ✅ **Railway Deployment Fixed** | ✅ **Android UI Polish** | ✅ **Agenda Item Proposal Workflow Complete** | ✅ **Proposals Tab Fully Functional** | ✅ **Enhanced Agenda Features** | ✅ **Tablet Layout Optimized** | ✅ **Meeting Edit/Delete** | ✅ **Tablet-Based Attendance** | ✅ **Critical Bug Fixes v2.0.30** | ✅ **Dynamic Quarter Creation** | ✅ **Notes Feature Complete** | ✅ **Voice Recording Feature**
+**Last Updated:** December 10, 2025
+**Version:** 2.0.35 (PRODUCTION READY)
+**Status:** 🚀 **PRODUCTION LIVE (Railway)** | ✅ **Claude AI Analysis (Haiku 4.5)** | ✅ **AWS S3 Storage** | ✅ **Real Compliance Dashboard** | ✅ **Reanalysis Feature** | ✅ **OCR Working** | ✅ **Railway Deployment Fixed** | ✅ **Android UI Polish** | ✅ **Agenda Item Proposal Workflow Complete** | ✅ **Proposals Tab Fully Functional** | ✅ **Enhanced Agenda Features** | ✅ **Tablet Layout Optimized** | ✅ **Meeting Edit/Delete** | ✅ **Tablet-Based Attendance** | ✅ **Critical Bug Fixes v2.0.30** | ✅ **Dynamic Quarter Creation** | ✅ **Notes Feature Complete** | ✅ **Voice Recording Feature** | ✅ **Offline Support (Room DB)** | ✅ **Other Matters Tab** | ✅ **Agenda Highlighting** | ✅ **Attendance Type (ONSITE/ONLINE)**
 
 ---
 
@@ -116,15 +116,15 @@
 
 ### 🟡 Partially Implemented
 
-- 🟡 **Agenda Items:** Backend complete (4 endpoints), frontend read-only view only (no create/edit/delete UI)
-- 🟡 **Attendance Tracking:** ✅ Backend complete (GET, POST, PUT, DELETE), ✅ Frontend functional (photo upload to S3 works), ✅ Tablet-based workflow (one-time attendance per user/meeting, auto-hide button after logging, tablet number display), ⏳ Reports pending
+- 🟡 **Agenda Items:** ✅ Backend complete (CRUD + highlight + other matters endpoints), ✅ Frontend: read/highlight/other matters view (no create/edit/delete UI for regular items)
+- 🟡 **Attendance Tracking:** ✅ Backend complete (GET, POST, PUT, DELETE + attendance type), ✅ Frontend functional (photo upload to S3 works, ONSITE/ONLINE dropdown, edit capability), ✅ Tablet-based workflow (one-time attendance per user/meeting, auto-hide button after logging, tablet number display), ⏳ Reports pending
 - 🟡 **Notifications:** ✅ Backend complete (CRUD API), ✅ Frontend complete (DTO/Repository/ViewModel/UI), ⏳ Push notifications (Firebase) pending, ⏳ Auto-triggers pending
 - 🟡 **Compliance Logs:** Model exists, API not implemented
 - 🟡 **Reports:** Routes/controller skeleton exists but returns HTTP 501 NOT_IMPLEMENTED
+- 🟡 **Offline Mode:** ✅ Room database with entities, DAOs, and offline-first architecture implemented, ✅ SyncWorker for background sync with WorkManager, ✅ NetworkConnectivityManager and FileCacheManager, ✅ OfflineIndicator UI component, ⏳ Full offline editing pending
 
 ### 🔴 Not Yet Implemented
 
-- 🔴 **Offline Mode:** Not implemented (Room dependencies added but kapt disabled due to Kotlin 2.0)
 - 🔴 **Data Export:** (CSV/Excel) Not implemented (placeholder buttons exist in UI)
 - 🔴 **Photo Upload for Proponents:** Not implemented (note: photo upload works for attendance)
 - 🔴 **Search & Filters:** Basic text search only (no advanced filters, date ranges, or multi-field search)
@@ -1069,6 +1069,81 @@ private fun setupBackPressedHandler() {
 
 ---
 
+### 19. December 2025 Feature Update (v2.0.35) ✅
+**Status:** COMPLETE
+**Last Updated:** Dec 10, 2025
+
+9 new features implemented in a single release:
+
+#### Feature 1: File Redirect/Sort Behavior in Meetings
+- ✅ Improved file organization and sorting in meeting views
+
+#### Feature 2: Other Matters Tab
+- ✅ New "Other Matters" tab for post-agenda items
+- ✅ Separate from main agenda - items added after agenda is finalized
+- ✅ `is_other_matter` field added to AgendaItem model
+- ✅ New endpoints: `POST /agenda-items/:id/mark-other-matter`, `GET /agenda-items/other-matters/:agendaId`
+- ✅ OtherMattersFragment for dedicated tab UI
+
+#### Feature 3: Attendance Type (ONSITE/ONLINE)
+- ✅ Dropdown to select attendance type per attendee
+- ✅ `attendance_type` enum field (ONSITE, ONLINE) added to Attendance model
+- ✅ Supports mobile app users attending remotely
+- ✅ Migration: `015_add_attendance_type_to_attendance.sql`
+
+#### Feature 4: Attendance Edit Capability
+- ✅ Users can edit their own attendance records
+- ✅ Admins can edit any attendance record
+- ✅ Edit dialog in AttendanceActivity
+
+#### Feature 5: Fix "MRFC ID is required" Error in Notes
+- ✅ Fixed validation error when creating notes
+- ✅ NotesActivity updated with proper MRFC ID handling
+
+#### Feature 7: Agenda Highlight Feature
+- ✅ Admin can mark agenda items as "discussed" with green highlight
+- ✅ `is_highlighted`, `highlighted_by`, `highlighted_at` fields added
+- ✅ Toggle endpoint: `PUT /agenda-items/:id/toggle-highlight`
+- ✅ Green background display for highlighted items in UI
+- ✅ Migration: `016_add_other_matter_and_highlight_to_agenda_items.sql`
+
+#### Feature 8: Audio Recording Standby Fix
+- ✅ WakeLock implementation for stable audio recording
+- ✅ Prevents device sleep during recording sessions
+- ✅ AudioRecorderHelper enhanced with WakeLock management
+
+#### Feature 9: Comprehensive Offline Support
+- ✅ Room database with 5 entity types:
+  - `MeetingEntity` - Local meeting cache
+  - `AgendaItemEntity` - Agenda items with highlight/other matter flags
+  - `NoteEntity` - Offline notes with sync status
+  - `CachedFileEntity` - File cache metadata
+  - `PendingSyncEntity` - Queue for offline operations
+- ✅ DAOs for all entities (AgendaItemDao, CachedFileDao, MeetingDao, NoteDao, PendingSyncDao)
+- ✅ OfflineNotesRepository with offline-first architecture
+- ✅ SyncWorker for background sync using WorkManager
+- ✅ NetworkConnectivityManager for real-time connectivity monitoring
+- ✅ FileCacheManager for intelligent file caching
+- ✅ OfflineIndicator UI component showing connection status
+
+**Database Migrations:**
+- `015_add_attendance_type_to_attendance.sql`
+- `016_add_other_matter_and_highlight_to_agenda_items.sql`
+
+**Backend Files:**
+- `backend/src/models/AgendaItem.ts` - Added is_other_matter, is_highlighted fields
+- `backend/src/models/Attendance.ts` - Added attendance_type enum
+- `backend/src/routes/agendaItem.routes.ts` - New endpoints for highlight/other-matters
+- `backend/src/routes/attendance.routes.ts` - Updated for attendance type
+
+**Android Files (55 files changed, +3820 lines):**
+- `app/src/main/java/com/mgb/mrfcmanager/data/local/` - Room database layer
+- `app/src/main/java/com/mgb/mrfcmanager/sync/SyncWorker.kt` - Background sync
+- `app/src/main/java/com/mgb/mrfcmanager/ui/meeting/fragments/OtherMattersFragment.kt` - New tab
+- `app/src/main/java/com/mgb/mrfcmanager/utils/` - Network, cache, audio utilities
+
+---
+
 ## 🚧 Features In Progress
 
 ### Agenda Items
@@ -1227,15 +1302,24 @@ private fun setupBackPressedHandler() {
 ### Low Priority
 
 #### 7. Offline Mode
-**Status:** 🔴 NOT STARTED  
-**Estimated Effort:** 7-10 days
+**Status:** 🟡 ~70% COMPLETE
+**Last Updated:** Dec 10, 2025 (v2.0.35)
 
-**Requirements:**
-- Local database (Room)
-- Sync mechanism
-- Conflict resolution
-- Offline indicator
-- Queue for pending uploads
+**✅ Completed:**
+- ✅ Room database with full entity definitions (MeetingEntity, AgendaItemEntity, NoteEntity, CachedFileEntity, PendingSyncEntity)
+- ✅ DAOs for all entities with comprehensive query methods
+- ✅ Type converters for Date and List<String> handling
+- ✅ OfflineNotesRepository with offline-first architecture
+- ✅ SyncWorker for background sync using WorkManager
+- ✅ NetworkConnectivityManager for real-time connectivity monitoring
+- ✅ FileCacheManager for local file caching
+- ✅ OfflineIndicator UI component showing connectivity status
+- ✅ Pending sync queue for offline operations
+
+**⏳ Remaining:**
+- ⏳ Full offline editing for all entities (currently notes only)
+- ⏳ Conflict resolution UI
+- ⏳ Offline file viewing from cache
 
 ---
 
