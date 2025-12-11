@@ -7,11 +7,7 @@
       "Bash(../gradlew compileDebugSources:*)",
       "Read(//d/FREELANCE/**)",
       "Bash(./gradlew:*)",
-<<<<<<< Updated upstream
       "Bash(mkdir:*)"
-=======
-      "Bash(cat:*)"
->>>>>>> Stashed changes
     ],
     "deny": [],
     "ask": []
