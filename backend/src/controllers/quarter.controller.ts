@@ -173,7 +173,11 @@ export const createQuarter = async (req: Request, res: Response): Promise<void> 
     res.status(201).json({
       success: true,
       message: 'Quarter created successfully',
-      data: quarter
+      data: {
+        ...quarter.toJSON(),
+        id: Number(quarter.id),
+        created_by: quarter.created_by ? Number(quarter.created_by) : null
+      }
     });
   } catch (error: any) {
     console.error('Quarter creation error:', error);

@@ -428,7 +428,7 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
       success: true,
       message: 'Document uploaded successfully',
       data: {
-        id: document.id,
+        id: Number(document.id),
         file_name: document.file_name,
         original_name: document.original_name,
         file_url: document.file_url,
@@ -437,8 +437,8 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
         category: document.category,
         status: document.status,
         upload_date: document.upload_date,
-        proponent_id: document.proponent_id,
-        quarter_id: document.quarter_id
+        proponent_id: Number(document.proponent_id),
+        quarter_id: Number(document.quarter_id)
       }
     });
   } catch (error: any) {
@@ -1160,7 +1160,7 @@ export const uploadViaToken = async (req: Request, res: Response): Promise<void>
       success: true,
       message: 'Document uploaded successfully via token',
       data: {
-        id: document.id,
+        id: Number(document.id),
         file_name: document.file_name,
         original_name: document.original_name,
         file_type: document.file_type,

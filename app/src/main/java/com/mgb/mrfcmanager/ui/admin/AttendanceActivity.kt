@@ -8,6 +8,8 @@ import android.graphics.Bitmap
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.ProgressBar
@@ -55,6 +57,8 @@ class AttendanceActivity : AppCompatActivity() {
     private lateinit var etFullName: EditText
     private lateinit var etPosition: EditText
     private lateinit var etDepartment: EditText
+    private lateinit var actvAttendanceType: AutoCompleteTextView
+    private lateinit var actvTabletNumber: AutoCompleteTextView
     private lateinit var ivAttendancePhoto: ImageView
     private lateinit var btnCapturePhoto: MaterialButton
     private lateinit var tvPresentCount: TextView
@@ -67,6 +71,13 @@ class AttendanceActivity : AppCompatActivity() {
     private var photoFile: File? = null
     private lateinit var viewModel: AttendanceViewModel
     private var agendaId: Long = 0L
+    private var selectedAttendanceType: String = "ONSITE"  // Default to ONSITE
+    private var selectedTabletNumber: Int? = null  // Optional tablet number
+
+    // Attendance type options
+    private val attendanceTypes = arrayOf("Onsite", "Online")
+    // Tablet number options (1-15)
+    private val tabletNumbers = (1..15).map { "Tablet $it" }.toTypedArray()
 
     companion object {
         private const val REQUEST_IMAGE_CAPTURE = 101
@@ -104,10 +115,39 @@ class AttendanceActivity : AppCompatActivity() {
         etFullName = findViewById(R.id.etFullName)
         etPosition = findViewById(R.id.etPosition)
         etDepartment = findViewById(R.id.etDepartment)
+        actvAttendanceType = findViewById(R.id.actvAttendanceType)
+        actvTabletNumber = findViewById(R.id.actvTabletNumber)
         ivAttendancePhoto = findViewById(R.id.ivAttendancePhoto)
         btnCapturePhoto = findViewById(R.id.btnCapturePhoto)
         btnSubmitAttendance = findViewById(R.id.btnSubmitAttendance)
         progressBar = findViewById(R.id.progressBar)
+
+        // Setup dropdowns
+        setupAttendanceTypeDropdown()
+        setupTabletNumberDropdown()
+    }
+
+    private fun setupAttendanceTypeDropdown() {
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, attendanceTypes)
+        actvAttendanceType.setAdapter(adapter)
+        actvAttendanceType.setText(attendanceTypes[0], false)  // Default to "Onsite"
+
+        actvAttendanceType.setOnItemClickListener { _, _, position, _ ->
+            selectedAttendanceType = when (position) {
+                0 -> "ONSITE"
+                1 -> "ONLINE"
+                else -> "ONSITE"
+            }
+        }
+    }
+
+    private fun setupTabletNumberDropdown() {
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, tabletNumbers)
+        actvTabletNumber.setAdapter(adapter)
+
+        actvTabletNumber.setOnItemClickListener { _, _, position, _ ->
+            selectedTabletNumber = position + 1  // Tablet numbers are 1-indexed
+        }
     }
 
     private fun setupViewModel() {
@@ -294,6 +334,8 @@ class AttendanceActivity : AppCompatActivity() {
             attendeeName = fullName,
             attendeePosition = position,
             attendeeDepartment = department,
+            attendanceType = selectedAttendanceType,
+            tabletNumber = selectedTabletNumber,
             isPresent = true,
             photoFile = photoFile!!
         )
@@ -304,6 +346,10 @@ class AttendanceActivity : AppCompatActivity() {
         etFullName.text.clear()
         etPosition.text.clear()
         etDepartment.text.clear()
+
+        // Reset attendance type dropdown to default
+        actvAttendanceType.setText(attendanceTypes[0], false)
+        selectedAttendanceType = "ONSITE"
 
         // Clear photo
         attendancePhoto = null

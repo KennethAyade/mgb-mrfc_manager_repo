@@ -39,8 +39,13 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Extract token from Authorization header
-    const token = extractTokenFromHeader(req.headers.authorization);
+    // Extract token from Authorization header OR query parameter (for media streaming)
+    let token = extractTokenFromHeader(req.headers.authorization);
+
+    // Fallback to query parameter for media streaming (MediaPlayer doesn't support custom headers)
+    if (!token && req.query.token) {
+      token = req.query.token as string;
+    }
 
     if (!token) {
       res.status(401).json({
@@ -172,10 +177,34 @@ export const checkMrfcAccess = (
   }
 
   // For regular users, check MRFC access
-  const mrfcId = parseInt(req.params.mrfcId);
+  // Support both :id and :mrfcId parameter names
+  const mrfcId = parseInt(req.params.mrfcId || req.params.id);
   const userMrfcAccess = req.user.mrfcAccess || [];
 
-  if (!userMrfcAccess.includes(mrfcId)) {
+  // Debug logging
+  console.log('🔍 MRFC Access Check:');
+  console.log('  User:', req.user.username, '(Role:', req.user.role + ')');
+  console.log('  Checking MRFC ID:', mrfcId, '(type:', typeof mrfcId + ')');
+  console.log('  User has access to MRFCs:', userMrfcAccess, '(types:', userMrfcAccess.map((id: any) => typeof id) + ')');
+  console.log('  req.params:', req.params);
+
+  if (!mrfcId || isNaN(mrfcId)) {
+    console.log('  ❌ Invalid MRFC ID');
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_MRFC_ID',
+        message: 'Invalid MRFC ID'
+      }
+    });
+    return;
+  }
+
+  // Convert userMrfcAccess to numbers for comparison (handle both string and number types)
+  const mrfcAccessNumbers = userMrfcAccess.map((id: any) => typeof id === 'string' ? parseInt(id) : id);
+  
+  if (!mrfcAccessNumbers.includes(mrfcId)) {
+    console.log('  ❌ Access DENIED - MRFC', mrfcId, 'not in', mrfcAccessNumbers);
     res.status(403).json({
       success: false,
       error: {
@@ -186,6 +215,7 @@ export const checkMrfcAccess = (
     return;
   }
 
+  console.log('  ✅ Access GRANTED');
   next();
 };
 

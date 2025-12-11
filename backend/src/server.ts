@@ -20,7 +20,7 @@ import routes from './routes';
 dotenv.config();
 
 const app: Application = express();
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_VERSION = process.env.API_VERSION || 'v1';
 
 /**
@@ -209,13 +209,16 @@ const startServer = async (): Promise<void> => {
     // Initialize database
     await initializeDatabase();
 
-    // Start listening
-    app.listen(PORT, () => {
+    // Start listening on all network interfaces (0.0.0.0)
+    // This allows access from Android emulator (10.0.2.2)
+    app.listen(PORT, '0.0.0.0', () => {
       console.log('\n================================================');
       console.log('🚀 MGB MRFC MANAGER API SERVER');
       console.log('================================================');
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`Server running on: http://localhost:${PORT}`);
+      console.log(`Server running on: http://0.0.0.0:${PORT}`);
+      console.log(`Local access: http://localhost:${PORT}`);
+      console.log(`Emulator access: http://10.0.2.2:${PORT}`);
       console.log(`API Base URL: http://localhost:${PORT}/api/${API_VERSION}`);
       console.log(`Health Check: http://localhost:${PORT}/api/${API_VERSION}/health`);
       console.log('================================================\n');

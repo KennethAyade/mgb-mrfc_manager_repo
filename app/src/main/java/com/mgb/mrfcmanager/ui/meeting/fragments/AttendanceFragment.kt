@@ -11,7 +11,7 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.google.android.material.button.MaterialButton
@@ -46,7 +46,7 @@ class AttendanceFragment : Fragment() {
     private lateinit var progressBar: ProgressBar
 
     private lateinit var viewModel: AttendanceViewModel
-    private lateinit var attendanceAdapter: AttendanceListAdapter
+    private lateinit var attendanceAdapter: TabletAttendanceAdapter
 
     private val attendanceList = mutableListOf<AttendanceDto>()
     private var agendaId: Long = 0L
@@ -147,39 +147,45 @@ class AttendanceFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        attendanceAdapter = AttendanceListAdapter(attendanceList) { attendance ->
-            showAttendanceDetails(attendance)
+        // Use GridLayoutManager with 3 columns for tablet cards
+        val gridLayoutManager = GridLayoutManager(requireContext(), 3)
+        rvAttendance.layoutManager = gridLayoutManager
+
+        // Use tablet adapter with 2-parameter callback (attendance, tablet number)
+        attendanceAdapter = TabletAttendanceAdapter(attendanceList) { attendance, tabletNum ->
+            showAttendanceDetails(attendance, tabletNum)
         }
-        rvAttendance.layoutManager = LinearLayoutManager(requireContext())
         rvAttendance.adapter = attendanceAdapter
     }
 
-    private fun showAttendanceDetails(attendance: AttendanceDto) {
+    private fun showAttendanceDetails(attendance: AttendanceDto, tabletNumber: Int) {
         android.util.Log.d("AttendanceDetails", "=== Showing Attendance Details ===")
         android.util.Log.d("AttendanceDetails", "ID: ${attendance.id}")
+        android.util.Log.d("AttendanceDetails", "Tablet: $tabletNumber")
         android.util.Log.d("AttendanceDetails", "Name: ${attendance.attendeeName}")
         android.util.Log.d("AttendanceDetails", "Photo URL: ${attendance.photoUrl}")
         android.util.Log.d("AttendanceDetails", "Photo Cloudinary ID: ${attendance.photoCloudinaryId}")
-        
+
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_attendance_detail, null)
 
         val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Tablet $tabletNumber Details")
             .setView(dialogView)
             .create()
 
         // Set data
         dialogView.findViewById<TextView>(R.id.tvDetailName).text =
-            attendance.attendeeName ?: "Attendee #${attendance.id}"
+            attendance.attendeeName ?: "Tablet $tabletNumber"
         dialogView.findViewById<TextView>(R.id.tvDetailPosition).text =
             attendance.attendeePosition ?: "N/A"
         dialogView.findViewById<TextView>(R.id.tvDetailDepartment).text =
             attendance.attendeeDepartment ?: "N/A"
-        
+
         // Format timestamp to Philippine Time
         dialogView.findViewById<TextView>(R.id.tvDetailTimestamp).text =
             "Logged at: ${formatToPhilippineTime(attendance.markedAt)}"
-        
+
         dialogView.findViewById<TextView>(R.id.tvDetailStatus).apply {
             text = if (attendance.isPresent) "Present" else "Absent"
             setTextColor(
@@ -187,6 +193,21 @@ class AttendanceFragment : Fragment() {
                     context.getColor(R.color.status_success)
                 else
                     context.getColor(R.color.status_pending)
+            )
+        }
+
+        // Show attendance type (Onsite/Online)
+        dialogView.findViewById<TextView>(R.id.tvDetailAttendanceType)?.apply {
+            val typeDisplay = when (attendance.attendanceType.uppercase()) {
+                "ONLINE" -> "Online"
+                else -> "Onsite"
+            }
+            text = "Mode: $typeDisplay"
+            setTextColor(
+                if (attendance.attendanceType.uppercase() == "ONLINE")
+                    context.getColor(R.color.status_info)
+                else
+                    context.getColor(R.color.primary)
             )
         }
 
@@ -238,8 +259,124 @@ class AttendanceFragment : Fragment() {
             ivPhoto.setImageResource(R.drawable.ic_person)
         }
 
+        // Edit button
+        dialogView.findViewById<MaterialButton>(R.id.btnEdit).setOnClickListener {
+            dialog.dismiss()
+            showEditAttendanceDialog(attendance, tabletNumber)
+        }
+
         // Close button
         dialogView.findViewById<MaterialButton>(R.id.btnClose).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun showEditAttendanceDialog(attendance: AttendanceDto, tabletNumber: Int) {
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_edit_attendance, null)
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .create()
+
+        // Find views
+        val etFullName = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etFullName)
+        val etPosition = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etPosition)
+        val etDepartment = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etDepartment)
+        val actvAttendanceType = dialogView.findViewById<android.widget.AutoCompleteTextView>(R.id.actvAttendanceType)
+        val actvTabletNumber = dialogView.findViewById<android.widget.AutoCompleteTextView>(R.id.actvTabletNumber)
+        val btnSave = dialogView.findViewById<MaterialButton>(R.id.btnSave)
+        val btnCancel = dialogView.findViewById<MaterialButton>(R.id.btnCancel)
+
+        // Populate current values
+        etFullName.setText(attendance.attendeeName)
+        etPosition.setText(attendance.attendeePosition)
+        etDepartment.setText(attendance.attendeeDepartment)
+
+        // Setup attendance type dropdown
+        val attendanceTypes = arrayOf("Onsite", "Online")
+        val attendanceTypeAdapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, attendanceTypes)
+        actvAttendanceType.setAdapter(attendanceTypeAdapter)
+        val currentTypeIndex = when (attendance.attendanceType.uppercase()) {
+            "ONLINE" -> 1
+            else -> 0
+        }
+        actvAttendanceType.setText(attendanceTypes[currentTypeIndex], false)
+
+        // Setup tablet number dropdown (1-15)
+        val tabletNumbers = (1..15).map { "Tablet $it" }.toTypedArray()
+        val tabletNumberAdapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, tabletNumbers)
+        actvTabletNumber.setAdapter(tabletNumberAdapter)
+        val currentTabletNum = attendance.tabletNumber ?: tabletNumber
+        actvTabletNumber.setText(tabletNumbers[currentTabletNum - 1], false)
+
+        // Save button
+        btnSave.setOnClickListener {
+            val newName = etFullName.text.toString().trim()
+            val newPosition = etPosition.text.toString().trim()
+            val newDepartment = etDepartment.text.toString().trim()
+
+            if (newName.isEmpty()) {
+                etFullName.error = "Name is required"
+                etFullName.requestFocus()
+                return@setOnClickListener
+            }
+
+            if (newPosition.isEmpty()) {
+                etPosition.error = "Position is required"
+                etPosition.requestFocus()
+                return@setOnClickListener
+            }
+
+            if (newDepartment.isEmpty()) {
+                etDepartment.error = "Department is required"
+                etDepartment.requestFocus()
+                return@setOnClickListener
+            }
+
+            val selectedTypeIndex = attendanceTypes.indexOf(actvAttendanceType.text.toString())
+            val newAttendanceType = when (selectedTypeIndex) {
+                1 -> "ONLINE"
+                else -> "ONSITE"
+            }
+
+            val selectedTabletText = actvTabletNumber.text.toString()
+            val newTabletNumber = selectedTabletText.replace("Tablet ", "").toIntOrNull()
+
+            // Update attendance
+            viewModel.updateAttendance(
+                id = attendance.id,
+                agendaId = agendaId,
+                attendeeName = newName,
+                attendeePosition = newPosition,
+                attendeeDepartment = newDepartment,
+                attendanceType = newAttendanceType,
+                tabletNumber = newTabletNumber,
+                isPresent = attendance.isPresent,
+                remarks = attendance.remarks
+            ) { result ->
+                when (result) {
+                    is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                        requireActivity().runOnUiThread {
+                            Toast.makeText(requireContext(), "Attendance updated successfully", Toast.LENGTH_SHORT).show()
+                            dialog.dismiss()
+                            loadAttendance()
+                        }
+                    }
+                    is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                        requireActivity().runOnUiThread {
+                            Toast.makeText(requireContext(), "Failed to update: ${result.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+
+        // Cancel button
+        btnCancel.setOnClickListener {
             dialog.dismiss()
         }
 
@@ -289,6 +426,11 @@ class AttendanceFragment : Fragment() {
                     // Other states
                 }
             }
+        }
+
+        // Hide "Log My Attendance" button if user already logged for this meeting
+        viewModel.currentUserLogged.observe(viewLifecycleOwner) { hasLogged ->
+            btnLogAttendance.visibility = if (hasLogged) View.GONE else View.VISIBLE
         }
     }
 

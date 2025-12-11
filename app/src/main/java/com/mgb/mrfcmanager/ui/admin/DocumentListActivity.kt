@@ -342,16 +342,41 @@ class DocumentListActivity : BaseActivity() {
      * Downloads PDF and opens with system PDF viewer
      */
     private fun onDownloadClicked(document: DocumentDto) {
-        // Download PDF from backend stream endpoint, then open with local file URI
+        // Download PDF from backend stream endpoint using FileCacheManager, then open with local file URI
         android.util.Log.d("DocumentList", "Opening document: ${document.originalName}")
         android.util.Log.d("DocumentList", "Document ID: ${document.id}")
-        
-        Toast.makeText(this, "Downloading PDF...", Toast.LENGTH_SHORT).show()
-        
+
+        Toast.makeText(this, "Opening PDF...", Toast.LENGTH_SHORT).show()
+
         lifecycleScope.launch {
             try {
-                // Download PDF from backend stream endpoint to cache directory
-                val pdfFile = downloadPdfFromBackend(document.id, document.originalName)
+                // Use FileCacheManager for offline-capable caching with LRU eviction
+                val fileCacheManager = MRFCManagerApp.getFileCacheManager()
+                val tokenManager = MRFCManagerApp.getTokenManager()
+
+                // Check if already cached
+                val cachedPath = fileCacheManager.getCachedFilePath(document.id)
+                val pdfFile = if (cachedPath != null) {
+                    android.util.Log.d("DocumentList", "Using cached PDF: $cachedPath")
+                    File(cachedPath)
+                } else {
+                    // Download and cache
+                    Toast.makeText(this@DocumentListActivity, "Downloading PDF...", Toast.LENGTH_SHORT).show()
+                    val localPath = fileCacheManager.downloadAndCache(
+                        documentId = document.id,
+                        fileUrl = document.fileUrl,
+                        fileName = document.fileName,
+                        originalName = document.originalName,
+                        category = document.category.name,
+                        authToken = tokenManager.getAccessToken()
+                    )
+
+                    if (localPath == null) {
+                        throw IllegalStateException("Failed to download file")
+                    }
+
+                    File(localPath)
+                }
                 
                 android.util.Log.d("DocumentList", "Opening PDF: ${pdfFile.absolutePath}")
                 
@@ -401,94 +426,6 @@ class DocumentListActivity : BaseActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
-        }
-    }
-    
-    private suspend fun downloadPdfFromBackend(documentId: Long, fileName: String): java.io.File = withContext(Dispatchers.IO) {
-        try {
-            // Create cache directory for PDFs
-            val cacheDir = java.io.File(cacheDir, "pdfs")
-            if (!cacheDir.exists()) {
-                cacheDir.mkdirs()
-            }
-            
-            // Create file
-            val pdfFile = java.io.File(cacheDir, fileName)
-            
-            // Download if not already cached
-            if (!pdfFile.exists() || pdfFile.length() == 0L) {
-                // Get backend base URL from ApiConfig
-                val baseUrl = com.mgb.mrfcmanager.data.remote.ApiConfig.BASE_URL.removeSuffix("/")
-                val streamUrl = "$baseUrl/documents/$documentId/stream"
-                
-                android.util.Log.d("DocumentList", "Downloading PDF from backend: $streamUrl")
-                
-                // Get auth token
-                val tokenManager = MRFCManagerApp.getTokenManager()
-                val token = tokenManager.getAccessToken()
-                
-                if (token == null) {
-                    throw java.io.IOException("Authentication token not available")
-                }
-                
-                val connection = java.net.URL(streamUrl).openConnection() as java.net.HttpURLConnection
-                connection.requestMethod = "GET"
-                connection.connectTimeout = 60000 // 60 seconds (larger files may take time)
-                connection.readTimeout = 60000 // 60 seconds
-                connection.setRequestProperty("Authorization", "Bearer $token")
-                connection.setRequestProperty("User-Agent", "MGB MRFC Manager/1.0")
-                
-                val responseCode = connection.responseCode
-                android.util.Log.d("DocumentList", "HTTP Response Code: $responseCode")
-                
-                if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
-                    val contentLength = connection.contentLength
-                    android.util.Log.d("DocumentList", "Content Length: $contentLength bytes")
-                    
-                    java.io.BufferedInputStream(connection.inputStream).use { input ->
-                        pdfFile.outputStream().use { output ->
-                            val buffer = ByteArray(8192)
-                            var bytesRead: Int
-                            var totalBytesRead: Long = 0
-                            
-                            while (input.read(buffer).also { bytesRead = it } != -1) {
-                                output.write(buffer, 0, bytesRead)
-                                totalBytesRead += bytesRead
-                            }
-                            
-                            android.util.Log.d("DocumentList", "Downloaded $totalBytesRead bytes")
-                        }
-                    }
-                    connection.disconnect()
-                } else {
-                    connection.disconnect()
-                    val errorMsg = when (responseCode) {
-                        401 -> "Unauthorized. Please login again."
-                        403 -> "Access forbidden"
-                        404 -> "File not found on server"
-                        500 -> "Server error"
-                        else -> "HTTP error code: $responseCode"
-                    }
-                    throw java.io.IOException(errorMsg)
-                }
-            } else {
-                android.util.Log.d("DocumentList", "Using cached PDF: ${pdfFile.absolutePath}")
-            }
-            
-            // Verify file was downloaded successfully
-            if (!pdfFile.exists() || pdfFile.length() == 0L) {
-                throw java.io.IOException("Download failed: file is empty or doesn't exist")
-            }
-            
-            android.util.Log.d("DocumentList", "PDF ready: ${pdfFile.absolutePath} (${pdfFile.length()} bytes)")
-            pdfFile
-            
-        } catch (e: java.net.SocketTimeoutException) {
-            android.util.Log.e("DocumentList", "Download timeout", e)
-            throw java.io.IOException("Download timed out. Please check your internet connection.")
-        } catch (e: Exception) {
-            android.util.Log.e("DocumentList", "Download error", e)
-            throw e
         }
     }
 

@@ -79,5 +79,5 @@ interface ProponentApiService {
     @DELETE("proponents/{id}")
     suspend fun deleteProponent(
         @Path("id") id: Long
-    ): Response<ApiResponse<Unit>>
+    ): Response<ApiResponse<Any?>>
 }

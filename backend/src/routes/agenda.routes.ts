@@ -103,6 +103,8 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
       page = '1',
       limit = '20',
       quarter_id,
+      quarter, // Support both quarter_id (1-4) and quarter ("Q1"-"Q4")
+      year, // Year filter (e.g., 2025)
       mrfc_id,
       status,
       sort_by = 'meeting_date',
@@ -116,7 +118,29 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
     // Step 3: Build filter conditions
     const where: any = {};
-    if (quarter_id) where.quarter_id = parseInt(quarter_id as string);
+    const quarterWhere: any = {}; // Filter conditions for Quarter table
+
+    // Handle quarter filtering - support both formats
+    if (quarter_id) {
+      where.quarter_id = parseInt(quarter_id as string);
+    } else if (quarter) {
+      // Convert quarter string ("Q1", "Q2", etc.) to quarter_number (1, 2, 3, 4)
+      const quarterStr = (quarter as string).toUpperCase();
+      let quarterNum = 0;
+      if (quarterStr === 'Q1') quarterNum = 1;
+      else if (quarterStr === 'Q2') quarterNum = 2;
+      else if (quarterStr === 'Q3') quarterNum = 3;
+      else if (quarterStr === 'Q4') quarterNum = 4;
+
+      if (quarterNum > 0) {
+        quarterWhere.quarter_number = quarterNum;
+      }
+    }
+
+    // Handle year filtering
+    if (year) {
+      quarterWhere.year = parseInt(year as string);
+    }
 
     // Handle mrfc_id filtering: 0 means general meetings (NULL), otherwise filter by specific MRFC
     let requestingGeneralMeetings = false;
@@ -186,7 +210,9 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
         {
           model: Quarter,
           as: 'quarter',
-          attributes: ['id', 'name', 'quarter_number', 'year', 'start_date', 'end_date']
+          attributes: ['id', 'name', 'quarter_number', 'year', 'start_date', 'end_date'],
+          where: Object.keys(quarterWhere).length > 0 ? quarterWhere : undefined,
+          required: Object.keys(quarterWhere).length > 0 // Make inner join when filtering by quarter/year
         },
         {
           model: Mrfc,
@@ -303,25 +329,71 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     const { Agenda, Quarter, Mrfc, AuditLog } = require('../models');
 
     // Step 1: Validate required fields
-    const { mrfc_id, quarter_id, meeting_date, meeting_time, location, status } = req.body;
+    const { mrfc_id, quarter_id, quarter_number, year, meeting_title, meeting_date, meeting_time, meeting_end_time, location, status } = req.body;
 
-    // mrfc_id can be null for general meetings, but quarter_id and meeting_date are required
-    if (quarter_id === undefined || quarter_id === null || !meeting_date) {
+    // mrfc_id can be null for general meetings, but meeting_date is required
+    // Either quarter_id OR (quarter_number + year) must be provided
+    if (!meeting_date) {
       return res.status(400).json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'Missing required fields: quarter_id, meeting_date'
+          message: 'Missing required field: meeting_date'
         }
       });
     }
 
-    // Step 2: Verify quarter exists
-    const quarter = await Quarter.findByPk(quarter_id);
-    if (!quarter) {
-      return res.status(404).json({
+    // Step 2: Find or create the quarter
+    let quarter;
+    let resolvedQuarterId = quarter_id;
+
+    if (quarter_id) {
+      // Use provided quarter_id
+      quarter = await Quarter.findByPk(quarter_id);
+      if (!quarter) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'QUARTER_NOT_FOUND',
+            message: 'Quarter not found'
+          }
+        });
+      }
+    } else if (quarter_number && year) {
+      // Find or create quarter by quarter_number and year
+      const quarterNames = ['Q1', 'Q2', 'Q3', 'Q4'];
+      const quarterName = `${quarterNames[quarter_number - 1]} ${year}`;
+
+      // Calculate start and end dates for the quarter
+      const startMonth = (quarter_number - 1) * 3; // 0, 3, 6, 9
+      const endMonth = startMonth + 2; // 2, 5, 8, 11
+      const startDate = new Date(year, startMonth, 1);
+      const endDate = new Date(year, endMonth + 1, 0); // Last day of end month
+
+      // Find or create the quarter
+      [quarter] = await Quarter.findOrCreate({
+        where: {
+          quarter_number: quarter_number,
+          year: year
+        },
+        defaults: {
+          name: quarterName,
+          quarter_number: quarter_number,
+          year: year,
+          start_date: startDate,
+          end_date: endDate
+        }
+      });
+
+      resolvedQuarterId = quarter.id;
+      console.log(`Quarter ${quarterName} ${quarter.isNewRecord ? 'created' : 'found'} with ID: ${quarter.id}`);
+    } else {
+      return res.status(400).json({
         success: false,
-        error: { code: 'QUARTER_NOT_FOUND', message: 'Quarter not found' }
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Either quarter_id or (quarter_number + year) must be provided'
+        }
       });
     }
 
@@ -339,7 +411,7 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
       // Step 4: Check for duplicate (one meeting per MRFC per quarter)
       const existing = await Agenda.findOne({
         where: {
-          quarter_id: quarter_id,
+          quarter_id: resolvedQuarterId,
           mrfc_id: mrfc_id
         }
       });
@@ -355,12 +427,14 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     }
     // For general meetings (mrfc_id is null), allow multiple meetings per quarter
 
-    // Step 5: Create meeting (agenda)
+    // Step 5: Create meeting (agenda) - ADMIN only
     const agenda = await Agenda.create({
       mrfc_id,
-      quarter_id,
+      quarter_id: resolvedQuarterId,
+      meeting_title: meeting_title || null,
       meeting_date,
       meeting_time: meeting_time || null,
+      meeting_end_time: meeting_end_time || null,
       location: location || null,
       status: status || 'DRAFT'
     });
@@ -399,9 +473,9 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     });
 
     // Step 8: Transform agenda to include 'quarter' field for Android compatibility
-    const agendaData = createdAgenda?.toJSON();
-    if (agendaData && agendaData.quarter && agendaData.quarter.quarter_number) {
-      agendaData.quarter.quarter = `Q${agendaData.quarter.quarter_number}`;
+    const responseData = createdAgenda?.toJSON();
+    if (responseData && responseData.quarter && responseData.quarter.quarter_number) {
+      responseData.quarter.quarter = `Q${responseData.quarter.quarter_number}`;
     }
 
     // Step 9: Return created meeting
@@ -409,7 +483,7 @@ router.post('/', authenticate, adminOnly, async (req: Request, res: Response) =>
     return res.status(201).json({
       success: true,
       message: `Meeting created successfully for ${meetingType}`,
-      data: agendaData
+      data: responseData
     });
   } catch (error: any) {
     console.error('Agenda creation error:', error);
@@ -685,7 +759,7 @@ router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) 
     };
 
     // Step 4: Extract updatable fields from request body
-    const { meeting_date, meeting_time, location, status } = req.body;
+    const { meeting_title, meeting_date, meeting_time, meeting_end_time, location, status } = req.body;
 
     // Step 5: Validate status if provided
     const validStatuses = ['DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED'];
@@ -700,8 +774,10 @@ router.put('/:id', authenticate, adminOnly, async (req: Request, res: Response) 
     }
 
     // Step 6: Update meeting fields
+    if (meeting_title !== undefined) agenda.meeting_title = meeting_title;
     if (meeting_date) agenda.meeting_date = meeting_date;
     if (meeting_time !== undefined) agenda.meeting_time = meeting_time;
+    if (meeting_end_time !== undefined) agenda.meeting_end_time = meeting_end_time;
     if (location !== undefined) agenda.location = location;
     if (status) agenda.status = status;
 
@@ -885,6 +961,370 @@ router.delete('/:id', authenticate, adminOnly, async (req: Request, res: Respons
       error: {
         code: 'AGENDA_DELETION_FAILED',
         message: error.message || 'Failed to delete meeting'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * POST /agendas/:id/approve
+ * ================================================
+ * Approve a proposed agenda (ADMIN only)
+ * Changes status from PROPOSED to PUBLISHED
+ */
+router.post('/:id/approve', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { Agenda } = require('../models');
+    const agendaId = parseInt(req.params.id);
+
+    // Find agenda
+    const agenda = await Agenda.findByPk(agendaId);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'AGENDA_NOT_FOUND',
+          message: 'Agenda not found'
+        }
+      });
+    }
+
+    // Check if agenda is in PROPOSED status
+    if (agenda.status !== 'PROPOSED') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Only PROPOSED agendas can be approved'
+        }
+      });
+    }
+
+    // Approve agenda
+    await agenda.update({
+      status: 'PUBLISHED',
+      approved_by: req.user?.userId,
+      approved_at: new Date()
+    });
+
+    console.log(`✅ Agenda ${agendaId} approved by user ${req.user?.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Agenda approved successfully',
+      data: agenda
+    });
+  } catch (error: any) {
+    console.error('Agenda approval error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'APPROVAL_FAILED',
+        message: error.message || 'Failed to approve agenda'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * POST /agendas/:id/deny
+ * ================================================
+ * Deny a proposed agenda with remarks (ADMIN only)
+ * Changes status from PROPOSED to CANCELLED
+ * Requires denial_remarks in body
+ */
+router.post('/:id/deny', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { Agenda } = require('../models');
+    const agendaId = parseInt(req.params.id);
+    const { denial_remarks } = req.body;
+
+    // Validate denial remarks
+    if (!denial_remarks || denial_remarks.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'REMARKS_REQUIRED',
+          message: 'Denial remarks are required'
+        }
+      });
+    }
+
+    // Find agenda
+    const agenda = await Agenda.findByPk(agendaId);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'AGENDA_NOT_FOUND',
+          message: 'Agenda not found'
+        }
+      });
+    }
+
+    // Check if agenda is in PROPOSED status
+    if (agenda.status !== 'PROPOSED') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Only PROPOSED agendas can be denied'
+        }
+      });
+    }
+
+    // Deny agenda
+    await agenda.update({
+      status: 'CANCELLED',
+      denied_by: req.user?.userId,
+      denied_at: new Date(),
+      denial_remarks: denial_remarks.trim()
+    });
+
+    console.log(`❌ Agenda ${agendaId} denied by user ${req.user?.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Agenda denied',
+      data: agenda
+    });
+  } catch (error: any) {
+    console.error('Agenda denial error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DENIAL_FAILED',
+        message: error.message || 'Failed to deny agenda'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * GET /agendas/pending-proposals
+ * ================================================
+ * Get list of pending agenda proposals (status = PROPOSED)
+ * ADMIN only
+ */
+router.get('/pending-proposals', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { Agenda, Quarter, Mrfc, User } = require('../models');
+
+    const proposals = await Agenda.findAll({
+      where: { status: 'PROPOSED' },
+      include: [
+        {
+          model: Quarter,
+          as: 'quarter',
+          attributes: ['id', 'name', 'quarter_number', 'year']
+        },
+        {
+          model: Mrfc,
+          as: 'mrfc',
+          attributes: ['id', 'name', 'municipality'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'proposed_by_user',
+          attributes: ['id', 'username', 'full_name'],
+          required: false
+        }
+      ],
+      order: [['proposed_at', 'DESC']]
+    });
+
+    console.log(`📋 Found ${proposals.length} pending proposal(s)`);
+
+    res.json({
+      success: true,
+      data: proposals
+    });
+  } catch (error: any) {
+    console.error('Error fetching pending proposals:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_FAILED',
+        message: error.message || 'Failed to fetch pending proposals'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * POST /agendas/:id/start
+ * ================================================
+ * Start the meeting timer
+ * ADMIN/SUPER_ADMIN only
+ *
+ * Records the actual start time and the admin who started the meeting
+ *
+ * RESPONSE (200):
+ * {
+ *   "success": true,
+ *   "message": "Meeting started successfully",
+ *   "data": {
+ *     "id": 123,
+ *     "actual_start_time": "2025-11-17T10:30:00Z",
+ *     "started_by": 5
+ *   }
+ * }
+ */
+router.post('/:id/start', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { Agenda } = require('../models');
+
+    // Find the agenda
+    const agenda = await Agenda.findByPk(id);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'AGENDA_NOT_FOUND',
+          message: 'Meeting not found'
+        }
+      });
+    }
+
+    // Check if meeting already started
+    if (agenda.actual_start_time) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'ALREADY_STARTED',
+          message: 'Meeting has already been started'
+        }
+      });
+    }
+
+    // Start the meeting
+    agenda.actual_start_time = new Date();
+    agenda.started_by = req.user?.userId;
+    await agenda.save();
+
+    console.log(`⏱️ Meeting ${id} started at ${agenda.actual_start_time} by user ${req.user?.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Meeting started successfully',
+      data: {
+        id: agenda.id,
+        actual_start_time: agenda.actual_start_time,
+        started_by: agenda.started_by
+      }
+    });
+  } catch (error: any) {
+    console.error('Error starting meeting:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'START_FAILED',
+        message: error.message || 'Failed to start meeting'
+      }
+    });
+  }
+});
+
+/**
+ * ================================================
+ * POST /agendas/:id/end
+ * ================================================
+ * End the meeting timer
+ * ADMIN/SUPER_ADMIN only
+ *
+ * Records the actual end time, calculates duration, and logs the admin who ended the meeting
+ *
+ * RESPONSE (200):
+ * {
+ *   "success": true,
+ *   "message": "Meeting ended successfully",
+ *   "data": {
+ *     "id": 123,
+ *     "actual_start_time": "2025-11-17T10:30:00Z",
+ *     "actual_end_time": "2025-11-17T12:15:00Z",
+ *     "duration_minutes": 105,
+ *     "ended_by": 5
+ *   }
+ * }
+ */
+router.post('/:id/end', authenticate, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { Agenda } = require('../models');
+
+    // Find the agenda
+    const agenda = await Agenda.findByPk(id);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'AGENDA_NOT_FOUND',
+          message: 'Meeting not found'
+        }
+      });
+    }
+
+    // Check if meeting has been started
+    if (!agenda.actual_start_time) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NOT_STARTED',
+          message: 'Meeting has not been started yet'
+        }
+      });
+    }
+
+    // Check if meeting already ended
+    if (agenda.actual_end_time) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'ALREADY_ENDED',
+          message: 'Meeting has already been ended'
+        }
+      });
+    }
+
+    // End the meeting
+    const endTime = new Date();
+    agenda.actual_end_time = endTime;
+    agenda.ended_by = req.user?.userId;
+
+    // Calculate duration in minutes
+    const startTime = new Date(agenda.actual_start_time);
+    const durationMs = endTime.getTime() - startTime.getTime();
+    agenda.duration_minutes = Math.round(durationMs / 60000); // Convert ms to minutes
+
+    await agenda.save();
+
+    console.log(`⏱️ Meeting ${id} ended at ${agenda.actual_end_time} by user ${req.user?.userId}`);
+    console.log(`⏱️ Duration: ${agenda.duration_minutes} minutes`);
+
+    res.json({
+      success: true,
+      message: 'Meeting ended successfully',
+      data: {
+        id: agenda.id,
+        actual_start_time: agenda.actual_start_time,
+        actual_end_time: agenda.actual_end_time,
+        duration_minutes: agenda.duration_minutes,
+        ended_by: agenda.ended_by
+      }
+    });
+  } catch (error: any) {
+    console.error('Error ending meeting:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'END_FAILED',
+        message: error.message || 'Failed to end meeting'
       }
     });
   }

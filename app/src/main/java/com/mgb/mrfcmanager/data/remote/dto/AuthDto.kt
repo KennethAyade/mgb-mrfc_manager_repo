@@ -81,5 +81,48 @@ data class UserDto(
     val createdAt: String? = null,
 
     @Json(name = "updated_at")
-    val updatedAt: String? = null
+    val updatedAt: String? = null,
+
+    @Json(name = "mrfc_access")
+    val mrfcAccess: List<UserMrfcAccessDto>? = null // MRFC access list (optional)
+)
+
+/**
+ * User MRFC Access DTO - represents which MRFCs a user can access
+ */
+data class UserMrfcAccessDto(
+    @Json(name = "id")
+    val id: Long,
+
+    @Json(name = "user_id")
+    val userId: Long,
+
+    @Json(name = "mrfc_id")
+    val mrfcId: Long,
+
+    @Json(name = "granted_by")
+    val grantedBy: Long? = null,
+
+    @Json(name = "granted_at")
+    val grantedAt: String? = null,
+
+    @Json(name = "is_active")
+    val isActive: Boolean = true,
+
+    @Json(name = "mrfc")
+    val mrfc: SimpleMrfcDto? = null // Nested MRFC details
+)
+
+/**
+ * Simple MRFC DTO - minimal MRFC data for nested responses
+ */
+data class SimpleMrfcDto(
+    @Json(name = "id")
+    val id: Long,
+
+    @Json(name = "name")
+    val name: String,
+
+    @Json(name = "municipality")
+    val municipality: String? = null
 )

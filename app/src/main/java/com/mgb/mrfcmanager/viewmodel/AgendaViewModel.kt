@@ -130,6 +130,27 @@ class AgendaViewModel(private val repository: AgendaRepository) : ViewModel() {
             loadAllAgendas()
         }
     }
+
+    /**
+     * Get pending agenda proposals (ADMIN only)
+     */
+    suspend fun getPendingProposals(): Result<List<AgendaDto>> {
+        return repository.getPendingProposals()
+    }
+
+    /**
+     * Approve an agenda proposal (ADMIN only)
+     */
+    suspend fun approveProposal(agendaId: Long): Result<AgendaDto> {
+        return repository.approveProposal(agendaId)
+    }
+
+    /**
+     * Deny an agenda proposal with remarks (ADMIN only)
+     */
+    suspend fun denyProposal(agendaId: Long, remarks: String): Result<AgendaDto> {
+        return repository.denyProposal(agendaId, remarks)
+    }
 }
 
 /**

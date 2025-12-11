@@ -26,6 +26,9 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
     private val _attendanceSummary = MutableLiveData<AttendanceSummary?>()
     val attendanceSummary: LiveData<AttendanceSummary?> = _attendanceSummary
 
+    private val _currentUserLogged = MutableLiveData<Boolean>()
+    val currentUserLogged: LiveData<Boolean> = _currentUserLogged
+
     private val _photoUploadState = MutableLiveData<PhotoUploadState>()
     val photoUploadState: LiveData<PhotoUploadState> = _photoUploadState
 
@@ -40,10 +43,12 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
                 is Result.Success -> {
                     _attendanceListState.value = AttendanceListState.Success(result.data.attendance)
                     _attendanceSummary.value = result.data.summary
+                    _currentUserLogged.value = result.data.currentUserLogged
                 }
                 is Result.Error -> {
                     _attendanceListState.value = AttendanceListState.Error(result.message)
                     _attendanceSummary.value = null
+                    _currentUserLogged.value = false
                 }
                 is Result.Loading -> {
                     _attendanceListState.value = AttendanceListState.Loading
@@ -94,6 +99,8 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
         attendeeName: String? = null,
         attendeePosition: String? = null,
         attendeeDepartment: String? = null,
+        attendanceType: String = "ONSITE",
+        tabletNumber: Int? = null,
         isPresent: Boolean = true,
         remarks: String? = null,
         photoFile: File
@@ -107,6 +114,8 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
                 attendeeName = attendeeName,
                 attendeePosition = attendeePosition,
                 attendeeDepartment = attendeeDepartment,
+                attendanceType = attendanceType,
+                tabletNumber = tabletNumber,
                 isPresent = isPresent,
                 remarks = remarks,
                 photoFile = photoFile
@@ -127,17 +136,31 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
     }
 
     /**
-     * Update attendance record (only status and remarks)
+     * Update attendance record (all fields are optional)
      */
     fun updateAttendance(
         id: Long,
         agendaId: Long,
+        attendeeName: String? = null,
+        attendeePosition: String? = null,
+        attendeeDepartment: String? = null,
+        attendanceType: String? = null,
+        tabletNumber: Int? = null,
         isPresent: Boolean? = null,
         remarks: String? = null,
         onComplete: (Result<AttendanceDto>) -> Unit
     ) {
         viewModelScope.launch {
-            val result = repository.updateAttendance(id, isPresent, remarks)
+            val result = repository.updateAttendance(
+                id = id,
+                attendeeName = attendeeName,
+                attendeePosition = attendeePosition,
+                attendeeDepartment = attendeeDepartment,
+                attendanceType = attendanceType,
+                tabletNumber = tabletNumber,
+                isPresent = isPresent,
+                remarks = remarks
+            )
             onComplete(result)
 
             // Reload the list

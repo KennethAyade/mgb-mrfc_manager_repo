@@ -2,8 +2,6 @@ package com.mgb.mrfcmanager.ui.admin
 
 import android.os.Bundle
 import android.view.View
-import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
 import android.widget.ProgressBar
 import android.widget.Toast
 import com.mgb.mrfcmanager.ui.base.BaseActivity
@@ -35,7 +33,6 @@ class CreateMRFCActivity : BaseActivity() {
     private lateinit var etContactNumber: TextInputEditText
     private lateinit var etEmail: TextInputEditText
     private lateinit var etAddress: TextInputEditText
-    private lateinit var actvCategory: AutoCompleteTextView
     private lateinit var btnCreate: MaterialButton
     private lateinit var btnCancel: MaterialButton
     private lateinit var progressBar: ProgressBar
@@ -49,7 +46,6 @@ class CreateMRFCActivity : BaseActivity() {
         setupToolbar()
         initializeViews()
         setupViewModel()
-        setupCategoryDropdown()
         observeCreateState()
         setupListeners()
     }
@@ -75,7 +71,6 @@ class CreateMRFCActivity : BaseActivity() {
         etContactNumber = findViewById(R.id.etContactNumber)
         etEmail = findViewById(R.id.etEmail)
         etAddress = findViewById(R.id.etAddress)
-        actvCategory = findViewById(R.id.actvCategory)
         btnCreate = findViewById(R.id.btnCreate)
         btnCancel = findViewById(R.id.btnCancel)
         progressBar = findViewById(R.id.progressBar)
@@ -89,12 +84,6 @@ class CreateMRFCActivity : BaseActivity() {
 
         val factory = MrfcViewModelFactory(repository)
         viewModel = ViewModelProvider(this, factory)[MrfcViewModel::class.java]
-    }
-
-    private fun setupCategoryDropdown() {
-        val categories = arrayOf("1st Class", "2nd Class", "3rd Class", "4th Class", "5th Class", "6th Class")
-        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, categories)
-        actvCategory.setAdapter(adapter)
     }
 
     private fun observeCreateState() {
@@ -141,7 +130,6 @@ class CreateMRFCActivity : BaseActivity() {
         val contactNumber = etContactNumber.text.toString().trim()
         val email = etEmail.text.toString().trim()
         val address = etAddress.text.toString().trim()
-        val category = actvCategory.text.toString().trim()
 
         // Validation
         if (!validateFields(name, municipality, province, region, contactPerson, contactNumber)) {
@@ -242,7 +230,6 @@ class CreateMRFCActivity : BaseActivity() {
         etContactNumber.isEnabled = !isLoading
         etEmail.isEnabled = !isLoading
         etAddress.isEnabled = !isLoading
-        actvCategory.isEnabled = !isLoading
     }
 
     companion object {

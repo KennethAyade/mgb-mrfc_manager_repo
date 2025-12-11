@@ -18,18 +18,16 @@ class NotesRepository(private val apiService: NotesApiService) {
      */
     suspend fun getAllNotes(
         mrfcId: Long? = null,
-        agendaId: Long? = null,
-        noteType: String? = null,
-        isPrivate: Boolean? = null
+        agendaId: Long? = null
     ): Result<List<NotesDto>> {
         return withContext(Dispatchers.IO) {
             try {
-                val response = apiService.getAllNotes(mrfcId, agendaId, noteType, isPrivate)
+                val response = apiService.getAllNotes(mrfcId, agendaId)
 
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body?.success == true && body.data != null) {
-                        Result.Success(body.data)
+                        Result.Success(body.data.notes)
                     } else {
                         Result.Error(body?.error?.message ?: "Failed to fetch notes")
                     }

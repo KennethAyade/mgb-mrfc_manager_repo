@@ -204,7 +204,8 @@ router.get('/dashboard', authenticate, async (req: Request, res: Response) => {
     const partial = analyses.filter((a: any) => a.compliance_rating === 'PARTIALLY_COMPLIANT').length;
     const nonCompliant = analyses.filter((a: any) => a.compliance_rating === 'NON_COMPLIANT').length;
 
-    const complianceRate = total > 0 ? (compliant / total) * 100 : 0;
+    // Weighted compliance: full=1.0, partial=0.5, non=0.0
+    const complianceRate = total > 0 ? (((compliant * 1.0) + (partial * 0.5)) / total) * 100 : 0;
 
     console.log(`   Summary: ${compliant} compliant, ${partial} partial, ${nonCompliant} non-compliant`);
 
@@ -317,7 +318,8 @@ router.get('/summary', authenticate, async (req: Request, res: Response) => {
     const partial = analyses.filter((a: any) => a.compliance_rating === 'PARTIALLY_COMPLIANT').length;
     const nonCompliant = analyses.filter((a: any) => a.compliance_rating === 'NON_COMPLIANT').length;
 
-    const complianceRate = total > 0 ? (compliant / total) * 100 : 0;
+    // Weighted compliance: full=1.0, partial=0.5, non=0.0
+    const complianceRate = total > 0 ? (((compliant * 1.0) + (partial * 0.5)) / total) * 100 : 0;
 
     console.log(`   Summary: ${compliant} compliant, ${partial} partial, ${nonCompliant} non-compliant`);
     console.log(`   Compliance rate: ${complianceRate.toFixed(2)}%`);

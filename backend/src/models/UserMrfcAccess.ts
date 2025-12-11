@@ -69,6 +69,7 @@ UserMrfcAccess.init(
         model: 'users',
         key: 'id',
       },
+      onDelete: 'CASCADE',
     },
     granted_at: {
       type: DataTypes.DATE,

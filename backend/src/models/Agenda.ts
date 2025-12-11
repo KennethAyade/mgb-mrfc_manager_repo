@@ -12,6 +12,7 @@ import sequelize from '../config/database';
 // Enum for agenda status matching PostgreSQL enum
 export enum AgendaStatus {
   DRAFT = 'DRAFT',
+  PROPOSED = 'PROPOSED',  // New: User-proposed agenda awaiting admin approval
   PUBLISHED = 'PUBLISHED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED'
@@ -22,26 +23,54 @@ export interface AgendaAttributes {
   id: number;
   mrfc_id: number | null; // null for general meetings not tied to specific MRFC
   quarter_id: number;
+  meeting_title: string | null;
   meeting_date: Date;
   meeting_time: string | null;
+  meeting_end_time: string | null;
   location: string | null;
   status: AgendaStatus;
+  proposed_by: number | null; // User who proposed (for PROPOSED status)
+  proposed_at: Date | null;
+  approved_by: number | null; // Admin who approved
+  approved_at: Date | null;
+  denied_by: number | null; // Admin who denied
+  denied_at: Date | null;
+  denial_remarks: string | null; // Admin's reason for denial
+  actual_start_time: Date | null; // Real-time meeting start
+  actual_end_time: Date | null; // Real-time meeting end
+  duration_minutes: number | null; // Actual meeting duration
+  started_by: number | null; // Admin who started the meeting
+  ended_by: number | null; // Admin who ended the meeting
   created_at: Date;
   updated_at: Date;
 }
 
 // Define attributes for creation (id, timestamps, and mrfc_id are optional)
-export interface AgendaCreationAttributes extends Optional<AgendaAttributes, 'id' | 'mrfc_id' | 'meeting_time' | 'location' | 'status' | 'created_at' | 'updated_at'> {}
+export interface AgendaCreationAttributes extends Optional<AgendaAttributes, 'id' | 'mrfc_id' | 'meeting_title' | 'meeting_time' | 'meeting_end_time' | 'location' | 'status' | 'created_at' | 'updated_at'> {}
 
 // Define the Agenda model class
 export class Agenda extends Model<AgendaAttributes, AgendaCreationAttributes> implements AgendaAttributes {
   public id!: number;
   public mrfc_id!: number | null; // null for general meetings
   public quarter_id!: number;
+  public meeting_title!: string | null;
   public meeting_date!: Date;
   public meeting_time!: string | null;
+  public meeting_end_time!: string | null;
   public location!: string | null;
   public status!: AgendaStatus;
+  public proposed_by!: number | null;
+  public proposed_at!: Date | null;
+  public approved_by!: number | null;
+  public approved_at!: Date | null;
+  public denied_by!: number | null;
+  public denied_at!: Date | null;
+  public denial_remarks!: string | null;
+  public actual_start_time!: Date | null;
+  public actual_end_time!: Date | null;
+  public duration_minutes!: number | null;
+  public started_by!: number | null;
+  public ended_by!: number | null;
   public created_at!: Date;
   public updated_at!: Date;
 
@@ -75,12 +104,20 @@ Agenda.init(
         key: 'id',
       },
     },
+    meeting_title: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
     meeting_date: {
       type: DataTypes.DATEONLY,
       allowNull: false,
     },
     meeting_time: {
-      type: DataTypes.TIME,
+      type: DataTypes.STRING(10),
+      allowNull: true,
+    },
+    meeting_end_time: {
+      type: DataTypes.STRING(10),
       allowNull: true,
     },
     location: {
@@ -90,6 +127,74 @@ Agenda.init(
     status: {
       type: DataTypes.ENUM(...Object.values(AgendaStatus)),
       defaultValue: AgendaStatus.DRAFT,
+    },
+    proposed_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    proposed_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    approved_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    approved_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    denied_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    denied_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    denial_remarks: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    actual_start_time: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    actual_end_time: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    duration_minutes: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    started_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    ended_by: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
     },
     created_at: {
       type: DataTypes.DATE,

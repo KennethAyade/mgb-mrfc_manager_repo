@@ -500,7 +500,7 @@ export const toggleUserStatus = async (req: Request, res: Response): Promise<voi
       success: true,
       message: `User ${user.is_active ? 'activated' : 'deactivated'} successfully`,
       data: {
-        id: user.id,
+        id: Number(user.id),
         username: user.username,
         is_active: user.is_active
       }
@@ -527,12 +527,12 @@ export const grantMrfcAccess = async (req: Request, res: Response): Promise<void
     const { id } = req.params;
     const { mrfc_ids } = req.body;
 
-    if (!Array.isArray(mrfc_ids) || mrfc_ids.length === 0) {
+    if (!Array.isArray(mrfc_ids)) {
       res.status(400).json({
         success: false,
         error: {
           code: 'INVALID_INPUT',
-          message: 'mrfc_ids must be a non-empty array'
+          message: 'mrfc_ids must be an array'
         }
       });
       return;
@@ -550,38 +550,51 @@ export const grantMrfcAccess = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Verify all MRFCs exist
-    const mrfcs = await Mrfc.findAll({
-      where: {
-        id: { [Op.in]: mrfc_ids },
-        is_active: true
-      }
-    });
-
-    if (mrfcs.length !== mrfc_ids.length) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'MRFC_NOT_FOUND',
-          message: 'One or more MRFCs not found or inactive'
+    // If mrfc_ids is not empty, verify all MRFCs exist
+    if (mrfc_ids.length > 0) {
+      const mrfcs = await Mrfc.findAll({
+        where: {
+          id: { [Op.in]: mrfc_ids },
+          is_active: true
         }
       });
-      return;
+
+      if (mrfcs.length !== mrfc_ids.length) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'MRFC_NOT_FOUND',
+            message: 'One or more MRFCs not found or inactive'
+          }
+        });
+        return;
+      }
     }
 
     await sequelize.transaction(async (t) => {
-      // Create access records
-      const accessRecords = mrfc_ids.map((mrfc_id: number) => ({
-        user_id: user.id,
-        mrfc_id,
-        granted_by: currentUser.userId,
-        is_active: true
-      }));
-
-      await UserMrfcAccess.bulkCreate(accessRecords, {
+      // First, delete all existing access records for this user (force hard delete)
+      const deletedCount = await UserMrfcAccess.destroy({
+        where: { user_id: user.id },
         transaction: t,
-        updateOnDuplicate: ['is_active', 'granted_by']
+        force: true // Ensure hard delete even if paranoid mode is enabled
       });
+      console.log(`Deleted ${deletedCount} existing MRFC access records for user ${user.id}`);
+
+      // Create new access records (if any)
+      if (mrfc_ids.length > 0) {
+        const accessRecords = mrfc_ids.map((mrfc_id: number) => ({
+          user_id: user.id,
+          mrfc_id,
+          granted_by: currentUser.userId,
+          is_active: true
+        }));
+
+        const created = await UserMrfcAccess.bulkCreate(accessRecords, {
+          transaction: t,
+          ignoreDuplicates: true // Ignore if duplicate constraint exists
+        });
+        console.log(`Created ${created.length} new MRFC access records for user ${user.id}`);
+      }
 
       // Create audit log
       await AuditLog.create(
@@ -600,13 +613,30 @@ export const grantMrfcAccess = async (req: Request, res: Response): Promise<void
       );
     });
 
+    // Fetch updated user with MRFC access
+    const updatedUser = await User.findByPk(id, {
+      attributes: { exclude: ['password_hash'] },
+      include: [
+        {
+          model: UserMrfcAccess,
+          as: 'mrfc_access',
+          where: { is_active: true },
+          required: false,
+          include: [
+            {
+              model: Mrfc,
+              as: 'mrfc',
+              attributes: ['id', 'name', 'municipality']
+            }
+          ]
+        }
+      ]
+    });
+
     res.json({
       success: true,
       message: 'MRFC access granted successfully',
-      data: {
-        user_id: user.id,
-        mrfc_count: mrfc_ids.length
-      }
+      data: updatedUser
     });
   } catch (error) {
     console.error('Error granting MRFC access:', error);

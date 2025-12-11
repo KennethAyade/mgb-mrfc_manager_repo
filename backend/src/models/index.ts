@@ -350,6 +350,17 @@ VoiceRecording.belongsTo(Agenda, {
   as: 'agenda'
 });
 
+// Agenda -> Note (optional link)
+Agenda.hasMany(Note, {
+  foreignKey: 'agenda_id',
+  as: 'notes',
+  onDelete: 'CASCADE'
+});
+Note.belongsTo(Agenda, {
+  foreignKey: 'agenda_id',
+  as: 'agenda'
+});
+
 // Agenda -> AgendaItem (one-to-many)
 Agenda.hasMany(AgendaItem, {
   foreignKey: 'agenda_id',

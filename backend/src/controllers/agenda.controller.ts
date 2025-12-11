@@ -170,7 +170,13 @@ export const createAgenda = async (req: Request, res: Response): Promise<void> =
     res.status(201).json({
       success: true,
       message: 'Agenda created successfully',
-      data: agenda
+      data: {
+        ...agenda.toJSON(),
+        id: Number(agenda.id),
+        quarter_id: Number(agenda.quarter_id),
+        mrfc_id: Number(agenda.mrfc_id),
+        created_by: agenda.created_by ? Number(agenda.created_by) : null
+      }
     });
   } catch (error: any) {
     console.error('Agenda creation error:', error);

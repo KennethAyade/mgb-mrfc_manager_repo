@@ -26,6 +26,9 @@ data class AttendanceDto(
     @Json(name = "attendee_department")
     val attendeeDepartment: String? = null,
 
+    @Json(name = "attendance_type")
+    val attendanceType: String = "ONSITE",  // "ONSITE" or "ONLINE"
+
     @Json(name = "is_present")
     val isPresent: Boolean = false,
 
@@ -49,7 +52,11 @@ data class AttendanceDto(
     val proponent: ProponentDto? = null,
 
     @Json(name = "marker")
-    val marker: UserDto? = null
+    val marker: UserDto? = null,
+
+    // Tablet number assigned based on order of attendance logging
+    @Json(name = "tablet_number")
+    val tabletNumber: Int? = null
 )
 
 /**
@@ -72,8 +79,41 @@ data class CreateAttendanceRequest(
     @Json(name = "attendee_department")
     val attendeeDepartment: String? = null,
 
+    @Json(name = "attendance_type")
+    val attendanceType: String = "ONSITE",  // "ONSITE" or "ONLINE"
+
+    @Json(name = "tablet_number")
+    val tabletNumber: Int? = null,
+
     @Json(name = "is_present")
     val isPresent: Boolean = true,
+
+    @Json(name = "remarks")
+    val remarks: String? = null
+)
+
+/**
+ * Request for updating attendance
+ * All fields are optional - only provided fields will be updated
+ */
+data class UpdateAttendanceRequest(
+    @Json(name = "attendee_name")
+    val attendeeName: String? = null,
+
+    @Json(name = "attendee_position")
+    val attendeePosition: String? = null,
+
+    @Json(name = "attendee_department")
+    val attendeeDepartment: String? = null,
+
+    @Json(name = "attendance_type")
+    val attendanceType: String? = null,
+
+    @Json(name = "tablet_number")
+    val tabletNumber: Int? = null,
+
+    @Json(name = "is_present")
+    val isPresent: Boolean? = null,
 
     @Json(name = "remarks")
     val remarks: String? = null
@@ -87,7 +127,10 @@ data class AttendanceListResponse(
     val attendance: List<AttendanceDto>,
 
     @Json(name = "summary")
-    val summary: AttendanceSummary
+    val summary: AttendanceSummary,
+
+    @Json(name = "current_user_logged")
+    val currentUserLogged: Boolean = false
 )
 
 /**

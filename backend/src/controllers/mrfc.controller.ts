@@ -157,9 +157,47 @@ export const getMrfcById = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    // Manually serialize response to convert BIGINT IDs to numbers
+    const mrfcData = mrfc.toJSON() as any;
+
+    // Convert main MRFC ID fields
+    mrfcData.id = Number(mrfcData.id);
+    mrfcData.created_by = mrfcData.created_by ? Number(mrfcData.created_by) : null;
+    mrfcData.assigned_admin_id = mrfcData.assigned_admin_id ? Number(mrfcData.assigned_admin_id) : null;
+    mrfcData.compliance_updated_by = mrfcData.compliance_updated_by ? Number(mrfcData.compliance_updated_by) : null;
+
+    // Convert creator ID if exists
+    if (mrfcData.creator) {
+      mrfcData.creator.id = Number(mrfcData.creator.id);
+    }
+
+    // Convert proponents IDs
+    if (mrfcData.proponents && Array.isArray(mrfcData.proponents)) {
+      mrfcData.proponents = mrfcData.proponents.map((proponent: any) => ({
+        ...proponent,
+        id: Number(proponent.id),
+        mrfc_id: Number(proponent.mrfc_id)
+      }));
+    }
+
+    // Convert user_access IDs and nested user IDs
+    if (mrfcData.user_access && Array.isArray(mrfcData.user_access)) {
+      mrfcData.user_access = mrfcData.user_access.map((access: any) => ({
+        ...access,
+        id: Number(access.id),
+        user_id: Number(access.user_id),
+        mrfc_id: Number(access.mrfc_id),
+        granted_by: access.granted_by ? Number(access.granted_by) : null,
+        user: access.user ? {
+          ...access.user,
+          id: Number(access.user.id)
+        } : null
+      }));
+    }
+
     res.json({
       success: true,
-      data: mrfc
+      data: mrfcData
     });
   } catch (error) {
     console.error('Error fetching MRFC:', error);

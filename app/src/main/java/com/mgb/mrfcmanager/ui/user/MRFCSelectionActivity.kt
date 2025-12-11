@@ -103,7 +103,14 @@ class MRFCSelectionActivity : AppCompatActivity() {
         if (mrfcs.isEmpty()) {
             rvMRFCList.visibility = View.GONE
             tvEmptyState.visibility = View.VISIBLE
-            tvEmptyState.text = "No MRFCs assigned to you.\nPlease contact your administrator."
+            // BUG FIX 5: More helpful message explaining MRFC access
+            tvEmptyState.text = "No MRFCs Assigned\n\n" +
+                    "You don't have access to any MRFCs yet.\n\n" +
+                    "To get access:\n" +
+                    "1. Contact your Super Admin\n" +
+                    "2. Ask them to assign MRFCs to your account\n" +
+                    "3. They can do this in User Management > Edit User\n\n" +
+                    "Once assigned, you'll be able to view and manage those MRFCs."
         } else {
             rvMRFCList.visibility = View.VISIBLE
             tvEmptyState.visibility = View.GONE
@@ -133,10 +140,36 @@ class MRFCSelectionActivity : AppCompatActivity() {
     }
 
     private fun onMRFCSelected(mrfc: MRFC) {
-        val intent = Intent(this, ProponentViewActivity::class.java)
-        intent.putExtra("MRFC_ID", mrfc.id)
-        intent.putExtra("MRFC_NAME", mrfc.name)
+        // BUG FIX: Check DESTINATION parameter to route to correct activity
+        val destination = intent.getStringExtra("DESTINATION")
+        
+        val intent = when (destination) {
+            "NOTES" -> {
+                // Route to Notes Activity
+                Intent(this, NotesActivity::class.java).apply {
+                    putExtra("MRFC_ID", mrfc.id)
+                    putExtra("MRFC_NAME", mrfc.name)
+                    putExtra("QUARTER", "")
+                }
+            }
+            "DOCUMENTS" -> {
+                // Route to Documents Activity
+                Intent(this, DocumentListActivity::class.java).apply {
+                    putExtra("MRFC_ID", mrfc.id)
+                    putExtra("MRFC_NAME", mrfc.name)
+                }
+            }
+            else -> {
+                // Default: Route to Proponent View Activity
+                Intent(this, ProponentViewActivity::class.java).apply {
+                    putExtra("MRFC_ID", mrfc.id)
+                    putExtra("MRFC_NAME", mrfc.name)
+                }
+            }
+        }
+        
         startActivity(intent)
+        finish() // Close selection screen after selection
     }
 
     // Adapter for MRFC list (User portal - read-only)

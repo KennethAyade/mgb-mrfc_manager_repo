@@ -94,6 +94,47 @@ export const uploadDocument = multer({
 });
 
 /**
+ * File filter for audio uploads
+ * Only allow audio files (MP3, M4A, WAV, OGG, WebM)
+ */
+const audioFileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedMimeTypes = [
+    'audio/mpeg',           // MP3
+    'audio/mp3',            // MP3 alternative
+    'audio/mp4',            // M4A
+    'audio/x-m4a',          // M4A alternative
+    'audio/m4a',            // M4A alternative
+    'audio/wav',            // WAV
+    'audio/wave',           // WAV alternative
+    'audio/x-wav',          // WAV alternative
+    'audio/ogg',            // OGG
+    'audio/webm',           // WebM
+    'audio/aac',            // AAC
+    'audio/3gpp',           // 3GP audio
+    'audio/amr'             // AMR (common on Android)
+  ];
+
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Invalid file type: ${file.mimetype}. Only audio files (MP3, M4A, WAV, OGG, WebM, AAC) are allowed.`));
+  }
+};
+
+/**
+ * Multer configuration for audio uploads
+ * Max file size: 50MB (about 60 minutes of M4A audio at 128kbps)
+ */
+export const uploadAudio = multer({
+  storage: storage,
+  fileFilter: audioFileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB
+    files: 1
+  }
+});
+
+/**
  * Cleanup temporary file
  * @param filePath Path to the temporary file
  */
