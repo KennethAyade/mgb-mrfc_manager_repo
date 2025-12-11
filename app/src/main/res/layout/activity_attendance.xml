@@ -253,6 +253,7 @@
                         android:id="@+id/tilAttendanceType"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
                         android:hint="Attendance Type *"
                         app:boxStrokeColor="@color/primary"
                         app:hintTextColor="@color/primary"
@@ -264,6 +265,25 @@
                             android:layout_height="wrap_content"
                             android:inputType="none"
                             android:text="Onsite"
+                            android:textSize="16sp" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Tablet Number -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilTabletNumber"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Tablet Number (1-15)"
+                        app:boxStrokeColor="@color/primary"
+                        app:hintTextColor="@color/primary"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/actvTabletNumber"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
                             android:textSize="16sp" />
 
                     </com.google.android.material.textfield.TextInputLayout>

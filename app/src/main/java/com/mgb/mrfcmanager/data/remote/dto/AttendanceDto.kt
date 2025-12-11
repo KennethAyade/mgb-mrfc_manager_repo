@@ -82,6 +82,9 @@ data class CreateAttendanceRequest(
     @Json(name = "attendance_type")
     val attendanceType: String = "ONSITE",  // "ONSITE" or "ONLINE"
 
+    @Json(name = "tablet_number")
+    val tabletNumber: Int? = null,
+
     @Json(name = "is_present")
     val isPresent: Boolean = true,
 
@@ -105,6 +108,9 @@ data class UpdateAttendanceRequest(
 
     @Json(name = "attendance_type")
     val attendanceType: String? = null,
+
+    @Json(name = "tablet_number")
+    val tabletNumber: Int? = null,
 
     @Json(name = "is_present")
     val isPresent: Boolean? = null,

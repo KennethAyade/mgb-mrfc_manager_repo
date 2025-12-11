@@ -247,6 +247,11 @@ class AgendaFragment : Fragment() {
 
         spinnerMrfc.setOnItemClickListener { _, _, position, _ ->
             selectedMrfcId = mrfcList[position].first
+
+            // Reload proponents filtered by the selected MRFC
+            selectedProponentId = null
+            spinnerProponent.text.clear()
+            loadProponentsForMrfc(selectedMrfcId, spinnerProponent)
         }
 
         spinnerProponent.setOnItemClickListener { _, _, position, _ ->
@@ -329,6 +334,35 @@ class AgendaFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 // Silently fail - dropdowns will remain empty
+            }
+        }
+    }
+
+    private fun loadProponentsForMrfc(mrfcId: Long?, spinnerProponent: AutoCompleteTextView) {
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val retrofit = RetrofitClient.getInstance(tokenManager)
+
+        lifecycleScope.launch {
+            try {
+                val proponentApiService = retrofit.create(com.mgb.mrfcmanager.data.remote.api.ProponentApiService::class.java)
+                // Filter proponents by the selected MRFC
+                val response = proponentApiService.getAllProponents(page = 1, limit = 100, mrfcId = mrfcId)
+                val apiResponse = response.body()
+                if (response.isSuccessful && apiResponse?.success == true) {
+                    proponentList.clear()
+                    apiResponse.data?.proponents?.forEach { proponent ->
+                        proponentList.add(proponent.id to proponent.name)
+                    }
+
+                    val proponentAdapter = ArrayAdapter(
+                        requireContext(),
+                        android.R.layout.simple_dropdown_item_1line,
+                        proponentList.map { it.second }
+                    )
+                    spinnerProponent.setAdapter(proponentAdapter)
+                }
+            } catch (e: Exception) {
+                // Silently fail - dropdown will remain empty
             }
         }
     }
@@ -537,7 +571,7 @@ class AgendaFragment : Fragment() {
         // Navigate to DocumentListActivity with category filter
         val intent = Intent(requireContext(), com.mgb.mrfcmanager.ui.admin.DocumentListActivity::class.java).apply {
             putExtra("PROPONENT_ID", proponentId)
-            putExtra("CATEGORY_FILTER", category)
+            putExtra("CATEGORY", category) // Fixed: Use "CATEGORY" to match DocumentListActivity constant
         }
         startActivity(intent)
     }
@@ -582,6 +616,11 @@ class AgendaFragment : Fragment() {
 
         spinnerMrfc.setOnItemClickListener { _, _, position, _ ->
             selectedMrfcId = mrfcList[position].first
+
+            // Reload proponents filtered by the selected MRFC
+            selectedProponentId = null
+            spinnerProponent.text.clear()
+            loadProponentsForMrfc(selectedMrfcId, spinnerProponent)
         }
 
         spinnerProponent.setOnItemClickListener { _, _, position, _ ->

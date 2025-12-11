@@ -259,8 +259,124 @@ class AttendanceFragment : Fragment() {
             ivPhoto.setImageResource(R.drawable.ic_person)
         }
 
+        // Edit button
+        dialogView.findViewById<MaterialButton>(R.id.btnEdit).setOnClickListener {
+            dialog.dismiss()
+            showEditAttendanceDialog(attendance, tabletNumber)
+        }
+
         // Close button
         dialogView.findViewById<MaterialButton>(R.id.btnClose).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun showEditAttendanceDialog(attendance: AttendanceDto, tabletNumber: Int) {
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_edit_attendance, null)
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .create()
+
+        // Find views
+        val etFullName = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etFullName)
+        val etPosition = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etPosition)
+        val etDepartment = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etDepartment)
+        val actvAttendanceType = dialogView.findViewById<android.widget.AutoCompleteTextView>(R.id.actvAttendanceType)
+        val actvTabletNumber = dialogView.findViewById<android.widget.AutoCompleteTextView>(R.id.actvTabletNumber)
+        val btnSave = dialogView.findViewById<MaterialButton>(R.id.btnSave)
+        val btnCancel = dialogView.findViewById<MaterialButton>(R.id.btnCancel)
+
+        // Populate current values
+        etFullName.setText(attendance.attendeeName)
+        etPosition.setText(attendance.attendeePosition)
+        etDepartment.setText(attendance.attendeeDepartment)
+
+        // Setup attendance type dropdown
+        val attendanceTypes = arrayOf("Onsite", "Online")
+        val attendanceTypeAdapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, attendanceTypes)
+        actvAttendanceType.setAdapter(attendanceTypeAdapter)
+        val currentTypeIndex = when (attendance.attendanceType.uppercase()) {
+            "ONLINE" -> 1
+            else -> 0
+        }
+        actvAttendanceType.setText(attendanceTypes[currentTypeIndex], false)
+
+        // Setup tablet number dropdown (1-15)
+        val tabletNumbers = (1..15).map { "Tablet $it" }.toTypedArray()
+        val tabletNumberAdapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, tabletNumbers)
+        actvTabletNumber.setAdapter(tabletNumberAdapter)
+        val currentTabletNum = attendance.tabletNumber ?: tabletNumber
+        actvTabletNumber.setText(tabletNumbers[currentTabletNum - 1], false)
+
+        // Save button
+        btnSave.setOnClickListener {
+            val newName = etFullName.text.toString().trim()
+            val newPosition = etPosition.text.toString().trim()
+            val newDepartment = etDepartment.text.toString().trim()
+
+            if (newName.isEmpty()) {
+                etFullName.error = "Name is required"
+                etFullName.requestFocus()
+                return@setOnClickListener
+            }
+
+            if (newPosition.isEmpty()) {
+                etPosition.error = "Position is required"
+                etPosition.requestFocus()
+                return@setOnClickListener
+            }
+
+            if (newDepartment.isEmpty()) {
+                etDepartment.error = "Department is required"
+                etDepartment.requestFocus()
+                return@setOnClickListener
+            }
+
+            val selectedTypeIndex = attendanceTypes.indexOf(actvAttendanceType.text.toString())
+            val newAttendanceType = when (selectedTypeIndex) {
+                1 -> "ONLINE"
+                else -> "ONSITE"
+            }
+
+            val selectedTabletText = actvTabletNumber.text.toString()
+            val newTabletNumber = selectedTabletText.replace("Tablet ", "").toIntOrNull()
+
+            // Update attendance
+            viewModel.updateAttendance(
+                id = attendance.id,
+                agendaId = agendaId,
+                attendeeName = newName,
+                attendeePosition = newPosition,
+                attendeeDepartment = newDepartment,
+                attendanceType = newAttendanceType,
+                tabletNumber = newTabletNumber,
+                isPresent = attendance.isPresent,
+                remarks = attendance.remarks
+            ) { result ->
+                when (result) {
+                    is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                        requireActivity().runOnUiThread {
+                            Toast.makeText(requireContext(), "Attendance updated successfully", Toast.LENGTH_SHORT).show()
+                            dialog.dismiss()
+                            loadAttendance()
+                        }
+                    }
+                    is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                        requireActivity().runOnUiThread {
+                            Toast.makeText(requireContext(), "Failed to update: ${result.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+
+        // Cancel button
+        btnCancel.setOnClickListener {
             dialog.dismiss()
         }
 

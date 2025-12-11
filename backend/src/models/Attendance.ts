@@ -23,6 +23,7 @@ export interface AttendanceAttributes {
   attendee_position: string | null;
   attendee_department: string | null;
   attendance_type: AttendanceType;
+  tablet_number: number | null;
   is_present: boolean;
   photo_url: string | null;
   photo_cloudinary_id: string | null;
@@ -32,7 +33,7 @@ export interface AttendanceAttributes {
 }
 
 // Define attributes for creation (id and some optional fields)
-export interface AttendanceCreationAttributes extends Optional<AttendanceAttributes, 'id' | 'proponent_id' | 'attendee_name' | 'attendee_position' | 'attendee_department' | 'attendance_type' | 'is_present' | 'photo_url' | 'photo_cloudinary_id' | 'marked_at' | 'marked_by' | 'remarks'> {}
+export interface AttendanceCreationAttributes extends Optional<AttendanceAttributes, 'id' | 'proponent_id' | 'attendee_name' | 'attendee_position' | 'attendee_department' | 'attendance_type' | 'tablet_number' | 'is_present' | 'photo_url' | 'photo_cloudinary_id' | 'marked_at' | 'marked_by' | 'remarks'> {}
 
 // Define the Attendance model class
 export class Attendance extends Model<AttendanceAttributes, AttendanceCreationAttributes> implements AttendanceAttributes {
@@ -43,6 +44,7 @@ export class Attendance extends Model<AttendanceAttributes, AttendanceCreationAt
   public attendee_position!: string | null;
   public attendee_department!: string | null;
   public attendance_type!: AttendanceType;
+  public tablet_number!: number | null;
   public is_present!: boolean;
   public photo_url!: string | null;
   public photo_cloudinary_id!: string | null;
@@ -97,6 +99,14 @@ Attendance.init(
       type: DataTypes.ENUM('ONSITE', 'ONLINE'),
       defaultValue: 'ONSITE',
       allowNull: false,
+    },
+    tablet_number: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: 1,
+        max: 15,
+      },
     },
     is_present: {
       type: DataTypes.BOOLEAN,

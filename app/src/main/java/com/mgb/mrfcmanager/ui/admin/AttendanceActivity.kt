@@ -58,6 +58,7 @@ class AttendanceActivity : AppCompatActivity() {
     private lateinit var etPosition: EditText
     private lateinit var etDepartment: EditText
     private lateinit var actvAttendanceType: AutoCompleteTextView
+    private lateinit var actvTabletNumber: AutoCompleteTextView
     private lateinit var ivAttendancePhoto: ImageView
     private lateinit var btnCapturePhoto: MaterialButton
     private lateinit var tvPresentCount: TextView
@@ -71,9 +72,12 @@ class AttendanceActivity : AppCompatActivity() {
     private lateinit var viewModel: AttendanceViewModel
     private var agendaId: Long = 0L
     private var selectedAttendanceType: String = "ONSITE"  // Default to ONSITE
+    private var selectedTabletNumber: Int? = null  // Optional tablet number
 
     // Attendance type options
     private val attendanceTypes = arrayOf("Onsite", "Online")
+    // Tablet number options (1-15)
+    private val tabletNumbers = (1..15).map { "Tablet $it" }.toTypedArray()
 
     companion object {
         private const val REQUEST_IMAGE_CAPTURE = 101
@@ -112,13 +116,15 @@ class AttendanceActivity : AppCompatActivity() {
         etPosition = findViewById(R.id.etPosition)
         etDepartment = findViewById(R.id.etDepartment)
         actvAttendanceType = findViewById(R.id.actvAttendanceType)
+        actvTabletNumber = findViewById(R.id.actvTabletNumber)
         ivAttendancePhoto = findViewById(R.id.ivAttendancePhoto)
         btnCapturePhoto = findViewById(R.id.btnCapturePhoto)
         btnSubmitAttendance = findViewById(R.id.btnSubmitAttendance)
         progressBar = findViewById(R.id.progressBar)
 
-        // Setup attendance type dropdown
+        // Setup dropdowns
         setupAttendanceTypeDropdown()
+        setupTabletNumberDropdown()
     }
 
     private fun setupAttendanceTypeDropdown() {
@@ -132,6 +138,15 @@ class AttendanceActivity : AppCompatActivity() {
                 1 -> "ONLINE"
                 else -> "ONSITE"
             }
+        }
+    }
+
+    private fun setupTabletNumberDropdown() {
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, tabletNumbers)
+        actvTabletNumber.setAdapter(adapter)
+
+        actvTabletNumber.setOnItemClickListener { _, _, position, _ ->
+            selectedTabletNumber = position + 1  // Tablet numbers are 1-indexed
         }
     }
 
@@ -320,6 +335,7 @@ class AttendanceActivity : AppCompatActivity() {
             attendeePosition = position,
             attendeeDepartment = department,
             attendanceType = selectedAttendanceType,
+            tabletNumber = selectedTabletNumber,
             isPresent = true,
             photoFile = photoFile!!
         )

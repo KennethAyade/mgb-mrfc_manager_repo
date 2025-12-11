@@ -52,6 +52,7 @@ interface AttendanceApiService {
         @Part("attendee_position") attendeePosition: RequestBody? = null,
         @Part("attendee_department") attendeeDepartment: RequestBody? = null,
         @Part("attendance_type") attendanceType: RequestBody? = null,
+        @Part("tablet_number") tabletNumber: RequestBody? = null,
         @Part("is_present") isPresent: RequestBody,
         @Part("remarks") remarks: RequestBody? = null,
         @Part photo: MultipartBody.Part? = null

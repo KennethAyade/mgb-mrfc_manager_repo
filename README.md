@@ -1,56 +1,120 @@
-# MRFC Manager - Full Stack Application
+# MGB MRFC Manager - Production-Ready System
 
-**Municipal Resource and Finance Committee Meeting Management System**
+**Mines and Geosciences Bureau - Multi-Partite Monitoring Team Management System**
 
-A complete Android application with Node.js backend for managing MRFC meetings, compliance monitoring, and documentation with separate interfaces for administrators and regular users.
+A comprehensive tablet-based management system for MGB Region 7 to manage Multi-Partite Monitoring Teams (MRFCs), proponents, meetings, compliance monitoring, and documentation. Built with enterprise-grade architecture and AI-powered compliance analysis.
 
----
-
-## 🎨 Design Philosophy
-
-This application follows the **DENR/MGB visual aesthetic**:
-- **Primary Color**: DENR Green (#2E7D32)
-- **Design Pattern**: Card-based Material Design 3
-- **Layout Style**: Clean, spacious with generous padding
-- **Navigation**: Simple and intuitive hierarchical structure
+**Version:** 2.0.35 | **Status:** 🚀 Production Live (Railway) | **Last Updated:** December 10, 2025
 
 ---
 
-## ✅ What's Implemented
+## 🎯 Project Overview
 
-### Backend (Node.js + TypeScript)
-- ✅ **REST API**: Complete API with authentication
-- ✅ **PostgreSQL Database**: Full data persistence
-- ✅ **AWS S3 Storage**: File uploads/downloads (up to 100MB)
-- ✅ **JWT Authentication**: Secure token-based auth
-- ✅ **Auto Compliance Analysis**: Automatic CMVR analysis with real OCR
-- ✅ **AI-Powered Analysis**: Anthropic Claude (Haiku 4.5) for intelligent compliance detection
-- ✅ **Real OCR**: pdfjs-dist + Tesseract.js for scanned PDFs
-- ✅ **Smart Fallback**: Keyword analysis if AI unavailable
-- ✅ **Error Handling**: Failed analyses marked as "Pending Manual Review"
-- ✅ **Audit Logging**: Track all important actions
+**Target Platform:** Android Tablet (10-inch, landscape-optimized)
+**Purpose:** Streamline MRFC operations, automate compliance analysis, and enable offline meeting management
+**AI Engine:** Anthropic Claude Haiku 4.5 (optional)
+**Deployment:** Railway (Backend) + APK Distribution (Android)
 
-### Android App (Kotlin)
-- ✅ **Full Backend Integration**: No hardcoded data
-- ✅ **Authentication**: JWT token management
-- ✅ **Document Management**: Upload, view, download, delete
-- ✅ **Compliance Analysis**: Auto-trigger, real-time progress, results display
-- ✅ **MRFC Management**: List, create, update, delete
-- ✅ **Proponent Management**: Full CRUD operations
-- ✅ **Agenda Management**: Meeting planning and tracking
-- ✅ **Responsive UI**: Material Design 3 components
+### Project Scale
+- **Backend**: 19 models, 15 controllers, 18 route files (~15,000 lines of TypeScript)
+- **Android**: 47+ Activities, 28 ViewModels, 18 Repositories (~25,000 lines of Kotlin)
+- **Database**: 14 tables, 40+ indexes, 7 triggers
+- **Features**: 20+ major features across authentication, management, compliance, offline support
+- **Documentation**: 2,100+ lines in PROJECT_STATUS.md, 20+ supplementary docs
 
-### Compliance Analysis Features
-- ✅ **Auto-Trigger**: Analyzes documents automatically when viewed
-- ✅ **AI-Powered**: Anthropic Claude (Haiku 4.5) for intelligent analysis
-- ✅ **Real OCR**: Extracts text from scanned PDFs
-- ✅ **Digital PDF Support**: Fast text extraction for searchable PDFs
-- ✅ **Smart Analysis**: Context-aware compliance detection with AI
-- ✅ **Fallback Strategy**: Keyword analysis if AI unavailable
-- ✅ **Section Breakdown**: ECC, EPEP, Water Quality, Air Quality, etc.
-- ✅ **Non-Compliant Items**: Detailed issue tracking with severity
-- ✅ **Progress Tracking**: Real-time OCR progress updates
-- ✅ **Error Handling**: "Pending Manual Review" for failed analyses
+### Design Philosophy
+- **Primary Color**: DENR Green (#388E3C)
+- **Design Pattern**: Material Design 3 with card-based layouts
+- **Layout Style**: Tablet-optimized landscape interface
+- **Navigation**: Hybrid drawer menu + floating home button
+- **Architecture**: Enterprise-grade MVVM with offline-first approach
+
+---
+
+## ✨ Key Features (v2.0.35)
+
+### 🔐 Authentication & Authorization
+- JWT token-based authentication
+- Role-based access control (Super Admin, Admin, User)
+- Encrypted token storage with DataStore
+- Session expiration handling
+
+### 👥 User & MRFC Management
+- Complete user CRUD with role assignment
+- MRFC management with compliance tracking
+- Proponent management with status monitoring
+- User-to-MRFC access control
+
+### 📅 Meeting Management
+- Quarter-based meeting organization (Q1-Q4)
+- Meeting scheduling with start/end times
+- **Agenda item management** with highlighting
+- **Other Matters tab** for post-agenda items
+- Meeting minutes and matters arising tracking
+- Real-time meeting status updates
+
+### 📄 Document Management
+- AWS S3 storage (up to 100MB per file)
+- Document categories: MTF, AEPEP, CMVR, SDMP, Research, Production, Safety
+- PDF viewer integration
+- Quarter-based filtering
+- Document review workflow
+
+### 🤖 AI-Powered Compliance Analysis
+- **Auto-trigger analysis** when viewing CMVR documents
+- **Anthropic Claude Haiku 4.5** for intelligent compliance detection
+- **Vision API** for scanned PDFs (30-60 seconds)
+- **Real OCR** with Tesseract.js + pdfjs-dist (2-3 minutes for scanned docs)
+- **Digital PDF support** with instant text extraction (< 1 second)
+- Compliance percentage calculation (0-100%)
+- Section-wise breakdown (ECC, EPEP, Water/Air Quality)
+- Non-compliant items with severity levels
+- Admin adjustment capability
+- "Pending Manual Review" for failed analyses
+
+### ✅ Attendance Tracking
+- **Attendance type**: ONSITE/ONLINE support
+- Photo capture with camera integration
+- S3 photo upload
+- Tablet-based workflow (one-time attendance per user)
+- Tablet number display (Tablet 1, Tablet 2, etc.)
+- Attendance editing capability
+- Summary statistics (present/absent/rate)
+
+### 📝 Notes & Voice Recording
+- Personal notes with pinning capability
+- Meeting-linked notes
+- **Voice recording** with description support
+- Audio playback with authentication
+- Duration and file size tracking
+- **WakeLock** for stable recording (no sleep interruption)
+
+### 📬 Notifications
+- In-app notification center
+- Read/unread status tracking
+- Notification types: Meeting, Compliance, Alert, General
+- Delete and mark as read functionality
+
+### 🔄 Offline Support
+- **Room database** with 5 entity types (Meeting, AgendaItem, Note, CachedFile, PendingSync)
+- **SyncWorker** for background synchronization with WorkManager
+- **NetworkConnectivityManager** for real-time connectivity monitoring
+- **FileCacheManager** for intelligent file caching
+- **OfflineIndicator** UI component
+- Offline-first notes with sync status tracking
+
+### 📊 Dashboard & Reports
+- Admin dashboard with real-time statistics
+- Compliance dashboard with aggregated data
+- Donut charts for compliance distribution
+- Quick action shortcuts
+
+### 🔍 Audit & Security
+- Comprehensive audit logging (CREATE, UPDATE, DELETE)
+- Rate limiting and CORS protection
+- Helmet.js security headers
+- Input validation with Joi
+- bcrypt password hashing (10 rounds)
 
 ---
 
@@ -72,26 +136,35 @@ This application follows the **DENR/MGB visual aesthetic**:
    ```
 
 2. **Configure Environment**
-   Create `backend/.env`:
+   Create `backend/.env` from the template:
    ```env
-   # Database
+   # Database (PostgreSQL)
    DATABASE_URL=postgresql://user:password@localhost:5432/mrfc_db
-   
-   # JWT
-   JWT_SECRET=your-secret-key-here
-   
-   # AWS S3
+   # OR for Neon/Supabase
+   # DATABASE_URL=postgresql://user:password@host.neon.tech:5432/dbname?sslmode=require
+
+   # JWT Authentication
+   JWT_SECRET=your-secret-key-here-min-32-chars
+   JWT_EXPIRES_IN=24h
+   JWT_REFRESH_EXPIRES_IN=7d
+
+   # AWS S3 (Required for file storage)
    S3_BUCKET_NAME=adhub-s3-demo
    AWS_ACCESS_KEY_ID=AKIA...
    AWS_SECRET_ACCESS_KEY=...
    AWS_REGION=us-east-1
 
    # Anthropic Claude AI (Optional - for intelligent compliance analysis)
+   # If not provided, falls back to keyword-based analysis
    ANTHROPIC_API_KEY=sk-ant-...
-   
+
    # Server
    PORT=3000
    NODE_ENV=development
+
+   # Security
+   BCRYPT_ROUNDS=10
+   ALLOWED_ORIGINS=http://localhost:3000,http://10.0.2.2:3000
    ```
 
 3. **Setup Database**
@@ -213,66 +286,134 @@ mgb-mrfc_manager_repo/
 - **Runtime**: Node.js 18+
 - **Language**: TypeScript
 - **Framework**: Express.js
-- **Database**: PostgreSQL with Sequelize ORM
-- **File Storage**: AWS S3
-- **OCR**: Tesseract.js + pdfjs-dist + canvas
-- **Authentication**: JWT tokens
-- **Security**: Helmet, CORS, rate limiting
+- **Database**: PostgreSQL 14+ with Sequelize ORM
+- **File Storage**: AWS S3 (100MB limit per file)
+- **AI Engine**: Anthropic Claude Haiku 4.5 (optional, `@anthropic-ai/sdk`)
+- **OCR Libraries**:
+  - pdfjs-dist 4.9.155 (PDF rendering, secure)
+  - Tesseract.js (OCR text extraction)
+  - canvas (image processing)
+  - pdf.js-extract (quick text extraction)
+- **Authentication**: JWT tokens (jsonwebtoken)
+- **Validation**: Joi
+- **Security**: Helmet, CORS, express-rate-limit
+- **Testing**: Jest + Supertest
+- **API Documentation**: Swagger (swagger-ui-express)
 
-### Android
-- **Language**: Kotlin
+### Android Frontend
+- **Language**: Kotlin with coroutines
 - **Min SDK**: API 25 (Android 7.1)
-- **Target SDK**: API 36
-- **Architecture**: MVVM
-- **Networking**: Retrofit + Moshi
+- **Target SDK**: API 36 (Android 14+)
+- **Architecture**: MVVM (Model-View-ViewModel)
+- **Networking**: Retrofit 2 + OkHttp (5-minute timeouts for OCR)
+- **JSON Parsing**: Moshi with Kotlin reflection
+- **Async**: Kotlin Coroutines + LiveData
 - **UI**: Material Design 3
-- **Image Loading**: Coil
-- **Async**: Kotlin Coroutines
+- **Image Loading**: Coil 2.5.0 (with S3 signed URLs)
+- **Local Storage**:
+  - DataStore (encrypted token management)
+  - Room Database (offline support)
+- **Background Work**: WorkManager for sync
+- **Media**: CameraX for photo capture
+- **Charts**: MPAndroidChart v3.1.0
 
-### Free OCR Libraries
-- **pdfjs-dist**: PDF rendering (Mozilla PDF.js)
-- **canvas**: Image rendering
-- **Tesseract.js**: OCR text extraction
-- **pdf.js-extract**: Quick text extraction
+### Database
+- **PostgreSQL 14+** with Sequelize ORM
+- **14 Core Tables**: users, mrfcs, proponents, quarters, agendas, agenda_items, attendance, documents, voice_recordings, notes, notifications, user_mrfc_access, compliance_logs, audit_logs
+- **40+ Performance Indexes**
+- **7 Auto-update Triggers**
+- **Comprehensive Foreign Keys** with CASCADE delete
+
+### Cloud Services
+- **AWS S3**: File storage (documents, photos)
+- **Anthropic Claude**: Intelligent compliance analysis (optional, Haiku 4.5)
+- **Railway**: Backend hosting and deployment
 
 ---
 
-## 🚀 Recent Updates (November 2025)
+## 🚀 Recent Updates
 
-### Latest Changes
-1. **S3 Migration**: Migrated from Cloudinary to AWS S3
+### December 2025 (v2.0.35) - Major Feature Release
+**9 New Features Implemented:**
+
+1. **Other Matters Tab** ✅
+   - Separate tab for post-agenda discussion items
+   - `is_other_matter` field added to AgendaItem model
+   - New endpoints for marking and filtering other matters
+   - OtherMattersFragment for dedicated UI
+
+2. **Attendance Type (ONSITE/ONLINE)** ✅
+   - Dropdown to select attendance type per attendee
+   - `attendance_type` enum field (ONSITE, ONLINE)
+   - Supports mobile app users attending remotely
+   - Migration: `015_add_attendance_type_to_attendance.sql`
+
+3. **Attendance Edit Capability** ✅
+   - Users can edit their own attendance records
+   - Admins can edit any attendance record
+   - Edit dialog in AttendanceActivity
+
+4. **Agenda Highlighting Feature** ✅
+   - Admin can mark agenda items as "discussed" with green highlight
+   - `is_highlighted`, `highlighted_by`, `highlighted_at` fields added
+   - Toggle endpoint: `PUT /agenda-items/:id/toggle-highlight`
+   - Green background display for highlighted items in UI
+
+5. **Audio Recording Standby Fix** ✅
+   - WakeLock implementation for stable audio recording
+   - Prevents device sleep during recording sessions
+   - AudioRecorderHelper enhanced with WakeLock management
+
+6. **Comprehensive Offline Support** ✅
+   - Room database with 5 entity types (Meeting, AgendaItem, Note, CachedFile, PendingSync)
+   - DAOs for all entities with comprehensive query methods
+   - OfflineNotesRepository with offline-first architecture
+   - SyncWorker for background sync using WorkManager
+   - NetworkConnectivityManager for real-time connectivity monitoring
+   - FileCacheManager for intelligent file caching
+   - OfflineIndicator UI component showing connection status
+
+7. **Fixed MRFC ID Error in Notes** ✅
+   - Fixed validation error when creating notes
+   - NotesActivity updated with proper MRFC ID handling
+
+8. **File Redirect/Sort Behavior** ✅
+   - Improved file organization and sorting in meeting views
+
+9. **Database Migrations** ✅
+   - `015_add_attendance_type_to_attendance.sql`
+   - `016_add_other_matter_and_highlight_to_agenda_items.sql`
+
+### November 2025 (v2.0.0-2.0.8) - Foundation Updates
+
+1. **Claude AI Migration (v2.0.8)** ✅
+   - Migrated from Google Gemini to Anthropic Claude Haiku 4.5
+   - Native JSON mode for reliable response parsing
+   - Vision API for direct scanned PDF analysis
+   - Zero frontend changes required
+   - All features preserved
+
+2. **AWS S3 Migration (v2.0.0)** ✅
+   - Migrated from Cloudinary to AWS S3
+   - Increased file size limit to 100MB (from 10MB)
+   - Better cost efficiency (~4x cheaper storage)
    - All file operations now use S3
-   - Increased file size limit to 100MB
-   - Better cost efficiency
 
-2. **Auto Compliance Analysis**: 
+3. **Auto Compliance Analysis** ✅
    - Viewing CMVR document automatically triggers analysis
    - No manual "Analyze" button needed
    - Seamless user experience
 
-3. **Real OCR Implementation**:
+4. **Real OCR Implementation** ✅
    - Replaced pdf2pic with pdfjs-dist + canvas
    - Works cross-platform (Windows, Mac, Linux)
    - No external dependencies (GraphicsMagick/ImageMagick)
    - Handles scanned PDFs properly
 
-4. **Proper Error Handling**:
-   - Failed analyses saved as "Pending Manual Review"
-   - No mock data fallback
-   - Clear error messages in UI
-
-5. **Removed Hardcoded Data**:
+5. **Removed Hardcoded Data** ✅
    - Deleted DemoData.kt
    - 100% backend-integrated
    - All data from real database
-
-6. **Fixed Infinite Polling**:
-   - Progress polling stops correctly
-   - Handles cached results properly
-
-7. **Fixed JSON Parsing**:
-   - ApiResponse wrapper handling
-   - Proper data extraction
 
 ---
 
@@ -318,20 +459,66 @@ mgb-mrfc_manager_repo/
 
 ---
 
+## 🏗️ System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Android Tablet App                      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │  UI      │  │ViewModel │  │Repository│  │  Room    │  │
+│  │Activities│←→│ LiveData │←→│  API     │←→│ Database │  │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ HTTPS/REST API
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│                   Backend API (Railway)                      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │  Routes  │→│Controller│→│  Models  │→│PostgreSQL│  │
+│  │  + Auth  │  │  Logic   │  │Sequelize │  │ Database │  │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+└─────────────────────────┬───────────┬───────────────────────┘
+                          │           │
+            ┌─────────────┘           └─────────────┐
+            ↓                                       ↓
+    ┌──────────────┐                       ┌──────────────┐
+    │   AWS S3     │                       │ Claude API   │
+    │ File Storage │                       │  (Haiku 4.5) │
+    │ 100MB files  │                       │ AI Analysis  │
+    └──────────────┘                       └──────────────┘
+```
+
+**Data Flow:**
+1. User interacts with Android UI (Activities)
+2. ViewModel manages state and business logic
+3. Repository handles data operations (API + Room)
+4. API calls go through Retrofit with JWT auth
+5. Backend validates, processes, and stores in PostgreSQL
+6. Files stored in AWS S3, AI analysis via Claude API
+7. Offline data cached in Room, synced via WorkManager
+
+---
+
 ## 🐛 Known Issues & Limitations
 
 ### Current Limitations
-1. **OCR Performance**: Scanned PDFs take 2-3 minutes for 25 pages
-2. **OCR on Windows**: Works but slower than Linux
-3. **File Size**: Limited to 100MB by Multer (S3 supports up to 5TB)
+1. **OCR Performance**: Scanned PDFs take 2-3 minutes for 25 pages (acceptable for quality OCR)
+2. **File Size**: Limited to 100MB per file (sufficient for most documents)
+3. **Offline Editing**: Currently limited to notes; full offline editing planned
+4. **Push Notifications**: Firebase integration pending (in-app notifications work)
+5. **Reports Generation**: Attendance and compliance reports pending
+6. **Data Export**: CSV/Excel export not yet implemented
 
-### Resolved Issues
-- ✅ JSON parsing errors - Fixed
-- ✅ Infinite polling loops - Fixed
-- ✅ Hardcoded demo data - Removed
-- ✅ Cloudinary to S3 migration - Complete
-- ✅ Auto-trigger analysis - Implemented
-- ✅ OCR cross-platform support - Fixed
+### Recently Resolved Issues (v2.0.0-2.0.35)
+- ✅ **Railway deployment crash loop** - Fixed idempotent migrations (v2.0.6)
+- ✅ **Android UI consistency** - Fixed toolbar positioning, FAB, system insets (v2.0.7)
+- ✅ **Gemini to Claude migration** - Seamless AI provider switch (v2.0.8)
+- ✅ **JSON parsing errors** - Fixed ApiResponse wrapper handling
+- ✅ **Infinite polling loops** - Progress polling stops correctly
+- ✅ **Hardcoded demo data** - Removed completely, 100% backend data
+- ✅ **Cloudinary 401 errors** - Migrated to AWS S3
+- ✅ **OCR EPIPE errors on Windows** - Fixed with pdfjs-dist
+- ✅ **PDF viewer back navigation** - Migrated to OnBackPressedDispatcher
 
 ---
 
@@ -400,18 +587,42 @@ mgb-mrfc_manager_repo/
 
 ## 🚀 Deployment
 
-### Backend (Render.com)
+### Backend (Railway)
+**Production URL**: Railway deployment (auto-deploy from main branch)
+
 ```bash
+# Local build and test
 cd backend
 npm run build
 npm start
+
+# Railway deployment
+# Push to main branch triggers auto-deployment
+# Environment variables configured in Railway dashboard
 ```
 
-### Android (APK)
+**Required Environment Variables** (set in Railway):
+- `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET` - JWT signing secret
+- `S3_BUCKET_NAME`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` - AWS S3 credentials
+- `ANTHROPIC_API_KEY` - Claude AI API key (optional)
+- `PORT` - Server port (default: 3000)
+- `NODE_ENV` - Environment (production)
+
+### Android (APK Distribution)
 1. Build → Generate Signed Bundle/APK
 2. Select APK
 3. Create/select keystore
 4. Build release APK
+5. Distribute APK to tablets
+
+**Production Build:**
+```bash
+# In Android Studio
+Build > Generate Signed Bundle/APK > APK
+Select release variant
+Sign with production keystore
+```
 
 ---
 
@@ -421,53 +632,177 @@ This project is developed for MGB-DENR Philippines.
 
 ---
 
-## 🎉 Current Status
+## 🎉 Current Status (v2.0.35)
 
-**Backend**: ✅ Production-ready with real OCR  
-**Android App**: ✅ Fully integrated with backend  
-**File Storage**: ✅ AWS S3  
-**Compliance Analysis**: ✅ Automatic with real OCR  
-**Demo Data**: ✅ Removed (100% real data)  
+**Deployment**: 🚀 Production Live on Railway
+**Backend**: ✅ 19 models, 15 controllers, 18 routes - Production-ready
+**Android App**: ✅ 47+ Activities, 28 ViewModels - Fully integrated MVVM
+**File Storage**: ✅ AWS S3 (100MB per file)
+**AI Analysis**: ✅ Claude Haiku 4.5 + OCR (Tesseract.js + pdfjs-dist)
+**Database**: ✅ PostgreSQL with 14 tables, 40+ indexes
+**Offline Support**: ✅ Room database with WorkManager sync
+**Demo Data**: ✅ Removed (100% real backend data)
+**December Features**: ✅ All 9 features implemented
 
-**The application is complete and ready for production deployment!**
+**The application is production-ready and actively deployed!**
+
+---
+
+## 🗺️ Features Roadmap
+
+### High Priority (Next Phase)
+- [ ] **Attendance Reports** - Generate PDF/Excel attendance reports
+- [ ] **Compliance Reports** - Automated compliance summary reports
+- [ ] **Push Notifications** - Firebase Cloud Messaging integration
+- [ ] **Full Offline Editing** - Extend offline support to all entities
+- [ ] **Data Export** - CSV/Excel export for all major entities
+
+### Medium Priority (Future)
+- [ ] **Advanced Search & Filters** - Multi-field search with date ranges
+- [ ] **Photo Upload for Proponents** - Company logos and profile photos
+- [ ] **Meeting Recording Transcription** - Auto-transcribe voice recordings
+- [ ] **Analytics Dashboard** - Advanced charts and trend analysis
+- [ ] **Email Notifications** - Automated email alerts for meetings
+
+### Low Priority (Nice to Have)
+- [ ] **Mobile Phone Support** - Responsive layout for phones (currently tablet-only)
+- [ ] **Dark Mode** - System-wide dark theme support
+- [ ] **Multi-language** - English + Filipino language support
+- [ ] **Calendar Integration** - Sync meetings with device calendar
+- [ ] **Biometric Authentication** - Fingerprint/face unlock
 
 ---
 
 ## 📖 Additional Documentation
 
-- `S3_MIGRATION_COMPLETE.md` - AWS S3 integration details
-- `AUTO_ANALYSIS_IMPLEMENTATION_COMPLETE.md` - Compliance analysis implementation
+### Feature Documentation
+- `PROJECT_STATUS.md` - **Complete project status tracker** (2,100+ lines, verified accurate)
+- `CHANGELOG_NOV_2025.md` - Complete changelog for November updates
+- `WHATS_NEW_SUMMARY.md` - Quick summary of recent changes
+
+### AI & Compliance
+- `CHATGPT_SETUP_GUIDE.md` - Claude AI setup guide (v2.0.8)
+- `CHATGPT_MIGRATION_SUMMARY.md` - Gemini to Claude migration details
+- `GEMINI_AI_INTEGRATION.md` - Legacy: Original Gemini implementation (preserved)
+- `AUTO_ANALYSIS_IMPLEMENTATION_COMPLETE.md` - Auto-trigger compliance analysis
+- `REAL_ANALYSIS_TESTING_COMPLETE.md` - OCR testing and verification guide
+
+### AWS S3 Integration
+- `S3_MIGRATION_COMPLETE.md` - Complete AWS S3 migration guide
+- `S3_BUCKET_SETUP_GUIDE.md` - S3 bucket configuration steps
+- `S3_MIGRATION_ALL_COMPONENTS.md` - Technical migration details
+
+### Bug Fixes & Improvements
 - `ANDROID_JSON_PARSING_FIX.md` - JSON parsing fixes
 - `ANDROID_INFINITE_POLLING_FIX.md` - Polling loop fixes
-- `REAL_ANALYSIS_TESTING_COMPLETE.md` - OCR testing guide
-- `S3_BUCKET_SETUP_GUIDE.md` - S3 bucket configuration
+- `RAILWAY_MIGRATION_FIX.md` - Railway deployment troubleshooting
+- `RAILWAY_FIX_SUMMARY.md` - Quick Railway fix reference
+- `HARDCODED_DATA_REMOVED.md` - Demo data removal documentation
+
+### Deployment Guides
+- `RAILWAY_DEPLOYMENT_GUIDE.md` - Complete Railway deployment guide
+- `RAILWAY_QUICK_START.md` - Quick start for Railway
+- `RAILWAY_DEPLOYMENT_CHECKLIST.md` - Pre-deployment checklist
+- `RAILWAY_ENV_TEMPLATE.txt` - Environment variable template
 
 ---
 
 ## 🆘 Troubleshooting
 
-### Backend won't start
-- Check `.env` file has all required variables
-- Verify PostgreSQL is running
-- Check AWS credentials are valid
+### Backend Issues
 
-### Android app can't connect
-- Verify backend is running on `http://localhost:3000`
-- For emulator, backend URL should be `http://10.0.2.2:3000`
-- Check firewall settings
+**Backend won't start**
+```bash
+# Check if PostgreSQL is running
+psql --version
+# Verify .env has all required variables
+cat backend/.env
+# Check node version (must be 18+)
+node --version
+# Clear node_modules and reinstall
+rm -rf node_modules package-lock.json && npm install
+```
 
-### File upload fails
-- Check S3 bucket permissions
-- Verify AWS credentials in `.env`
+**Database connection fails**
+- Verify `DATABASE_URL` format: `postgresql://user:password@host:5432/dbname`
+- For SSL connections (Neon/Supabase), add `?sslmode=require`
+- Check PostgreSQL service is running: `sudo service postgresql status`
+- Test connection: `psql $DATABASE_URL`
+
+**S3 upload fails**
+- Verify AWS credentials in `.env` are correct
+- Check S3 bucket permissions (public read, bucket policy configured)
+- Test with: `aws s3 ls s3://your-bucket-name`
+- Verify bucket region matches `AWS_REGION` in `.env`
+
+### Android Issues
+
+**App can't connect to backend**
+- **Emulator**: URL should be `http://10.0.2.2:3000` (not localhost)
+- **Physical device**: Use computer's local IP (e.g., `http://192.168.1.100:3000`)
+- Check backend is running: `curl http://localhost:3000/api/v1/health`
+- Verify firewall allows port 3000
+- Check Android Network Security Config allows cleartext HTTP for development
+
+**Authentication fails**
+- Clear app data: Settings > Apps > MRFC Manager > Storage > Clear Data
+- Check JWT_SECRET matches between app sessions
+- Verify backend returns valid token format in `/auth/login` response
+- Check token expiration (24h default)
+
+**File upload/download fails**
 - Check file size (max 100MB)
+- Verify S3 bucket is accessible from Android device
+- Check internet connectivity on device
+- Review Retrofit timeout settings (should be 300s for OCR)
 
-### OCR takes too long
-- Normal for scanned PDFs (2-3 minutes for 25 pages)
-- Digital PDFs with text are instant
-- Consider using higher quality scans for better OCR accuracy
+**Offline sync not working**
+- Verify WorkManager is not battery-optimized: Settings > Battery > Battery Optimization
+- Check Room database is created: `adb shell ls /data/data/com.mgb.mrfcmanager/databases/`
+- Force sync by toggling airplane mode off
+- Check sync worker logs in Android Studio Logcat
+
+### Compliance Analysis Issues
+
+**OCR takes too long (>5 minutes)**
+- Normal range: 2-3 minutes for 25-page scanned PDFs
+- Digital PDFs should complete in < 10 seconds
+- Check backend logs for actual progress
+- Verify Claude API key if using AI analysis
+- Consider increasing OkHttp timeout if needed
+
+**Analysis shows "Pending Manual Review"**
+- OCR failed due to poor scan quality or corrupted PDF
+- Admin can manually adjust compliance percentage in UI
+- Try re-scanning document at higher quality
+- Check backend logs for specific error details
+
+**Claude AI not working**
+- Verify `ANTHROPIC_API_KEY` in backend `.env`
+- System automatically falls back to keyword analysis if API unavailable
+- Check API quota/credits at console.anthropic.com
+- Review backend logs for API error messages
+
+### Railway Deployment Issues
+
+**Deployment fails**
+- Check all environment variables are set in Railway dashboard
+- Verify database migrations are idempotent (use `IF NOT EXISTS`)
+- Check build logs for TypeScript compilation errors
+- Ensure `package.json` has correct start script: `"start": "node dist/server.js"`
+
+**Database migrations fail**
+- Manually run migrations: `npm run db:migrate`
+- Check migration files don't have nested transactions
+- Verify all foreign key references exist
+- Use DO blocks for conditional DDL statements
 
 ---
 
-## 📞 Support
+## 📞 Support & Resources
 
-For issues or questions, check the documentation files in the root directory or contact the development team.
+- **Documentation**: See `PROJECT_STATUS.md` for complete feature list
+- **Deployment**: See `RAILWAY_DEPLOYMENT_GUIDE.md` for Railway setup
+- **API Setup**: See `CHATGPT_SETUP_GUIDE.md` for Claude AI configuration
+- **Issues**: Check resolved issues in `RAILWAY_FIX_SUMMARY.md` and other fix docs
+- **Development**: Contact the development team for access and questions

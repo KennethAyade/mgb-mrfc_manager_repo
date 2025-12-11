@@ -100,6 +100,7 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
         attendeePosition: String? = null,
         attendeeDepartment: String? = null,
         attendanceType: String = "ONSITE",
+        tabletNumber: Int? = null,
         isPresent: Boolean = true,
         remarks: String? = null,
         photoFile: File
@@ -114,6 +115,7 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
                 attendeePosition = attendeePosition,
                 attendeeDepartment = attendeeDepartment,
                 attendanceType = attendanceType,
+                tabletNumber = tabletNumber,
                 isPresent = isPresent,
                 remarks = remarks,
                 photoFile = photoFile
@@ -134,17 +136,31 @@ class AttendanceViewModel(private val repository: AttendanceRepository) : ViewMo
     }
 
     /**
-     * Update attendance record (only status and remarks)
+     * Update attendance record (all fields are optional)
      */
     fun updateAttendance(
         id: Long,
         agendaId: Long,
+        attendeeName: String? = null,
+        attendeePosition: String? = null,
+        attendeeDepartment: String? = null,
+        attendanceType: String? = null,
+        tabletNumber: Int? = null,
         isPresent: Boolean? = null,
         remarks: String? = null,
         onComplete: (Result<AttendanceDto>) -> Unit
     ) {
         viewModelScope.launch {
-            val result = repository.updateAttendance(id, isPresent, remarks)
+            val result = repository.updateAttendance(
+                id = id,
+                attendeeName = attendeeName,
+                attendeePosition = attendeePosition,
+                attendeeDepartment = attendeeDepartment,
+                attendanceType = attendanceType,
+                tabletNumber = tabletNumber,
+                isPresent = isPresent,
+                remarks = remarks
+            )
             onComplete(result)
 
             // Reload the list

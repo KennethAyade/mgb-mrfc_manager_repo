@@ -73,12 +73,12 @@
     <color name="error_background">#FFEBEE</color>
     <color name="card_stroke">#E0E0E0</color>
 
-    <!-- Tab Icon Colors - Professional and engaging for elderly users -->
-    <color name="tab_icon_attendance">#2196F3</color>    <!-- Blue - People/Attendance -->
-    <color name="tab_icon_agenda">#4CAF50</color>        <!-- Green - Agenda/Notes -->
-    <color name="tab_icon_other_matters">#FF9800</color> <!-- Orange - Other Matters -->
-    <color name="tab_icon_minutes">#9C27B0</color>       <!-- Purple - Minutes/Documents -->
-    <color name="tab_icon_recordings">#009688</color>    <!-- Teal - Voice Recordings -->
+    <!-- Tab Icon Colors - Updated per client requirements (Dec 2025) -->
+    <color name="tab_icon_attendance">#4CAF50</color>    <!-- Green - People/Attendance -->
+    <color name="tab_icon_agenda">#FFC107</color>        <!-- Yellow/Amber - Agenda/Notes -->
+    <color name="tab_icon_other_matters">#03A9F4</color> <!-- Light Blue - Other Matters -->
+    <color name="tab_icon_minutes">#FF9800</color>       <!-- Orange - Minutes/Documents -->
+    <color name="tab_icon_recordings">#F44336</color>    <!-- Red - Voice Recordings -->
     <color name="tab_icon_proposals">#E91E63</color>     <!-- Pink - Proposals -->
 
     <!-- Agenda Item Highlight Colors (Feature 7) -->

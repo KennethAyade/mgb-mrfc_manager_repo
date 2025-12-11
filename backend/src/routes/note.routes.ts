@@ -236,6 +236,26 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
       }
     }
 
+    // Verify Agenda exists (if provided and valid)
+    if (agenda_id && parseInt(agenda_id) > 0) {
+      const { AgendaItem } = require('../models');
+      const agenda = await AgendaItem.findByPk(agenda_id);
+      if (!agenda) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'AGENDA_NOT_FOUND', message: 'Agenda item not found' }
+        });
+      }
+    }
+
+    // Validate title (if creating a note, title should be provided)
+    if (title && title.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Title cannot be empty' }
+      });
+    }
+
     // Step 3: Create note
     // Use validated mrfc_id (only if > 0, otherwise null)
     const validMrfcId = mrfc_id && parseInt(mrfc_id) > 0 ? mrfc_id : null;

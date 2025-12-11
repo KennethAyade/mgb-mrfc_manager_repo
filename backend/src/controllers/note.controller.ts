@@ -84,10 +84,52 @@ export const createNote = async (req: Request, res: Response): Promise<void> => 
     const { title, content, mrfc_id, quarter_id, tags } = req.body;
     const currentUser = (req as any).user;
 
+    // Validate required fields
+    if (!title || title.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Title is required'
+        }
+      });
+      return;
+    }
+
+    // Validate mrfc_id if provided
+    if (mrfc_id) {
+      const mrfc = await Mrfc.findByPk(mrfc_id);
+      if (!mrfc) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'MRFC_NOT_FOUND',
+            message: 'The specified MRFC does not exist'
+          }
+        });
+        return;
+      }
+    }
+
+    // Validate quarter_id if provided
+    if (quarter_id) {
+      const quarter = await Quarter.findByPk(quarter_id);
+      if (!quarter) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'QUARTER_NOT_FOUND',
+            message: 'The specified quarter does not exist'
+          }
+        });
+        return;
+      }
+    }
+
     // Create note
     const note = await Note.create({
       user_id: currentUser?.userId,
-      title,
+      title: title.trim(),
       content,
       mrfc_id: mrfc_id || null,
       quarter_id: quarter_id || null,
