@@ -189,7 +189,9 @@ class VoiceRecordingFragment : Fragment() {
         val repository = VoiceRecordingRepository(apiService)
 
         val factory = VoiceRecordingViewModelFactory(repository)
-        viewModel = ViewModelProvider(this, factory)[VoiceRecordingViewModel::class.java]
+        // Use Activity scope to persist recording state across tab switches
+        // This prevents recording state from being lost when user navigates between tabs
+        viewModel = ViewModelProvider(requireActivity(), factory)[VoiceRecordingViewModel::class.java]
     }
 
     private fun setupRecyclerView() {
