@@ -61,6 +61,7 @@ class MRFCDetailActivity : com.mgb.mrfcmanager.ui.base.BaseActivity() {
 
         setupToolbar()
         initializeViews()
+        setupRoleBasedPermissions()
         setupViewModel()
         observeMrfcDetail()
         observeMrfcUpdate()
@@ -93,6 +94,29 @@ class MRFCDetailActivity : com.mgb.mrfcmanager.ui.base.BaseActivity() {
         btnViewProponents = findViewById(R.id.btnViewProponents)
         btnViewCompliance = findViewById(R.id.btnViewCompliance)
         progressBar = findViewById(R.id.progressBar)
+    }
+
+    private fun setupRoleBasedPermissions() {
+        // Check user role and set permissions
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val isAdmin = tokenManager.isAdmin()
+        
+        if (!isAdmin) {
+            // Read-only mode for regular users
+            // Disable all input fields
+            etMRFCName.isEnabled = false
+            etMrfcCode.isEnabled = false
+            etMunicipality.isEnabled = false
+            etProvince.isEnabled = false
+            etRegion.isEnabled = false
+            etAddress.isEnabled = false
+            etContactPerson.isEnabled = false
+            etContactNumber.isEnabled = false
+            etEmail.isEnabled = false
+            
+            // Hide save button
+            btnSave.visibility = View.GONE
+        }
     }
 
     private fun setupViewModel() {
