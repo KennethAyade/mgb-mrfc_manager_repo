@@ -4,7 +4,7 @@
 
 A comprehensive tablet-based management system for MGB Region 7 to manage Multi-Partite Monitoring Teams (MRFCs), proponents, meetings, compliance monitoring, and documentation. Built with enterprise-grade architecture and AI-powered compliance analysis.
 
-**Version:** 2.0.35 | **Status:** 🚀 Production Live (Railway) | **Last Updated:** December 10, 2025
+**Version:** 2.0.36 | **Status:** 🚀 Production Live (Railway) | **Last Updated:** December 11, 2025
 
 ---
 
@@ -77,17 +77,19 @@ A comprehensive tablet-based management system for MGB Region 7 to manage Multi-
 - Photo capture with camera integration
 - S3 photo upload
 - Tablet-based workflow (one-time attendance per user)
-- Tablet number display (Tablet 1, Tablet 2, etc.)
-- Attendance editing capability
+- **User-selectable tablet number (1-15)** with backend validation
+- **Full attendance editing**: name, position, department, type, tablet number
+- Edit dialog with dropdowns for attendance type and tablet number
 - Summary statistics (present/absent/rate)
 
 ### 📝 Notes & Voice Recording
 - Personal notes with pinning capability
-- Meeting-linked notes
+- Meeting-linked notes with **backend validation**
 - **Voice recording** with description support
 - Audio playback with authentication
 - Duration and file size tracking
 - **WakeLock** for stable recording (no sleep interruption)
+- **Activity-scoped ViewModel** for persistent recording state across tab switches
 
 ### 📬 Notifications
 - In-app notification center
@@ -333,7 +335,33 @@ mgb-mrfc_manager_repo/
 
 ## 🚀 Recent Updates
 
-### December 2025 (v2.0.35) - Major Feature Release
+### December 11, 2025 (v2.0.36) - Attendance & Recording Enhancements
+**Key Improvements:**
+
+1. **Tablet Number Feature - Complete** ✅
+   - User-selectable tablet number (1-15) for attendance records
+   - Backend: Migration `017_add_tablet_number_to_attendance.sql` with validation
+   - Frontend: Dropdown in AttendanceActivity for new records
+   - **Edit Dialog**: Full CRUD capability for existing attendance records
+   - Edit name, position, department, attendance type, and tablet number
+   - UpdateAttendanceRequest supports all fields
+
+2. **Voice Recording State Persistence** ✅
+   - Changed VoiceRecordingViewModel to Activity scope
+   - Recording state now persists when switching tabs
+   - No UI changes, just improved stability
+
+3. **Notes Backend Validation** ✅
+   - Added validation for title, mrfc_id, and quarter_id
+   - Better error messages for invalid data
+   - Enhanced note controller with comprehensive checks
+
+4. **Offline Support Integration** ✅
+   - Fixed SplashActivity async auth with TokenManager.ensureInitialized()
+   - Prevents users from being logged out on app restart
+   - FileCacheManager properly integrated
+
+### December 10, 2025 (v2.0.35) - Major Feature Release
 **9 New Features Implemented:**
 
 1. **Other Matters Tab** ✅
@@ -632,17 +660,18 @@ This project is developed for MGB-DENR Philippines.
 
 ---
 
-## 🎉 Current Status (v2.0.35)
+## 🎉 Current Status (v2.0.36)
 
 **Deployment**: 🚀 Production Live on Railway
 **Backend**: ✅ 19 models, 15 controllers, 18 routes - Production-ready
 **Android App**: ✅ 47+ Activities, 28 ViewModels - Fully integrated MVVM
 **File Storage**: ✅ AWS S3 (100MB per file)
 **AI Analysis**: ✅ Claude Haiku 4.5 + OCR (Tesseract.js + pdfjs-dist)
-**Database**: ✅ PostgreSQL with 14 tables, 40+ indexes
+**Database**: ✅ PostgreSQL with 14 tables, 40+ indexes, 17 migrations
 **Offline Support**: ✅ Room database with WorkManager sync
 **Demo Data**: ✅ Removed (100% real backend data)
-**December Features**: ✅ All 9 features implemented
+**Attendance**: ✅ Full CRUD with tablet number selection (1-15)
+**Recording**: ✅ Persistent state across tab navigation
 
 **The application is production-ready and actively deployed!**
 

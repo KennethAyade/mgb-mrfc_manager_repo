@@ -1,8 +1,76 @@
 # MGB MRFC Manager - Project Status & Development Tracker
 
-**Last Updated:** December 10, 2025
-**Version:** 2.0.35 (PRODUCTION READY)
-**Status:** 🚀 **PRODUCTION LIVE (Railway)** | ✅ **Claude AI Analysis (Haiku 4.5)** | ✅ **AWS S3 Storage** | ✅ **Real Compliance Dashboard** | ✅ **Reanalysis Feature** | ✅ **OCR Working** | ✅ **Railway Deployment Fixed** | ✅ **Android UI Polish** | ✅ **Agenda Item Proposal Workflow Complete** | ✅ **Proposals Tab Fully Functional** | ✅ **Enhanced Agenda Features** | ✅ **Tablet Layout Optimized** | ✅ **Meeting Edit/Delete** | ✅ **Tablet-Based Attendance** | ✅ **Critical Bug Fixes v2.0.30** | ✅ **Dynamic Quarter Creation** | ✅ **Notes Feature Complete** | ✅ **Voice Recording Feature** | ✅ **Offline Support (Room DB)** | ✅ **Other Matters Tab** | ✅ **Agenda Highlighting** | ✅ **Attendance Type (ONSITE/ONLINE)**
+**Last Updated:** December 11, 2025, 7:00 PM (Asia/Manila)
+**Version:** 2.0.36 (PRODUCTION READY)
+**Status:** 🚀 **PRODUCTION LIVE (Railway)** | ✅ **Tablet Number Feature (Full CRUD)** | ✅ **Recording State Persistence** | ✅ **Notes Validation** | ✅ **Offline Auth Fix** | ✅ **Claude AI Analysis (Haiku 4.5)** | ✅ **AWS S3 Storage** | ✅ **Real Compliance Dashboard** | ✅ **Reanalysis Feature** | ✅ **OCR Working** | ✅ **Railway Deployment Fixed** | ✅ **Android UI Polish** | ✅ **Agenda Item Proposal Workflow Complete** | ✅ **Proposals Tab Fully Functional** | ✅ **Enhanced Agenda Features** | ✅ **Tablet Layout Optimized** | ✅ **Meeting Edit/Delete** | ✅ **Tablet-Based Attendance** | ✅ **Critical Bug Fixes v2.0.30** | ✅ **Dynamic Quarter Creation** | ✅ **Notes Feature Complete** | ✅ **Voice Recording Feature** | ✅ **Offline Support (Room DB)** | ✅ **Other Matters Tab** | ✅ **Agenda Highlighting** | ✅ **Attendance Type (ONSITE/ONLINE)**
+
+---
+
+## 🆕 Latest Updates (v2.0.36 - December 11, 2025)
+
+### ✅ Tablet Number Feature - Complete CRUD Implementation
+**Date:** December 11, 2025, 7:00 PM | **Commit:** `f3118f9`
+
+**Description:** User-selectable tablet number (1-15) with full edit capability for attendance records.
+
+**Backend Changes:**
+- Created `017_add_tablet_number_to_attendance.sql` migration
+  - Added `tablet_number INTEGER CHECK (tablet_number >= 1 AND tablet_number <= 15)`
+  - Validation constraint ensures valid range
+- Updated `AttendanceDto`, `CreateAttendanceRequest`, `UpdateAttendanceRequest`
+- Modified `note.controller.ts` with validation for title, mrfc_id, quarter_id
+
+**Android Changes:**
+- **New File:** `dialog_edit_attendance.xml` - Edit dialog layout with all fields
+- **New Function:** `showEditAttendanceDialog()` in AttendanceFragment
+- Updated `dialog_attendance_detail.xml` - Added Edit button
+- Updated `activity_attendance.xml` - Added tablet number dropdown for new records
+- Updated `AttendanceRepository.updateAttendance()` - Supports all fields
+- Updated `AttendanceViewModel.updateAttendance()` - Comprehensive field updates
+- Updated `AttendanceApiService` - Added tablet_number to multipart upload
+
+**Impact:** 19 files changed, 1,061 insertions, 250 deletions
+
+---
+
+### ✅ Voice Recording State Persistence
+**Date:** December 11, 2025, 7:00 PM | **Commit:** `68638de`
+
+**Description:** Changed VoiceRecordingViewModel to Activity scope for persistent state across tab switches.
+
+**Changes:**
+- `VoiceRecordingFragment.setupViewModel()` - Changed from Fragment to Activity scope
+- Single line change: `ViewModelProvider(requireActivity(), factory)` instead of `ViewModelProvider(this, factory)`
+- Recording state now survives tab navigation
+- AudioRecorderHelper with WakeLock continues uninterrupted
+
+**Impact:** 1 file changed, 3 insertions, 1 deletion
+
+---
+
+### ✅ Notes Backend Validation
+**Date:** December 11, 2025
+
+**Description:** Comprehensive validation for note creation to prevent invalid data.
+
+**Changes:**
+- Added validation for `title`, `mrfc_id`, and `quarter_id` in backend controller
+- Better error messages for missing/invalid fields
+- Prevents invalid note records in database
+
+---
+
+### ✅ Offline Support Integration Fix
+**Date:** December 11, 2025
+
+**Description:** Fixed authentication persistence on app restart.
+
+**Changes:**
+- `SplashActivity` now calls `TokenManager.ensureInitialized()`
+- Prevents users from being logged out unexpectedly on app restart
+- FileCacheManager properly integrated with offline support
+
+---
 
 ---
 
