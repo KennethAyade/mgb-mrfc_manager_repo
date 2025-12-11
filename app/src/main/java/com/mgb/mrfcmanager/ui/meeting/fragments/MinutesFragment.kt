@@ -65,9 +65,11 @@ class MinutesFragment : Fragment() {
             mrfcId = it.getLong(ARG_MRFC_ID)
         }
 
-        // TODO: BACKEND - Determine if current user is the meeting organizer
-        // For now, assume admin users are organizers
-        isOrganizer = true
+        // Check user role from TokenManager
+        // Only ADMIN and SUPER_ADMIN can edit/approve minutes
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        isOrganizer = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
     }
 
     override fun onCreateView(

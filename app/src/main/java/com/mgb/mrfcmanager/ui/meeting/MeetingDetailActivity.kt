@@ -104,16 +104,16 @@ class MeetingDetailActivity : BaseActivity() {
         // Connect tabs with ViewPager
         TabLayoutMediator(tabLayout, viewPager) { tab, position ->
             tab.text = when (position) {
-                0 -> "Agenda"
-                1 -> "Attendance"
+                0 -> "Attendance"
+                1 -> "Agenda"
                 2 -> "Minutes"
                 else -> "Tab $position"
             }
 
             // Add icons to tabs
             tab.icon = when (position) {
-                0 -> getDrawable(R.drawable.ic_note)
-                1 -> getDrawable(R.drawable.ic_people)
+                0 -> getDrawable(R.drawable.ic_people)
+                1 -> getDrawable(R.drawable.ic_note)
                 2 -> getDrawable(R.drawable.ic_document)
                 else -> null
             }

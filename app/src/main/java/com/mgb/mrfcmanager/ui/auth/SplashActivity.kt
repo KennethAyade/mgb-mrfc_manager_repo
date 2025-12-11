@@ -12,6 +12,7 @@ import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.AuthApiService
 import com.mgb.mrfcmanager.data.repository.AuthRepository
 import com.mgb.mrfcmanager.ui.admin.AdminDashboardActivity
+import com.mgb.mrfcmanager.ui.user.UserDashboardActivity
 
 /**
  * Splash Screen - Shows app branding and checks authentication status
@@ -44,11 +45,14 @@ class SplashActivity : AppCompatActivity() {
         Log.d("SplashActivity", "Checking auth status: isLoggedIn=$isLoggedIn")
 
         if (isLoggedIn) {
-            // User is logged in, all users now get AdminDashboardActivity
-            // which has sidebar navigation for MRFC and Meeting Management
+            // User is logged in, route to appropriate dashboard based on role
             val role = authRepository.getUserRole()
             Log.d("SplashActivity", "User is logged in with role: $role")
-            val intent = Intent(this, AdminDashboardActivity::class.java)
+            val intent = when (role) {
+                "USER" -> Intent(this, UserDashboardActivity::class.java)
+                "ADMIN", "SUPER_ADMIN" -> Intent(this, AdminDashboardActivity::class.java)
+                else -> Intent(this, UserDashboardActivity::class.java)
+            }
             startActivity(intent)
         } else {
             // Not logged in, go to login screen

@@ -36,10 +36,16 @@ class MRFCListActivity : BaseActivity() {
     private lateinit var tvEmptyState: TextView
     private lateinit var adapter: MRFCAdapter
     private lateinit var viewModel: MrfcViewModel
+    private var isAdmin: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_mrfc_list)
+
+        // Check user role
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        isAdmin = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
 
         setupToolbar()
         initViews()
@@ -132,7 +138,11 @@ class MRFCListActivity : BaseActivity() {
     }
 
     private fun setupFAB() {
-        findViewById<FloatingActionButton>(R.id.fabAddMRFC).setOnClickListener {
+        val fab = findViewById<FloatingActionButton>(R.id.fabAddMRFC)
+        // Only show FAB for admin users
+        fab.visibility = if (isAdmin) View.VISIBLE else View.GONE
+        
+        fab.setOnClickListener {
             startActivityForResult(
                 Intent(this, CreateMRFCActivity::class.java),
                 CreateMRFCActivity.REQUEST_CODE_CREATE_MRFC
@@ -173,6 +183,10 @@ class MRFCListActivity : BaseActivity() {
         val intent = Intent(this, MRFCDetailActivity::class.java)
         intent.putExtra("MRFC_ID", mrfc.id)
         intent.putExtra("MRFC_NUMBER", mrfc.mrfcNumber)
+        // Pass read-only flag for regular users
+        if (!isAdmin) {
+            intent.putExtra("READ_ONLY", true)
+        }
         startActivity(intent)
     }
 }
