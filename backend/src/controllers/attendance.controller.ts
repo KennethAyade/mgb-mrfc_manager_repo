@@ -142,7 +142,13 @@ export const recordAttendance = async (req: Request, res: Response): Promise<voi
     res.status(201).json({
       success: true,
       message: 'Attendance recorded successfully',
-      data: attendance
+      data: {
+        ...attendance.toJSON(),
+        id: Number(attendance.id),
+        agenda_id: Number(attendance.agenda_id),
+        proponent_id: Number(attendance.proponent_id),
+        marked_by: attendance.marked_by ? Number(attendance.marked_by) : null
+      }
     });
   } catch (error: any) {
     console.error('Attendance recording error:', error);
@@ -200,7 +206,13 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
     res.json({
       success: true,
       message: 'Attendance updated successfully',
-      data: attendance
+      data: {
+        ...attendance.toJSON(),
+        id: Number(attendance.id),
+        agenda_id: Number(attendance.agenda_id),
+        proponent_id: Number(attendance.proponent_id),
+        marked_by: attendance.marked_by ? Number(attendance.marked_by) : null
+      }
     });
   } catch (error: any) {
     console.error('Attendance update error:', error);

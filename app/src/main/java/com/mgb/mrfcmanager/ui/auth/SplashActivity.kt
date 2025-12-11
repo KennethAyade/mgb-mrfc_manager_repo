@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
@@ -13,6 +14,7 @@ import com.mgb.mrfcmanager.data.remote.api.AuthApiService
 import com.mgb.mrfcmanager.data.repository.AuthRepository
 import com.mgb.mrfcmanager.ui.admin.AdminDashboardActivity
 import com.mgb.mrfcmanager.ui.user.UserDashboardActivity
+import kotlinx.coroutines.launch
 
 /**
  * Splash Screen - Shows app branding and checks authentication status
@@ -36,11 +38,18 @@ class SplashActivity : AppCompatActivity() {
 
         // Check auth status after 2 seconds (splash duration)
         Handler(Looper.getMainLooper()).postDelayed({
-            checkAuthStatus()
+            lifecycleScope.launch {
+                checkAuthStatus()
+            }
         }, 2000)
     }
 
-    private fun checkAuthStatus() {
+    private suspend fun checkAuthStatus() {
+        // CRITICAL FIX: Wait for TokenManager to load cache from DataStore before checking auth
+        // This prevents users from being incorrectly logged out on app restart
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        tokenManager.ensureInitialized()
+
         val isLoggedIn = authRepository.isLoggedIn()
         Log.d("SplashActivity", "Checking auth status: isLoggedIn=$isLoggedIn")
 

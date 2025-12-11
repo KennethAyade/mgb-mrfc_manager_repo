@@ -73,6 +73,9 @@ class AgendaItemViewModel(private val repository: AgendaItemRepository) : ViewMo
         title: String,
         description: String? = null,
         orderIndex: Int = 0,
+        mrfcId: Long? = null,
+        proponentId: Long? = null,
+        fileCategory: String? = null,
         onComplete: (Result<AgendaItemDto>) -> Unit
     ) {
         viewModelScope.launch {
@@ -80,7 +83,10 @@ class AgendaItemViewModel(private val repository: AgendaItemRepository) : ViewMo
                 agendaId = agendaId,
                 title = title,
                 description = description,
-                orderIndex = orderIndex
+                orderIndex = orderIndex,
+                mrfcId = mrfcId,
+                proponentId = proponentId,
+                fileCategory = fileCategory
             )
             val result = repository.createItem(request)
             onComplete(result)
@@ -101,6 +107,9 @@ class AgendaItemViewModel(private val repository: AgendaItemRepository) : ViewMo
         title: String,
         description: String? = null,
         orderIndex: Int = 0,
+        mrfcId: Long? = null,
+        proponentId: Long? = null,
+        fileCategory: String? = null,
         onComplete: (Result<AgendaItemDto>) -> Unit
     ) {
         viewModelScope.launch {
@@ -108,7 +117,10 @@ class AgendaItemViewModel(private val repository: AgendaItemRepository) : ViewMo
                 agendaId = agendaId,
                 title = title,
                 description = description,
-                orderIndex = orderIndex
+                orderIndex = orderIndex,
+                mrfcId = mrfcId,
+                proponentId = proponentId,
+                fileCategory = fileCategory
             )
             val result = repository.updateItem(id, request)
             onComplete(result)
@@ -169,6 +181,27 @@ class AgendaItemViewModel(private val repository: AgendaItemRepository) : ViewMo
      */
     fun clearSelectedItem() {
         _itemDetailState.value = ItemDetailState.Idle
+    }
+
+    /**
+     * Get current user's proposed agenda items (all statuses)
+     */
+    suspend fun getMyProposals(): Result<List<AgendaItemDto>> {
+        return repository.getMyProposals()
+    }
+
+    /**
+     * Approve a proposed agenda item (ADMIN only)
+     */
+    suspend fun approveItem(itemId: Long): Result<AgendaItemDto> {
+        return repository.approveItem(itemId)
+    }
+
+    /**
+     * Deny a proposed agenda item with remarks (ADMIN only)
+     */
+    suspend fun denyItem(itemId: Long, remarks: String): Result<AgendaItemDto> {
+        return repository.denyItem(itemId, remarks)
     }
 }
 

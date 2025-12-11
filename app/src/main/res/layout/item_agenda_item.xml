@@ -2,19 +2,22 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardItem"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="2dp"
-    app:cardBackgroundColor="@color/surface">
+    app:cardBackgroundColor="@color/surface"
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/divider">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="16dp"
-        android:gravity="top">
+        android:gravity="center_vertical">
 
         <!-- Item Number -->
         <TextView
@@ -34,7 +37,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:layout_marginStart="12dp">
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp">
 
             <!-- Item Title -->
             <TextView
@@ -55,9 +59,20 @@
                 android:textSize="14sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp"
-                android:visibility="visible" />
+                android:visibility="visible"
+                android:maxLines="2"
+                android:ellipsize="end" />
 
         </LinearLayout>
+
+        <!-- Highlight Indicator (checkmark for discussed items) -->
+        <ImageView
+            android:id="@+id/ivHighlightIndicator"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_check"
+            android:contentDescription="Discussed"
+            android:visibility="gone" />
 
     </LinearLayout>
 

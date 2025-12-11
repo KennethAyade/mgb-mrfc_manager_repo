@@ -22,6 +22,7 @@
  * /api/v1/statistics/*     - Statistics & analytics
  * /api/v1/minutes/*        - Meeting minutes
  * /api/v1/matters-arising/* - Matters arising from meetings
+ * /api/v1/voice-recordings/* - Voice recordings
  */
 
 import { Router } from 'express';
@@ -41,6 +42,7 @@ import auditLogRoutes from './auditLog.routes';
 import statisticsRoutes from './statistics.routes';
 import minutesRoutes from './minutes.routes';
 import matterArisingRoutes from './matterArising.routes';
+import voiceRecordingRoutes from './voiceRecording.routes';
 
 const router = Router();
 
@@ -61,6 +63,7 @@ router.use('/audit-logs', auditLogRoutes);
 router.use('/statistics', statisticsRoutes);
 router.use('/minutes', minutesRoutes);
 router.use('/matters-arising', matterArisingRoutes);
+router.use('/voice-recordings', voiceRecordingRoutes);
 
 // Health check endpoint
 router.get('/health', (_req, res) => {

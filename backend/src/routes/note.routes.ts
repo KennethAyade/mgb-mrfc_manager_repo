@@ -14,6 +14,7 @@
 
 import { Router, Request, Response } from 'express';
 import { authenticate } from '../middleware/auth';
+import { Op } from 'sequelize';
 
 const router = Router();
 
@@ -82,57 +83,52 @@ const router = Router();
  */
 router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
-    // TODO: IMPLEMENT NOTE LISTING LOGIC
-    // Step 1: Parse query parameters
-    // const { mrfc_id, search, page = 1, limit = 20, sort_by = 'updated_at', sort_order = 'DESC' } = req.query;
+    const { Note, Mrfc } = require('../models');
 
-    // Step 2: Build filter conditions
-    // const where: any = { user_id: req.user?.userId };
-    // if (mrfc_id) where.mrfc_id = mrfc_id;
-    // if (search) where.content = { [Op.like]: `%${search}%` };
+    // Step 1: Parse query parameters
+    const { mrfc_id, agenda_id, search, page = '1', limit = '20', sort_by = 'updated_at', sort_order = 'DESC' } = req.query;
+
+    // Step 2: Build filter conditions - users can only see their own notes
+    const where: any = { user_id: req.user?.userId };
+    if (mrfc_id) where.mrfc_id = parseInt(mrfc_id as string);
+    if (agenda_id) where.agenda_id = parseInt(agenda_id as string);
+    if (search) where.content = { [Op.iLike]: `%${search}%` };
 
     // Step 3: Calculate pagination
-    // const pageNum = Math.max(1, parseInt(page as string));
-    // const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
-    // const offset = (pageNum - 1) * limitNum;
+    const pageNum = Math.max(1, parseInt(page as string));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
+    const offset = (pageNum - 1) * limitNum;
 
     // Step 4: Query notes
-    // const { count, rows: notes } = await Note.findAndCountAll({
-    //   where,
-    //   include: [{
-    //     model: MRFC,
-    //     as: 'mrfc',
-    //     attributes: ['id', 'mrfc_number', 'project_title']
-    //   }],
-    //   limit: limitNum,
-    //   offset,
-    //   order: [
-    //     ['is_pinned', 'DESC'],
-    //     [sort_by as string, sort_order as string]
-    //   ]
-    // });
+    const { count, rows: notes } = await Note.findAndCountAll({
+      where,
+      include: [{
+        model: Mrfc,
+        as: 'mrfc',
+        attributes: ['id', 'name', 'municipality'],
+        required: false
+      }],
+      limit: limitNum,
+      offset,
+      order: [
+        ['is_pinned', 'DESC'],
+        [sort_by as string, sort_order as string]
+      ]
+    });
 
     // Step 5: Return results
-    // return res.json({
-    //   success: true,
-    //   data: {
-    //     notes,
-    //     pagination: {
-    //       page: pageNum,
-    //       limit: limitNum,
-    //       total: count,
-    //       totalPages: Math.ceil(count / limitNum),
-    //       hasNext: pageNum * limitNum < count,
-    //       hasPrev: pageNum > 1
-    //     }
-    //   }
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Note listing endpoint not yet implemented. See comments in note.routes.ts for implementation details.'
+    return res.json({
+      success: true,
+      data: {
+        notes,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: count,
+          totalPages: Math.ceil(count / limitNum),
+          hasNext: pageNum * limitNum < count,
+          hasPrev: pageNum > 1
+        }
       }
     });
   } catch (error: any) {
@@ -202,51 +198,83 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
  */
 router.post('/', authenticate, async (req: Request, res: Response) => {
   try {
-    // TODO: IMPLEMENT NOTE CREATION LOGIC
-    // Step 1: Verify MRFC exists
-    // const mrfc = await MRFC.findByPk(req.body.mrfc_id);
-    // if (!mrfc) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'MRFC_NOT_FOUND', message: 'MRFC not found' }
-    //   });
-    // }
+    const { Note, Mrfc } = require('../models');
 
-    // Step 2: Authorization check for USER role
-    // if (req.user?.role === 'USER') {
-    //   const userMrfcIds = req.user.mrfcAccess || [];
-    //   if (!userMrfcIds.includes(mrfc.id)) {
-    //     return res.status(403).json({
-    //       success: false,
-    //       error: {
-    //         code: 'MRFC_ACCESS_DENIED',
-    //         message: 'You do not have access to this MRFC'
-    //       }
-    //     });
-    //   }
-    // }
+    const { mrfc_id, agenda_id, content, is_pinned, title } = req.body;
+
+    // Validate content
+    if (!content || content.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Note content is required' }
+      });
+    }
+
+    // Step 1: Verify MRFC exists (if provided and valid)
+    // Note: Also check for mrfc_id > 0 to handle cases where frontend sends 0 instead of null
+    if (mrfc_id && parseInt(mrfc_id) > 0) {
+      const mrfc = await Mrfc.findByPk(mrfc_id);
+      if (!mrfc) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'MRFC_NOT_FOUND', message: 'MRFC not found' }
+        });
+      }
+
+      // Step 2: Authorization check for USER role
+      if (req.user?.role === 'USER') {
+        const userMrfcIds = req.user.mrfcAccess || [];
+        if (!userMrfcIds.includes(Number(mrfc.id))) {
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: 'MRFC_ACCESS_DENIED',
+              message: 'You do not have access to this MRFC'
+            }
+          });
+        }
+      }
+    }
+
+    // Verify Agenda exists (if provided and valid)
+    if (agenda_id && parseInt(agenda_id) > 0) {
+      const { AgendaItem } = require('../models');
+      const agenda = await AgendaItem.findByPk(agenda_id);
+      if (!agenda) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'AGENDA_NOT_FOUND', message: 'Agenda item not found' }
+        });
+      }
+    }
+
+    // Validate title (if creating a note, title should be provided)
+    if (title && title.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Title cannot be empty' }
+      });
+    }
 
     // Step 3: Create note
-    // const note = await Note.create({
-    //   user_id: req.user?.userId,
-    //   mrfc_id: req.body.mrfc_id,
-    //   content: req.body.content,
-    //   is_pinned: req.body.is_pinned || false
-    // });
+    // Use validated mrfc_id (only if > 0, otherwise null)
+    const validMrfcId = mrfc_id && parseInt(mrfc_id) > 0 ? mrfc_id : null;
+    const validAgendaId = agenda_id && parseInt(agenda_id) > 0 ? agenda_id : null;
+
+    const note = await Note.create({
+      user_id: req.user?.userId,
+      mrfc_id: validMrfcId,
+      agenda_id: validAgendaId,
+      title: title || null,
+      content: content.trim(),
+      is_pinned: is_pinned || false
+    });
 
     // Step 4: Return created note
-    // return res.status(201).json({
-    //   success: true,
-    //   message: 'Note created successfully',
-    //   data: note
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Note creation endpoint not yet implemented. See comments in note.routes.ts for implementation details.'
-      }
+    return res.status(201).json({
+      success: true,
+      message: 'Note created successfully',
+      data: note
     });
   } catch (error: any) {
     console.error('Note creation error:', error);
@@ -310,46 +338,40 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
  */
 router.put('/:id', authenticate, async (req: Request, res: Response) => {
   try {
-    // TODO: IMPLEMENT NOTE UPDATE LOGIC
-    // Step 1: Find note
-    // const note = await Note.findByPk(req.params.id);
-    // if (!note) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'NOTE_NOT_FOUND', message: 'Note not found' }
-    //   });
-    // }
+    const { Note } = require('../models');
 
-    // Step 2: Authorization check
-    // if (note.user_id !== req.user?.userId) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: {
-    //       code: 'FORBIDDEN',
-    //       message: 'You can only update your own notes'
-    //     }
-    //   });
-    // }
+    // Step 1: Find note
+    const note = await Note.findByPk(req.params.id);
+    if (!note) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOTE_NOT_FOUND', message: 'Note not found' }
+      });
+    }
+
+    // Step 2: Authorization check - users can only update their own notes
+    if (Number(note.user_id) !== Number(req.user?.userId)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You can only update your own notes'
+        }
+      });
+    }
 
     // Step 3: Update note
-    // await note.update({
-    //   content: req.body.content !== undefined ? req.body.content : note.content,
-    //   is_pinned: req.body.is_pinned !== undefined ? req.body.is_pinned : note.is_pinned
-    // });
+    await note.update({
+      title: req.body.title !== undefined ? req.body.title : note.title,
+      content: req.body.content !== undefined ? req.body.content : note.content,
+      is_pinned: req.body.is_pinned !== undefined ? req.body.is_pinned : note.is_pinned
+    });
 
     // Step 4: Return updated note
-    // return res.json({
-    //   success: true,
-    //   message: 'Note updated successfully',
-    //   data: note
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Note update endpoint not yet implemented. See comments in note.routes.ts for implementation details.'
-      }
+    return res.json({
+      success: true,
+      message: 'Note updated successfully',
+      data: note
     });
   } catch (error: any) {
     console.error('Note update error:', error);
@@ -400,42 +422,36 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
  */
 router.delete('/:id', authenticate, async (req: Request, res: Response) => {
   try {
-    // TODO: IMPLEMENT NOTE DELETION LOGIC
-    // Step 1: Find note
-    // const note = await Note.findByPk(req.params.id);
-    // if (!note) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     error: { code: 'NOTE_NOT_FOUND', message: 'Note not found' }
-    //   });
-    // }
+    const { Note } = require('../models');
 
-    // Step 2: Authorization check
-    // if (note.user_id !== req.user?.userId) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: {
-    //       code: 'FORBIDDEN',
-    //       message: 'You can only delete your own notes'
-    //     }
-    //   });
-    // }
+    // Step 1: Find note
+    const note = await Note.findByPk(req.params.id);
+    if (!note) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOTE_NOT_FOUND', message: 'Note not found' }
+      });
+    }
+
+    // Step 2: Authorization check - users can only delete their own notes
+    if (Number(note.user_id) !== Number(req.user?.userId)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You can only delete your own notes'
+        }
+      });
+    }
 
     // Step 3: Delete note
-    // await note.destroy();
+    await note.destroy();
 
     // Step 4: Return success
-    // return res.json({
-    //   success: true,
-    //   message: 'Note deleted successfully'
-    // });
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Note deletion endpoint not yet implemented. See comments in note.routes.ts for implementation details.'
-      }
+    return res.json({
+      success: true,
+      message: 'Note deleted successfully',
+      data: null
     });
   } catch (error: any) {
     console.error('Note deletion error:', error);

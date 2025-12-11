@@ -200,9 +200,10 @@ class MinutesFragment : Fragment() {
         } else {
             tvMinutesContent.visibility = View.VISIBLE
             etMinutesSummary.visibility = View.GONE
-            btnEdit.visibility = View.VISIBLE
+            // BUG FIX 4: Only show edit/approve buttons for organizers (ADMIN/SUPER_ADMIN)
+            btnEdit.visibility = if (isOrganizer) View.VISIBLE else View.GONE
             btnSave.visibility = View.GONE
-            btnApprove.visibility = if (minutesId != null) View.VISIBLE else View.GONE
+            btnApprove.visibility = if (isOrganizer && minutesId != null) View.VISIBLE else View.GONE
         }
     }
 

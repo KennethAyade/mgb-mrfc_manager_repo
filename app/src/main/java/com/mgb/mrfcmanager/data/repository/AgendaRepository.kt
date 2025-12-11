@@ -3,6 +3,7 @@ package com.mgb.mrfcmanager.data.repository
 import com.mgb.mrfcmanager.data.remote.api.AgendaApiService
 import com.mgb.mrfcmanager.data.remote.dto.AgendaDto
 import com.mgb.mrfcmanager.data.remote.dto.CreateAgendaRequest
+import com.mgb.mrfcmanager.data.remote.dto.DenyProposalRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -176,6 +177,106 @@ class AgendaRepository(private val agendaApiService: AgendaApiService) {
                     } else {
                         Result.Error(
                             message = body?.error?.message ?: "Failed to delete agenda",
+                            code = body?.error?.code
+                        )
+                    }
+                } else {
+                    Result.Error(
+                        message = "HTTP ${response.code()}: ${response.message()}",
+                        code = response.code().toString()
+                    )
+                }
+            } catch (e: Exception) {
+                Result.Error(
+                    message = e.localizedMessage ?: "Network error",
+                    code = "NETWORK_ERROR"
+                )
+            }
+        }
+    }
+
+    /**
+     * Get pending agenda proposals (ADMIN only)
+     */
+    suspend fun getPendingProposals(): Result<List<AgendaDto>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = agendaApiService.getPendingProposals()
+
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body?.success == true && body.data != null) {
+                        Result.Success(body.data)
+                    } else {
+                        Result.Error(
+                            message = body?.error?.message ?: "Failed to fetch proposals",
+                            code = body?.error?.code
+                        )
+                    }
+                } else {
+                    Result.Error(
+                        message = "HTTP ${response.code()}: ${response.message()}",
+                        code = response.code().toString()
+                    )
+                }
+            } catch (e: Exception) {
+                Result.Error(
+                    message = e.localizedMessage ?: "Network error",
+                    code = "NETWORK_ERROR"
+                )
+            }
+        }
+    }
+
+    /**
+     * Approve an agenda proposal (ADMIN only)
+     */
+    suspend fun approveProposal(agendaId: Long): Result<AgendaDto> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = agendaApiService.approveProposal(agendaId)
+
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body?.success == true && body.data != null) {
+                        Result.Success(body.data)
+                    } else {
+                        Result.Error(
+                            message = body?.error?.message ?: "Failed to approve proposal",
+                            code = body?.error?.code
+                        )
+                    }
+                } else {
+                    Result.Error(
+                        message = "HTTP ${response.code()}: ${response.message()}",
+                        code = response.code().toString()
+                    )
+                }
+            } catch (e: Exception) {
+                Result.Error(
+                    message = e.localizedMessage ?: "Network error",
+                    code = "NETWORK_ERROR"
+                )
+            }
+        }
+    }
+
+    /**
+     * Deny an agenda proposal with remarks (ADMIN only)
+     */
+    suspend fun denyProposal(agendaId: Long, remarks: String): Result<AgendaDto> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = DenyProposalRequest(denialRemarks = remarks)
+                val response = agendaApiService.denyProposal(agendaId, request)
+
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body?.success == true && body.data != null) {
+                        Result.Success(body.data)
+                    } else {
+                        Result.Error(
+                            message = body?.error?.message ?: "Failed to deny proposal",
                             code = body?.error?.code
                         )
                     }

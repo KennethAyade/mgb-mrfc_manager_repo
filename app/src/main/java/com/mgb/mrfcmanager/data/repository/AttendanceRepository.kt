@@ -1,8 +1,8 @@
 package com.mgb.mrfcmanager.data.repository
 
 import com.mgb.mrfcmanager.data.remote.api.AttendanceApiService
-import com.mgb.mrfcmanager.data.remote.api.UpdateAttendanceRequest
 import com.mgb.mrfcmanager.data.remote.dto.AttendanceDto
+import com.mgb.mrfcmanager.data.remote.dto.UpdateAttendanceRequest
 import com.mgb.mrfcmanager.data.remote.dto.AttendanceListResponse
 import com.mgb.mrfcmanager.data.remote.dto.CreateAttendanceRequest
 import kotlinx.coroutines.Dispatchers
@@ -97,6 +97,8 @@ class AttendanceRepository(private val apiService: AttendanceApiService) {
         attendeeName: String? = null,
         attendeePosition: String? = null,
         attendeeDepartment: String? = null,
+        attendanceType: String = "ONSITE",
+        tabletNumber: Int? = null,
         isPresent: Boolean = true,
         remarks: String? = null,
         photoFile: File? = null
@@ -111,6 +113,8 @@ class AttendanceRepository(private val apiService: AttendanceApiService) {
                 val attendeeNameBody = attendeeName?.toRequestBody("text/plain".toMediaTypeOrNull())
                 val attendeePositionBody = attendeePosition?.toRequestBody("text/plain".toMediaTypeOrNull())
                 val attendeeDepartmentBody = attendeeDepartment?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val attendanceTypeBody = attendanceType.toRequestBody("text/plain".toMediaTypeOrNull())
+                val tabletNumberBody = tabletNumber?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
                 val remarksBody = remarks?.toRequestBody("text/plain".toMediaTypeOrNull())
 
                 // Prepare photo part if file exists
@@ -125,6 +129,8 @@ class AttendanceRepository(private val apiService: AttendanceApiService) {
                     attendeeName = attendeeNameBody,
                     attendeePosition = attendeePositionBody,
                     attendeeDepartment = attendeeDepartmentBody,
+                    attendanceType = attendanceTypeBody,
+                    tabletNumber = tabletNumberBody,
                     isPresent = isPresentBody,
                     remarks = remarksBody,
                     photo = photoPart
@@ -156,16 +162,26 @@ class AttendanceRepository(private val apiService: AttendanceApiService) {
     }
 
     /**
-     * Update attendance record (only status and remarks can be updated)
+     * Update attendance record (all fields are optional)
      */
     suspend fun updateAttendance(
         id: Long,
+        attendeeName: String? = null,
+        attendeePosition: String? = null,
+        attendeeDepartment: String? = null,
+        attendanceType: String? = null,
+        tabletNumber: Int? = null,
         isPresent: Boolean? = null,
         remarks: String? = null
     ): Result<AttendanceDto> {
         return withContext(Dispatchers.IO) {
             try {
                 val request = UpdateAttendanceRequest(
+                    attendeeName = attendeeName,
+                    attendeePosition = attendeePosition,
+                    attendeeDepartment = attendeeDepartment,
+                    attendanceType = attendanceType,
+                    tabletNumber = tabletNumber,
                     isPresent = isPresent,
                     remarks = remarks
                 )

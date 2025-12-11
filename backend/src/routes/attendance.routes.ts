@@ -111,16 +111,33 @@ router.get('/meeting/:agendaId', authenticate, async (req: Request, res: Respons
     const absent = total - present;
     const rate = total > 0 ? (present / total) * 100 : 0;
 
+    // Check if current user has already logged attendance for this meeting
+    const currentUserId = req.user?.userId;
+    const currentUserLogged = attendance.some((a: any) =>
+      a.marked_by === currentUserId || a.marked_by === Number(currentUserId)
+    );
+
+    // Add tablet number (position) to each attendance record
+    // Sort by marked_at ASC to get proper tablet order
+    const sortedAttendance = [...attendanceWithSignedUrls].sort((a: any, b: any) =>
+      new Date(a.marked_at).getTime() - new Date(b.marked_at).getTime()
+    );
+    const attendanceWithTabletNumbers = sortedAttendance.map((record: any, index: number) => ({
+      ...record,
+      tablet_number: index + 1
+    }));
+
     return res.json({
       success: true,
       data: {
-        attendance: attendanceWithSignedUrls,
+        attendance: attendanceWithTabletNumbers,
         summary: {
           total_attendees: total,
           present,
           absent,
           attendance_rate: parseFloat(rate.toFixed(2))
-        }
+        },
+        current_user_logged: currentUserLogged
       }
     });
   } catch (error: any) {
@@ -166,6 +183,7 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
       attendee_name,
       attendee_position,
       attendee_department,
+      attendance_type,
       is_present,
       remarks
     } = req.body;
@@ -227,21 +245,19 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
       }
     }
 
-    // Check for duplicate attendance
-    const whereClause: any = { agenda_id };
-    if (proponent_id) {
-      whereClause.proponent_id = proponent_id;
-    } else {
-      whereClause.attendee_name = attendee_name;
-    }
-
-    const existing = await Attendance.findOne({ where: whereClause });
-    if (existing) {
+    // Check for duplicate attendance - one per user account per meeting
+    const existingByUser = await Attendance.findOne({
+      where: {
+        agenda_id,
+        marked_by: req.user?.userId
+      }
+    });
+    if (existingByUser) {
       return res.status(409).json({
         success: false,
         error: {
           code: 'ATTENDANCE_EXISTS',
-          message: 'Attendance already recorded for this person'
+          message: 'You have already logged attendance for this meeting'
         }
       });
     }
@@ -267,6 +283,11 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
       cloudinaryPublicId = photoCloudinaryId;
     }
 
+    // Validate attendance_type if provided
+    const validAttendanceType = attendance_type && ['ONSITE', 'ONLINE'].includes(attendance_type.toUpperCase())
+      ? attendance_type.toUpperCase()
+      : 'ONSITE';
+
     // Create attendance record
     const attendance = await Attendance.create({
       agenda_id: parseInt(agenda_id),
@@ -274,6 +295,7 @@ router.post('/', authenticate, uploadPhoto.single('photo'), async (req: Request,
       attendee_name: attendee_name || null,
       attendee_position: attendee_position || null,
       attendee_department: attendee_department || null,
+      attendance_type: validAttendanceType,
       is_present: is_present === 'true' || is_present === true || is_present === undefined,
       photo_url: photoUrl,
       photo_cloudinary_id: photoCloudinaryId,
@@ -386,12 +408,30 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
 
     // Store old values for audit
     const oldValues = {
+      attendee_name: attendance.attendee_name,
+      attendee_position: attendance.attendee_position,
+      attendee_department: attendance.attendee_department,
+      attendance_type: attendance.attendance_type,
       is_present: attendance.is_present,
       remarks: attendance.remarks
     };
 
-    // Update fields
-    const { is_present, remarks } = req.body;
+    // Update fields - expanded to include all editable fields
+    const {
+      attendee_name,
+      attendee_position,
+      attendee_department,
+      attendance_type,
+      is_present,
+      remarks
+    } = req.body;
+
+    if (attendee_name !== undefined) attendance.attendee_name = attendee_name;
+    if (attendee_position !== undefined) attendance.attendee_position = attendee_position;
+    if (attendee_department !== undefined) attendance.attendee_department = attendee_department;
+    if (attendance_type !== undefined && ['ONSITE', 'ONLINE'].includes(attendance_type.toUpperCase())) {
+      attendance.attendance_type = attendance_type.toUpperCase();
+    }
     if (is_present !== undefined) attendance.is_present = is_present;
     if (remarks !== undefined) attendance.remarks = remarks;
 
@@ -405,6 +445,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
       entity_id: attendance.id,
       old_values: oldValues,
       new_values: {
+        attendee_name: attendance.attendee_name,
+        attendee_position: attendance.attendee_position,
+        attendee_department: attendance.attendee_department,
+        attendance_type: attendance.attendance_type,
         is_present: attendance.is_present,
         remarks: attendance.remarks
       },

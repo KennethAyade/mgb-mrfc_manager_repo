@@ -261,7 +261,8 @@ class ComplianceDashboardActivity : AppCompatActivity() {
         pieChartCompliance.setDrawCenterText(true)
 
         val total = compliant + partial + nonCompliant
-        val complianceRate = if (total > 0) (compliant * 100) / total else 0
+        // Weighted compliance: full=1.0, partial=0.5, non=0.0
+        val complianceRate = if (total > 0) (((compliant * 1.0) + (partial * 0.5)) / total * 100).toInt() else 0
         pieChartCompliance.centerText = "$complianceRate%\nCompliance"
         pieChartCompliance.setCenterTextSize(18f)
         pieChartCompliance.setCenterTextColor(Color.WHITE)

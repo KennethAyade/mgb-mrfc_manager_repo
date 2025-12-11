@@ -171,6 +171,20 @@ class MRFCListActivity : BaseActivity() {
     private fun showEmptyState() {
         tvEmptyState.visibility = View.VISIBLE
         recyclerView.visibility = View.GONE
+        
+        // Show different message for regular users vs admins
+        if (isAdmin) {
+            tvEmptyState.text = "No MRFCs found.\nClick + button to create a new MRFC."
+        } else {
+            // Regular user - explain MRFC access
+            tvEmptyState.text = "No MRFCs Assigned\n\n" +
+                    "You don't have access to any MRFCs yet.\n\n" +
+                    "To get access:\n" +
+                    "1. Contact your Super Admin\n" +
+                    "2. Ask them to assign MRFCs to your account\n" +
+                    "3. They can do this in User Management > Edit User\n\n" +
+                    "Once assigned, you'll be able to view those MRFCs here."
+        }
     }
 
     private fun hideEmptyState() {

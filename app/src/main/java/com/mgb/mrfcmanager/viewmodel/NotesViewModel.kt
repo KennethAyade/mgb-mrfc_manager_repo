@@ -28,14 +28,12 @@ class NotesViewModel(private val repository: NotesRepository) : ViewModel() {
      */
     fun loadNotes(
         mrfcId: Long? = null,
-        agendaId: Long? = null,
-        noteType: String? = null,
-        isPrivate: Boolean? = null
+        agendaId: Long? = null
     ) {
         _notesListState.value = NotesListState.Loading
 
         viewModelScope.launch {
-            when (val result = repository.getAllNotes(mrfcId, agendaId, noteType, isPrivate)) {
+            when (val result = repository.getAllNotes(mrfcId, agendaId)) {
                 is Result.Success -> {
                     _notesListState.value = NotesListState.Success(result.data)
                 }
@@ -110,11 +108,9 @@ class NotesViewModel(private val repository: NotesRepository) : ViewModel() {
      */
     fun refresh(
         mrfcId: Long? = null,
-        agendaId: Long? = null,
-        noteType: String? = null,
-        isPrivate: Boolean? = null
+        agendaId: Long? = null
     ) {
-        loadNotes(mrfcId, agendaId, noteType, isPrivate)
+        loadNotes(mrfcId, agendaId)
     }
 }
 

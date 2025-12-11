@@ -199,20 +199,47 @@ class ComplianceAnalysisActivity : BaseActivity() {
     }
 
     private fun setupClickListeners() {
+        // BUG FIX 1: Check user role for admin-only controls
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        val isAdmin = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
+
+        // Download PDF - available to all users
         btnDownloadPdf.setOnClickListener {
             downloadAndOpenPdf()
         }
 
-        btnReanalyze.setOnClickListener {
-            reanalyzeDocument()
+        // Reanalyze - ADMIN only
+        if (isAdmin) {
+            btnReanalyze.visibility = View.VISIBLE
+            btnReanalyze.setOnClickListener {
+                reanalyzeDocument()
+            }
+        } else {
+            btnReanalyze.visibility = View.GONE
         }
 
-        btnResetAdjustments.setOnClickListener {
-            resetAdjustments()
-        }
-
-        btnSaveAdjustments.setOnClickListener {
-            saveAdjustments()
+        // Admin adjustments - ADMIN only
+        if (isAdmin) {
+            btnResetAdjustments.visibility = View.VISIBLE
+            btnSaveAdjustments.visibility = View.VISIBLE
+            etManualPercentage.isEnabled = true
+            spinnerManualRating.isEnabled = true
+            etAdminNotes.isEnabled = true
+            
+            btnResetAdjustments.setOnClickListener {
+                resetAdjustments()
+            }
+            btnSaveAdjustments.setOnClickListener {
+                saveAdjustments()
+            }
+        } else {
+            // Hide admin adjustment buttons and disable fields for regular users
+            btnResetAdjustments.visibility = View.GONE
+            btnSaveAdjustments.visibility = View.GONE
+            etManualPercentage.isEnabled = false
+            spinnerManualRating.isEnabled = false
+            etAdminNotes.isEnabled = false
         }
 
         etManualPercentage.setOnFocusChangeListener { _, hasFocus ->

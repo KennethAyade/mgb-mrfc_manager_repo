@@ -23,6 +23,12 @@ class UserViewModel(private val userRepository: UserRepository) : ViewModel() {
     private val _deleteUserState = MutableLiveData<DeleteUserState>()
     val deleteUserState: LiveData<DeleteUserState> = _deleteUserState
 
+    private val _grantMrfcAccessState = MutableLiveData<GrantMrfcAccessState>()
+    val grantMrfcAccessState: LiveData<GrantMrfcAccessState> = _grantMrfcAccessState
+
+    private val _userDetailState = MutableLiveData<UserDetailState>()
+    val userDetailState: LiveData<UserDetailState> = _userDetailState
+
     fun loadUsers(
         page: Int = 1,
         search: String? = null,
@@ -41,6 +47,24 @@ class UserViewModel(private val userRepository: UserRepository) : ViewModel() {
                 }
                 is Result.Loading -> {
                     _usersState.value = UserListState.Loading
+                }
+            }
+        }
+    }
+
+    fun loadUserById(userId: Long) {
+        _userDetailState.value = UserDetailState.Loading
+
+        viewModelScope.launch {
+            when (val result = userRepository.getUserById(userId)) {
+                is Result.Success -> {
+                    _userDetailState.value = UserDetailState.Success(result.data)
+                }
+                is Result.Error -> {
+                    _userDetailState.value = UserDetailState.Error(result.message)
+                }
+                is Result.Loading -> {
+                    _userDetailState.value = UserDetailState.Loading
                 }
             }
         }
@@ -122,6 +146,28 @@ class UserViewModel(private val userRepository: UserRepository) : ViewModel() {
     fun resetUpdateState() {
         _updateUserState.value = UpdateUserState.Idle
     }
+
+    fun grantMrfcAccess(userId: Long, mrfcIds: List<Long>) {
+        _grantMrfcAccessState.value = GrantMrfcAccessState.Loading
+
+        viewModelScope.launch {
+            when (val result = userRepository.grantMrfcAccess(userId, mrfcIds)) {
+                is Result.Success -> {
+                    _grantMrfcAccessState.value = GrantMrfcAccessState.Success(result.data)
+                }
+                is Result.Error -> {
+                    _grantMrfcAccessState.value = GrantMrfcAccessState.Error(result.message)
+                }
+                is Result.Loading -> {
+                    _grantMrfcAccessState.value = GrantMrfcAccessState.Loading
+                }
+            }
+        }
+    }
+
+    fun resetGrantMrfcAccessState() {
+        _grantMrfcAccessState.value = GrantMrfcAccessState.Idle
+    }
 }
 
 sealed class UserListState {
@@ -150,4 +196,18 @@ sealed class DeleteUserState {
     object Loading : DeleteUserState()
     object Success : DeleteUserState()
     data class Error(val message: String) : DeleteUserState()
+}
+
+sealed class GrantMrfcAccessState {
+    object Idle : GrantMrfcAccessState()
+    object Loading : GrantMrfcAccessState()
+    data class Success(val user: UserDto) : GrantMrfcAccessState()
+    data class Error(val message: String) : GrantMrfcAccessState()
+}
+
+sealed class UserDetailState {
+    object Idle : UserDetailState()
+    object Loading : UserDetailState()
+    data class Success(val user: UserDto) : UserDetailState()
+    data class Error(val message: String) : UserDetailState()
 }

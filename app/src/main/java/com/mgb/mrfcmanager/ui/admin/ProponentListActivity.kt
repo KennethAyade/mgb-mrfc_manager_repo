@@ -60,7 +60,7 @@ class ProponentListActivity : BaseActivity() {
         setupHomeFab() // Enable home button
 
         // Load proponents for this MRFC
-        if (mrfcId != -1L) {
+        if (mrfcId > 0) {
             viewModel.loadProponentsByMrfc(mrfcId)
         } else {
             Toast.makeText(this, "Invalid MRFC ID", Toast.LENGTH_SHORT).show()

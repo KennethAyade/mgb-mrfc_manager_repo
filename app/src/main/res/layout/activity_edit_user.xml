@@ -194,6 +194,98 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- MRFC Access Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardMrfcAccess"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/spacing_normal"
+                app:cardCornerRadius="@dimen/card_corner_radius"
+                app:cardElevation="@dimen/card_elevation">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/spacing_normal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="MRFC Access"
+                        android:textSize="@dimen/text_size_small"
+                        android:textColor="@color/text_secondary"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Select which MRFCs this user can access"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_hint" />
+
+                    <!-- Quick action buttons -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="@dimen/spacing_small"
+                        android:gravity="end">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSelectAll"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Select All"
+                            android:textSize="12sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnClearAll"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Clear All"
+                            android:textColor="@color/status_error"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
+
+                    <!-- Loading indicator -->
+                    <ProgressBar
+                        android:id="@+id/progressBarMrfcs"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="@dimen/spacing_normal"
+                        android:visibility="gone" />
+
+                    <!-- Empty state -->
+                    <TextView
+                        android:id="@+id/tvNoMrfcs"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_normal"
+                        android:text="No MRFCs available.\nCreate MRFCs first to assign access."
+                        android:textAlignment="center"
+                        android:textColor="@color/text_hint"
+                        android:textSize="@dimen/text_size_small"
+                        android:visibility="gone" />
+
+                    <!-- MRFC List with Checkboxes -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvMrfcList"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_normal"
+                        android:maxHeight="300dp"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Action Buttons -->
             <LinearLayout
                 android:layout_width="match_parent"

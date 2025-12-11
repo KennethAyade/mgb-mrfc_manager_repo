@@ -9,7 +9,9 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
@@ -23,6 +25,7 @@ import com.mgb.mrfcmanager.viewmodel.MrfcDetailState
 import com.mgb.mrfcmanager.viewmodel.MrfcUpdateState
 import com.mgb.mrfcmanager.viewmodel.MrfcViewModel
 import com.mgb.mrfcmanager.viewmodel.MrfcViewModelFactory
+import kotlinx.coroutines.launch
 
 /**
  * MRFC Detail Activity - View and edit MRFC details
@@ -309,9 +312,10 @@ class MRFCDetailActivity : com.mgb.mrfcmanager.ui.base.BaseActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_mrfc_detail, menu)
-        // Hide Edit menu item if in read-only mode
+        // Hide Edit and Delete menu items if in read-only mode
         if (isReadOnly) {
             menu?.findItem(R.id.action_edit)?.isVisible = false
+            menu?.findItem(R.id.action_delete)?.isVisible = false
         }
         return true
     }
@@ -322,7 +326,53 @@ class MRFCDetailActivity : com.mgb.mrfcmanager.ui.base.BaseActivity() {
                 navigateToEditMRFC()
                 true
             }
+            R.id.action_delete -> {
+                showDeleteConfirmationDialog()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun showDeleteConfirmationDialog() {
+        val mrfcName = currentMRFC?.name ?: "this MRFC"
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Delete MRFC")
+            .setMessage("Are you sure you want to delete \"$mrfcName\"?\n\nThis will also delete all associated proponents, meetings, and documents.\n\nThis action cannot be undone.")
+            .setIcon(R.drawable.ic_delete)
+            .setPositiveButton("Delete") { _, _ ->
+                deleteMRFC()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun deleteMRFC() {
+        lifecycleScope.launch {
+            try {
+                showLoading(true)
+
+                val tokenManager = MRFCManagerApp.getTokenManager()
+                val retrofit = RetrofitClient.getInstance(tokenManager)
+                val apiService = retrofit.create(MrfcApiService::class.java)
+
+                val response = apiService.deleteMrfc(mrfcId)
+
+                showLoading(false)
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    Toast.makeText(this@MRFCDetailActivity, "MRFC deleted successfully", Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_OK)
+                    finish()
+                } else {
+                    val errorMsg = response.body()?.error?.message ?: "Failed to delete MRFC"
+                    Toast.makeText(this@MRFCDetailActivity, errorMsg, Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                showLoading(false)
+                Toast.makeText(this@MRFCDetailActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

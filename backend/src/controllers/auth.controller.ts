@@ -64,7 +64,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       success: true,
       message: 'Registration successful. Please wait for admin approval.',
       data: {
-        id: user.id,
+        id: Number(user.id),
         username: user.username,
         full_name: user.full_name,
         email: user.email,
@@ -140,7 +140,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         where: { user_id: user.id, is_active: true },
         attributes: ['mrfc_id']
       });
-      mrfcAccess = access.map(a => a.mrfc_id);
+      // Explicitly convert to numbers (PostgreSQL BIGINT may return strings)
+      mrfcAccess = access.map(a => Number(a.mrfc_id));
     }
 
     // Generate JWT tokens
@@ -162,7 +163,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       success: true,
       data: {
         user: {
-          id: user.id,
+          id: Number(user.id),
           username: user.username,
           full_name: user.full_name,
           email: user.email,

@@ -32,6 +32,45 @@
         android:padding="@dimen/spacing_large"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
+        <!-- Year Selector -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="@dimen/spacing_normal">
+
+            <ImageButton
+                android:id="@+id/btnPreviousYear"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_back"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="@color/primary"
+                android:contentDescription="Previous Year" />
+
+            <TextView
+                android:id="@+id/tvSelectedYear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2025"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp" />
+
+            <ImageButton
+                android:id="@+id/btnNextYear"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_arrow_right"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="@color/primary"
+                android:contentDescription="Next Year" />
+
+        </LinearLayout>
+
         <!-- Title -->
         <TextView
             android:layout_width="wrap_content"
@@ -89,6 +128,7 @@
                         android:layout_marginTop="@dimen/spacing_normal" />
 
                     <TextView
+                        android:id="@+id/tvQ1Year"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2025"
@@ -137,6 +177,7 @@
                         android:layout_marginTop="@dimen/spacing_normal" />
 
                     <TextView
+                        android:id="@+id/tvQ2Year"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2025"
@@ -185,6 +226,7 @@
                         android:layout_marginTop="@dimen/spacing_normal" />
 
                     <TextView
+                        android:id="@+id/tvQ3Year"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2025"
@@ -233,6 +275,7 @@
                         android:layout_marginTop="@dimen/spacing_normal" />
 
                     <TextView
+                        android:id="@+id/tvQ4Year"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2025"
