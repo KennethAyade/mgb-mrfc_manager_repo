@@ -153,10 +153,14 @@ class VoiceRecordingFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh recordings when returning to this fragment
-        if (agendaId > 0) {
-            viewModel.loadVoiceRecordings(agendaId)
-        }
+        // ✅ FIX: Don't auto-reload on resume - prevents observer leak and HTTP 429 errors
+        // Recordings are already loaded in onViewCreated()
+        // User can manually refresh with swipe-to-refresh if needed
+
+        // REMOVED to fix observer leak:
+        // if (agendaId > 0) {
+        //     viewModel.loadVoiceRecordings(agendaId)
+        // }
     }
 
     override fun onDestroyView() {

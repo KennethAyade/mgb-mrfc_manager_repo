@@ -128,9 +128,11 @@ class OtherMattersFragment : Fragment() {
                 val response = apiService.getOtherMatters(agendaId)
                 if (response.isSuccessful && response.body()?.success == true) {
                     val items = response.body()?.data ?: emptyList()
-                    // Filter to show only APPROVED other matters
-                    val approvedItems = items.filter { it.status == "APPROVED" }
-                    updateList(approvedItems)
+                    // ✅ FIX: Trust backend filtering - don't filter again!
+                    // Backend already returns:
+                    // - For USER: APPROVED items + user's own PROPOSED items
+                    // - For ADMIN: ALL items (PROPOSED, APPROVED, DENIED)
+                    updateList(items)
                 } else {
                     showError("Failed to load other matters")
                 }
