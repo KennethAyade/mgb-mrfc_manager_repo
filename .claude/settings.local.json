@@ -10,7 +10,15 @@
       "Bash(mkdir:*)",
       "Bash(cat:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(powershell -Command \"Set-Content -Path ''C:\\Users\\Kenneth Ayade\\.claude\\plans\\playful-sauteeing-cerf.md'' -Value @''\n# Other Matters & Voice Recording Bug Fixes Plan\n\n## Executive Summary\n\n**Previous Session:** Fixed production 500 errors, migration scripts, USER role UI permissions (commit 594c07e)\n\n**Current Issues:**  \n1. Other Matters don''t appear - incorrect Android filtering (Line 132, OtherMattersFragment.kt)\n2. Voice Recording HTTP 429 - observer leak (Lines 94-98, VoiceRecordingFragment.kt)\n3. Agenda tab should show approved Other Matters section\n\n**Finding:** All bugs are Android-side. Backend is correct.\n\n## Issue 1 & 2: Other Matters Not Appearing\n\n**Root Cause:** OtherMattersFragment.kt Line 132 filters out user PROPOSED items\n\nThe backend correctly returns: APPROVED items + user''s own PROPOSED items\nBut Android filters to ONLY APPROVED, throwing away user''s items!\n\n**Fix:** Remove line 132 filter - trust backend filtering\n\n## Issue 3: Voice Recording HTTP 429\n\n**Root Cause:** Observer leak in VoiceRecordingFragment.kt\n\n- onResume() calls loadVoiceRecordings() every time\n- Observers accumulate on each tab switch\n- Multiple observers trigger simultaneous API calls\n- Hits rate limiter (100 req/15min)\n\n**Fix:** Remove onResume() reload (lines 94-98)\n\n## Files to Modify\n\n1. OtherMattersFragment.kt (line 132) - CRITICAL\n2. VoiceRecordingFragment.kt (lines 94-98) - CRITICAL  \n3. AgendaFragment.kt + fragment_agenda.xml - Add Other Matters section\n4. VoiceRecordingViewModel.kt (lines 113, 146) - Delay reloads\n5. backend/.env - Increase rate limit (optional)\n\nSee full implementation details in exploration results.\n''@\")",
+      "Bash(git log:*)",
+      "Bash(git -C \"d:\\FREELANCE\\MGB\" log --oneline -20)",
+      "Bash(git -C \"d:\\FREELANCE\\MGB\" diff HEAD~5..HEAD -- backend/package.json app/build.gradle.kts)",
+      "Bash(git -C \"d:\\FREELANCE\\MGB\" status --short)",
+      "Bash(git -C \"d:\\FREELANCE\\MGB\" diff backend/package.json app/build.gradle.kts)"
     ],
     "deny": [],
     "ask": []

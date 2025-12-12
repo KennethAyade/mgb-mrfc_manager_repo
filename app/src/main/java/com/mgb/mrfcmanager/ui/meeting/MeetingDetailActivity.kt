@@ -156,6 +156,12 @@ class MeetingDetailActivity : BaseActivity() {
         pagerAdapter = MeetingDetailPagerAdapter(this, agendaId, mrfcId, tabCount)
         viewPager.adapter = pagerAdapter
 
+        // IMPORTANT: Keep all meeting tabs in memory.
+        // Rationale: Voice recording is currently managed in VoiceRecordingFragment via MediaRecorder.
+        // If ViewPager2 destroys/recreates fragments while switching tabs, the recording can be interrupted.
+        // Keeping all tabs alive prevents fragment teardown during in-meeting navigation.
+        viewPager.offscreenPageLimit = tabCount
+
         // Connect tabs with ViewPager
         TabLayoutMediator(tabLayout, viewPager) { tab, position ->
             tab.text = when (position) {

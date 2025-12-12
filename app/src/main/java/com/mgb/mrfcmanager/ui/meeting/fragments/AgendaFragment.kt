@@ -38,6 +38,15 @@ class AgendaFragment : Fragment() {
     private lateinit var fabAddItem: FloatingActionButton
     private lateinit var progressBar: ProgressBar
 
+    // Other Matters section (shown at bottom of Agenda tab)
+    private lateinit var tvOtherMattersHeader: TextView
+    private lateinit var rvOtherMattersInAgenda: RecyclerView
+    private lateinit var tvOtherMattersEmptyState: TextView
+    private lateinit var otherMattersAdapter: OtherMattersInAgendaAdapter
+    private val otherMattersApproved = mutableListOf<AgendaItemDto>()
+
+    private lateinit var apiService: AgendaItemApiService
+
     private lateinit var viewModel: AgendaItemViewModel
     private lateinit var agendaItemAdapter: AgendaItemAdapter
 
@@ -93,10 +102,13 @@ class AgendaFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         initializeViews(view)
+        setupApiService()
         setupViewModel()
         setupRecyclerView()
+        setupOtherMattersSection()
         observeViewModel()
         loadAgendaItems()
+        loadOtherMattersForAgendaSection()
         loadMRFCsAndProponentsData() // Load MRFC and Proponent names for detail dialog
 
         fabAddItem.setOnClickListener {
@@ -109,6 +121,7 @@ class AgendaFragment : Fragment() {
         // Reload data when fragment becomes visible
         // This ensures data is fresh when switching tabs
         loadAgendaItems()
+        loadOtherMattersForAgendaSection()
     }
 
     private fun initializeViews(view: View) {
@@ -116,6 +129,15 @@ class AgendaFragment : Fragment() {
         tvEmptyState = view.findViewById(R.id.tvEmptyState)
         fabAddItem = view.findViewById(R.id.fabAddItem)
         progressBar = view.findViewById(R.id.progressBar)
+
+        // Other Matters section views
+        tvOtherMattersHeader = view.findViewById(R.id.tvOtherMattersHeader)
+        rvOtherMattersInAgenda = view.findViewById(R.id.rvOtherMattersInAgenda)
+        tvOtherMattersEmptyState = view.findViewById(R.id.tvOtherMattersEmptyState)
+
+        // Prevent nested RecyclerView scroll conflicts (layout uses NestedScrollView)
+        rvAgendaItems.isNestedScrollingEnabled = false
+        rvOtherMattersInAgenda.isNestedScrollingEnabled = false
 
         // Hide FAB for USER role - only admins can add agenda items directly
         // Regular users should use "Other Matters" tab to create proposals
@@ -128,10 +150,13 @@ class AgendaFragment : Fragment() {
         }
     }
 
-    private fun setupViewModel() {
+    private fun setupApiService() {
         val tokenManager = MRFCManagerApp.getTokenManager()
         val retrofit = RetrofitClient.getInstance(tokenManager)
-        val apiService = retrofit.create(AgendaItemApiService::class.java)
+        apiService = retrofit.create(AgendaItemApiService::class.java)
+    }
+
+    private fun setupViewModel() {
         val repository = AgendaItemRepository(apiService)
         val factory = AgendaItemViewModelFactory(repository)
         viewModel = ViewModelProvider(this, factory)[AgendaItemViewModel::class.java]
@@ -143,6 +168,16 @@ class AgendaFragment : Fragment() {
         }
         rvAgendaItems.layoutManager = LinearLayoutManager(requireContext())
         rvAgendaItems.adapter = agendaItemAdapter
+    }
+
+    private fun setupOtherMattersSection() {
+        otherMattersAdapter = OtherMattersInAgendaAdapter(otherMattersApproved)
+        rvOtherMattersInAgenda.layoutManager = LinearLayoutManager(requireContext())
+        rvOtherMattersInAgenda.adapter = otherMattersAdapter
+
+        // Default state
+        tvOtherMattersHeader.visibility = View.VISIBLE
+        tvOtherMattersEmptyState.visibility = View.GONE
     }
 
     private fun observeViewModel() {
@@ -168,6 +203,36 @@ class AgendaFragment : Fragment() {
 
     private fun loadAgendaItems() {
         viewModel.loadItemsByAgenda(agendaId)
+    }
+
+    private fun loadOtherMattersForAgendaSection() {
+        lifecycleScope.launch {
+            try {
+                val response = apiService.getOtherMatters(agendaId)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val items = response.body()?.data ?: emptyList()
+                    // Agenda tab should only show visible (approved) other matters.
+                    val approved = items.filter { it.status == "APPROVED" }
+                    updateOtherMattersSection(approved)
+                } else {
+                    updateOtherMattersSection(emptyList())
+                }
+            } catch (_: Exception) {
+                updateOtherMattersSection(emptyList())
+            }
+        }
+    }
+
+    private fun updateOtherMattersSection(items: List<AgendaItemDto>) {
+        otherMattersApproved.clear()
+        otherMattersApproved.addAll(items)
+        otherMattersAdapter.notifyDataSetChanged()
+
+        if (otherMattersApproved.isEmpty()) {
+            tvOtherMattersEmptyState.visibility = View.VISIBLE
+        } else {
+            tvOtherMattersEmptyState.visibility = View.GONE
+        }
     }
 
     private fun loadMRFCsAndProponentsData() {
@@ -754,6 +819,47 @@ class AgendaFragment : Fragment() {
 
     private fun showError(message: String) {
         Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+    }
+}
+
+/**
+ * Read-only adapter for the Agenda tab's "Other Matters" section.
+ * Shows only approved other matters items (no approval controls here).
+ */
+class OtherMattersInAgendaAdapter(
+    private val items: List<AgendaItemDto>
+) : RecyclerView.Adapter<OtherMattersInAgendaAdapter.ViewHolder>() {
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_other_matter_in_agenda, parent, false)
+        return ViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        holder.bind(items[position], position + 1)
+    }
+
+    override fun getItemCount() = items.size
+
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvItemNumber: TextView = itemView.findViewById(R.id.tvItemNumber)
+        private val tvItemTitle: TextView = itemView.findViewById(R.id.tvItemTitle)
+        private val tvItemDescription: TextView = itemView.findViewById(R.id.tvItemDescription)
+        private val tvDiscussedBadge: TextView = itemView.findViewById(R.id.tvDiscussedBadge)
+
+        fun bind(item: AgendaItemDto, number: Int) {
+            tvItemNumber.text = number.toString()
+            tvItemTitle.text = item.title
+            tvItemDescription.text = item.description ?: "No description"
+            tvItemDescription.visibility = if (item.description.isNullOrEmpty()) View.GONE else View.VISIBLE
+
+            if (item.isHighlighted) {
+                tvDiscussedBadge.visibility = View.VISIBLE
+            } else {
+                tvDiscussedBadge.visibility = View.GONE
+            }
+        }
     }
 }
 

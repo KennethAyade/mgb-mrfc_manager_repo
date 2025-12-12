@@ -238,16 +238,66 @@ class OtherMattersFragment : Fragment() {
         }
         dialogView.findViewById<TextView>(R.id.tvAddedBy).text = "Added by: ${item.addedByName}"
 
-        // Highlight indicator
+        // Status badges
+        val tvApprovalStatus = dialogView.findViewById<TextView>(R.id.tvApprovalStatus)
         val tvHighlightStatus = dialogView.findViewById<TextView>(R.id.tvHighlightStatus)
+        val layoutDenialRemarks = dialogView.findViewById<View>(R.id.layoutDenialRemarks)
+        val tvDenialRemarks = dialogView.findViewById<TextView>(R.id.tvDenialRemarks)
+
+        // Approval status badge
+        when (item.status) {
+            "PROPOSED" -> {
+                tvApprovalStatus.visibility = View.VISIBLE
+                tvApprovalStatus.text = "Pending approval"
+                tvApprovalStatus.setBackgroundResource(R.drawable.bg_rounded_orange)
+                layoutDenialRemarks.visibility = View.GONE
+            }
+            "DENIED" -> {
+                tvApprovalStatus.visibility = View.VISIBLE
+                tvApprovalStatus.text = "Denied"
+                tvApprovalStatus.setBackgroundResource(R.drawable.bg_rounded_red)
+                if (!item.denialRemarks.isNullOrBlank()) {
+                    layoutDenialRemarks.visibility = View.VISIBLE
+                    tvDenialRemarks.text = item.denialRemarks
+                } else {
+                    layoutDenialRemarks.visibility = View.GONE
+                }
+            }
+            "APPROVED" -> {
+                tvApprovalStatus.visibility = View.GONE
+                layoutDenialRemarks.visibility = View.GONE
+            }
+            else -> {
+                tvApprovalStatus.visibility = View.GONE
+                layoutDenialRemarks.visibility = View.GONE
+            }
+        }
+
+        // Highlight badge
         if (item.isHighlighted) {
+            tvHighlightStatus.visibility = View.VISIBLE
             tvHighlightStatus.text = "Discussed"
             tvHighlightStatus.setBackgroundResource(R.drawable.bg_rounded_green)
-            tvHighlightStatus.setTextColor(requireContext().getColor(android.R.color.white))
         } else {
-            tvHighlightStatus.text = "Pending Discussion"
-            tvHighlightStatus.setBackgroundResource(R.drawable.bg_rounded_orange)
-            tvHighlightStatus.setTextColor(requireContext().getColor(android.R.color.white))
+            tvHighlightStatus.visibility = View.GONE
+        }
+
+        // Admin approval actions (approve/deny for PROPOSED items)
+        val layoutApprovalActions = dialogView.findViewById<View>(R.id.layoutApprovalActions)
+        val btnApprove = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnApprove)
+        val btnDeny = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnDeny)
+        if (isAdmin && item.status == "PROPOSED") {
+            layoutApprovalActions.visibility = View.VISIBLE
+            btnApprove.setOnClickListener {
+                dialog.dismiss()
+                showApproveDialog(item)
+            }
+            btnDeny.setOnClickListener {
+                dialog.dismiss()
+                showDenyDialog(item)
+            }
+        } else {
+            layoutApprovalActions.visibility = View.GONE
         }
 
         // Admin highlight toggle button
@@ -297,6 +347,83 @@ class OtherMattersFragment : Fragment() {
 
     private fun showError(message: String) {
         Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun showApproveDialog(item: AgendaItemDto) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Approve Other Matter")
+            .setMessage("Approve \"${item.title}\"?\n\nProposed by: ${item.addedByName}\n\nThis item will be added to the Other Matters agenda.")
+            .setPositiveButton("Approve") { _, _ ->
+                approveItem(item.id)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showDenyDialog(item: AgendaItemDto) {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_deny_proposal, null)
+        val etRemarks = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etDenialRemarks)
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .create()
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnCancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnDeny).setOnClickListener {
+            val remarks = etRemarks.text.toString().trim()
+            
+            if (remarks.isEmpty()) {
+                etRemarks.error = "Please provide a reason for denial"
+                return@setOnClickListener
+            }
+
+            denyItem(item.id, remarks)
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun approveItem(itemId: Long) {
+        showLoading(true)
+        lifecycleScope.launch {
+            try {
+                val response = apiService.approveItem(itemId)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    Toast.makeText(requireContext(), "Other matter approved!", Toast.LENGTH_SHORT).show()
+                    loadOtherMatters()
+                } else {
+                    showError("Failed to approve item")
+                }
+            } catch (e: Exception) {
+                showError("Error: ${e.message}")
+            } finally {
+                showLoading(false)
+            }
+        }
+    }
+
+    private fun denyItem(itemId: Long, remarks: String) {
+        showLoading(true)
+        lifecycleScope.launch {
+            try {
+                val request = com.mgb.mrfcmanager.data.remote.dto.DenyProposalRequest(denialRemarks = remarks)
+                val response = apiService.denyItem(itemId, request)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    Toast.makeText(requireContext(), "Proposal denied", Toast.LENGTH_SHORT).show()
+                    loadOtherMatters()
+                } else {
+                    showError("Failed to deny item")
+                }
+            } catch (e: Exception) {
+                showError("Error: ${e.message}")
+            } finally {
+                showLoading(false)
+            }
+        }
     }
 }
 

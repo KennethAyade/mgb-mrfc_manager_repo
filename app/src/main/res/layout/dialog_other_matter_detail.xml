@@ -14,7 +14,7 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Header with Title and Status -->
+        <!-- Header with Title + status badges -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -32,17 +32,68 @@
                 android:textStyle="bold"
                 android:textColor="@color/text_primary" />
 
-            <!-- Highlight Status Badge -->
-            <TextView
-                android:id="@+id/tvHighlightStatus"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Discussed"
-                android:textSize="12sp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <!-- Approval Status Badge -->
+                <TextView
+                    android:id="@+id/tvApprovalStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Pending"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/white"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="4dp"
+                    android:background="@drawable/bg_rounded_orange"
+                    android:layout_marginEnd="8dp" />
+
+                <!-- Highlight Status Badge -->
+                <TextView
+                    android:id="@+id/tvHighlightStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Discussed"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/white"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="4dp"
+                    android:background="@drawable/bg_rounded_green" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Denial remarks (visible for denied items) -->
+        <LinearLayout
+            android:id="@+id/layoutDenialRemarks"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Denial remarks"
                 android:textStyle="bold"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="4dp"
-                android:background="@drawable/bg_rounded_green" />
+                android:textColor="@color/text_primary"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/tvDenialRemarks"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Reason..."
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:layout_marginTop="4dp" />
 
         </LinearLayout>
 
@@ -67,6 +118,39 @@
             android:layout_marginBottom="16dp" />
 
         <!-- Admin Actions -->
+        <LinearLayout
+            android:id="@+id/layoutApprovalActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            android:layout_marginBottom="8dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnApprove"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Approve"
+                android:textColor="@android:color/white"
+                android:layout_marginEnd="8dp"
+                app:backgroundTint="@color/status_success"
+                app:icon="@drawable/ic_check"
+                app:iconTint="@android:color/white" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDeny"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Deny"
+                android:textColor="@android:color/white"
+                app:backgroundTint="@color/status_error" />
+
+        </LinearLayout>
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnToggleHighlight"
             android:layout_width="match_parent"

@@ -7,32 +7,68 @@
     android:background="@color/background">
 
     <!-- Main Content -->
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:fillViewport="true">
 
-        <!-- Agenda Items List -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvAgendaItems"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="16dp"
-            android:clipToPadding="false" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <!-- Empty State -->
-        <TextView
-            android:id="@+id/tvEmptyState"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:text="No agenda items yet.\nTap + to add an item."
-            android:textSize="14sp"
-            android:textColor="@color/text_secondary"
-            android:gravity="center"
-            android:padding="32dp"
-            android:visibility="gone" />
+            <!-- Agenda Items List -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvAgendaItems"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false" />
 
-    </LinearLayout>
+            <!-- Empty State (Agenda items) -->
+            <TextView
+                android:id="@+id/tvEmptyState"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No agenda items yet.\nTap + to add an item."
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:gravity="center"
+                android:padding="32dp"
+                android:visibility="gone" />
+
+            <!-- Other Matters Section (separate from agenda items) -->
+            <TextView
+                android:id="@+id/tvOtherMattersHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Other Matters"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:textColor="@color/text_primary"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="12dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvOtherMattersInAgenda"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false" />
+
+            <TextView
+                android:id="@+id/tvOtherMattersEmptyState"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No other matters yet."
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:gravity="center"
+                android:padding="16dp"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
 
     <!-- FAB for Adding Agenda Item -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
