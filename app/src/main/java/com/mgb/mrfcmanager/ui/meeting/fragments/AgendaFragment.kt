@@ -116,6 +116,16 @@ class AgendaFragment : Fragment() {
         tvEmptyState = view.findViewById(R.id.tvEmptyState)
         fabAddItem = view.findViewById(R.id.fabAddItem)
         progressBar = view.findViewById(R.id.progressBar)
+
+        // Hide FAB for USER role - only admins can add agenda items directly
+        // Regular users should use "Other Matters" tab to create proposals
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        val isAdmin = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
+
+        if (!isAdmin) {
+            fabAddItem.visibility = android.view.View.GONE
+        }
     }
 
     private fun setupViewModel() {

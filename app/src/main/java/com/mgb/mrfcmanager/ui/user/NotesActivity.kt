@@ -171,14 +171,15 @@ class NotesActivity : AppCompatActivity() {
 
     private fun loadNotes() {
         // Load notes from backend
-        // Notes can be loaded by agenda (for meeting-specific notes) or by MRFC
+        // Notes can be loaded by agenda (for meeting-specific notes), by MRFC, or all user notes
         if (agendaId != null && agendaId != 0L) {
             viewModel.loadNotesByAgenda(agendaId!!)
         } else if (mrfcId != 0L) {
             viewModel.loadNotesByMrfc(mrfcId)
         } else {
-            showError("Please select a meeting or MRFC to view notes")
-            return
+            // Load all user notes (no MRFC/Agenda filter)
+            // This allows users to create personal notes without selecting an MRFC
+            viewModel.loadNotes()
         }
     }
 

@@ -11,6 +11,7 @@
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "db:migrate": "node scripts/migrate.js",
+    "db:verify": "node scripts/verify-schema.js",
     "db:seed": "node scripts/seed-quarters.js",
     "db:seed:quarters": "node scripts/seed-quarters.js",
     "db:reset": "ts-node scripts/reset-database.ts",

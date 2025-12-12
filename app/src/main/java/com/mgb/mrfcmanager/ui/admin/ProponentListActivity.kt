@@ -150,10 +150,22 @@ class ProponentListActivity : BaseActivity() {
     }
 
     private fun setupFAB() {
-        findViewById<FloatingActionButton>(R.id.fabAddProponent).setOnClickListener {
-            val intent = Intent(this, ProponentFormActivity::class.java)
-            intent.putExtra("MRFC_ID", mrfcId)
-            startActivityForResult(intent, ProponentFormActivity.REQUEST_CODE_CREATE)
+        val fabAddProponent = findViewById<FloatingActionButton>(R.id.fabAddProponent)
+
+        // Hide FAB for USER role - only admins can add proponents
+        val tokenManager = MRFCManagerApp.getTokenManager()
+        val userRole = tokenManager.getUserRole()
+        val isAdmin = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
+
+        if (isAdmin) {
+            fabAddProponent.visibility = android.view.View.VISIBLE
+            fabAddProponent.setOnClickListener {
+                val intent = Intent(this, ProponentFormActivity::class.java)
+                intent.putExtra("MRFC_ID", mrfcId)
+                startActivityForResult(intent, ProponentFormActivity.REQUEST_CODE_CREATE)
+            }
+        } else {
+            fabAddProponent.visibility = android.view.View.GONE
         }
     }
 
