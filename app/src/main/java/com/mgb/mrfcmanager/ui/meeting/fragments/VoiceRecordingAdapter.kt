@@ -112,7 +112,7 @@ class VoiceRecordingAdapter(
             val tokenManager = MRFCManagerApp.getTokenManager()
             val token = tokenManager.getAccessToken()
             if (token == null) {
-                Toast.makeText(context, "Authentication required", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Authentication required. Please log in again.", Toast.LENGTH_LONG).show()
                 return
             }
 
@@ -123,7 +123,18 @@ class VoiceRecordingAdapter(
 
             Log.d("VoiceRecordingAdapter", "Streaming from backend: $streamingUrl")
 
+            // Show loading indication
+            Toast.makeText(context, "Loading recording...", Toast.LENGTH_SHORT).show()
+
             mediaPlayer = MediaPlayer().apply {
+                // Set audio attributes for better compatibility
+                setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .build()
+                )
+
                 setDataSource(streamingUrl)
                 prepareAsync()
                 setOnPreparedListener {
@@ -139,15 +150,29 @@ class VoiceRecordingAdapter(
                 }
                 setOnErrorListener { _, what, extra ->
                     Log.e("VoiceRecordingAdapter", "MediaPlayer error: what=$what, extra=$extra")
-                    val errorMessage = when (what) {
-                        MediaPlayer.MEDIA_ERROR_UNKNOWN -> "Unknown error"
-                        MediaPlayer.MEDIA_ERROR_SERVER_DIED -> "Server died"
-                        else -> "Error code: $what"
+                    val errorMessage = when {
+                        what == MediaPlayer.MEDIA_ERROR_UNKNOWN && extra == -2147483648 ->
+                            "Network error - check your connection"
+                        what == MediaPlayer.MEDIA_ERROR_UNKNOWN && extra == -1004 ->
+                            "File not found on server"
+                        what == MediaPlayer.MEDIA_ERROR_UNKNOWN ->
+                            "Unable to load audio. Try again later."
+                        what == MediaPlayer.MEDIA_ERROR_SERVER_DIED ->
+                            "Server error. Please try again."
+                        what == MediaPlayer.MEDIA_ERROR_IO ->
+                            "Network error - check your connection"
+                        what == MediaPlayer.MEDIA_ERROR_MALFORMED ->
+                            "Audio format not supported"
+                        what == MediaPlayer.MEDIA_ERROR_UNSUPPORTED ->
+                            "Audio format not supported"
+                        what == MediaPlayer.MEDIA_ERROR_TIMED_OUT ->
+                            "Request timed out. Check your connection."
+                        else -> "Playback error (code: $what)"
                     }
                     Toast.makeText(
                         context,
-                        "Failed to play recording: $errorMessage",
-                        Toast.LENGTH_SHORT
+                        "Failed to play: $errorMessage",
+                        Toast.LENGTH_LONG
                     ).show()
                     stopPlayback()
                     true
@@ -155,11 +180,14 @@ class VoiceRecordingAdapter(
             }
         } catch (e: Exception) {
             Log.e("VoiceRecordingAdapter", "Exception playing recording", e)
-            Toast.makeText(
-                context,
-                "Failed to play recording: ${e.message}",
-                Toast.LENGTH_SHORT
-            ).show()
+            val message = when {
+                e.message?.contains("network", ignoreCase = true) == true ->
+                    "Network error - check your connection"
+                e.message?.contains("timeout", ignoreCase = true) == true ->
+                    "Request timed out"
+                else -> "Failed to play recording"
+            }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
             stopPlayback()
         }
     }

@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 import com.mgb.mrfcmanager.MRFCManagerApp
@@ -37,6 +38,7 @@ class AgendaFragment : Fragment() {
     private lateinit var tvEmptyState: TextView
     private lateinit var fabAddItem: FloatingActionButton
     private lateinit var progressBar: ProgressBar
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
 
     // Other Matters section (shown at bottom of Agenda tab)
     private lateinit var tvOtherMattersHeader: TextView
@@ -118,10 +120,9 @@ class AgendaFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Reload data when fragment becomes visible
-        // This ensures data is fresh when switching tabs
-        loadAgendaItems()
-        loadOtherMattersForAgendaSection()
+        // FIX: Don't auto-reload on every resume - this causes HTTP 429 errors
+        // Data is already loaded in onViewCreated()
+        // Users can manually refresh if needed, or data updates when they take actions
     }
 
     private fun initializeViews(view: View) {
@@ -129,6 +130,7 @@ class AgendaFragment : Fragment() {
         tvEmptyState = view.findViewById(R.id.tvEmptyState)
         fabAddItem = view.findViewById(R.id.fabAddItem)
         progressBar = view.findViewById(R.id.progressBar)
+        swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout)
 
         // Other Matters section views
         tvOtherMattersHeader = view.findViewById(R.id.tvOtherMattersHeader)
@@ -138,6 +140,14 @@ class AgendaFragment : Fragment() {
         // Prevent nested RecyclerView scroll conflicts (layout uses NestedScrollView)
         rvAgendaItems.isNestedScrollingEnabled = false
         rvOtherMattersInAgenda.isNestedScrollingEnabled = false
+
+        // Setup SwipeRefresh for manual refresh (allows users to sync agenda highlights)
+        swipeRefreshLayout.setColorSchemeResources(R.color.primary)
+        swipeRefreshLayout.setOnRefreshListener {
+            // Refresh both agenda items and other matters
+            loadAgendaItems()
+            loadOtherMattersForAgendaSection()
+        }
 
         // Hide FAB for USER role - only admins can add agenda items directly
         // Regular users should use "Other Matters" tab to create proposals
@@ -815,6 +825,10 @@ class AgendaFragment : Fragment() {
 
     private fun showLoading(isLoading: Boolean) {
         progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        // Also stop swipe refresh animation when loading is done
+        if (!isLoading && ::swipeRefreshLayout.isInitialized) {
+            swipeRefreshLayout.isRefreshing = false
+        }
     }
 
     private fun showError(message: String) {

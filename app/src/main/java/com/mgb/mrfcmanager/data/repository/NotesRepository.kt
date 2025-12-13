@@ -77,13 +77,29 @@ class NotesRepository(private val apiService: NotesApiService) {
                     if (body?.success == true && body.data != null) {
                         Result.Success(body.data)
                     } else {
-                        Result.Error(body?.error?.message ?: "Failed to create note")
+                        Result.Error(body?.error?.message ?: "Failed to save note")
                     }
                 } else {
-                    Result.Error("HTTP ${response.code()}: ${response.message()}")
+                    // Better error messages based on HTTP status
+                    val errorMessage = when (response.code()) {
+                        401 -> "Session expired. Please log in again."
+                        429 -> "Too many requests. Please wait and try again."
+                        500, 502, 503, 504 -> "Server error. Please try again later."
+                        else -> "Failed to save note (Error ${response.code()})"
+                    }
+                    Result.Error(errorMessage)
                 }
             } catch (e: Exception) {
-                Result.Error(e.localizedMessage ?: "Network error occurred")
+                // Better error message for network issues
+                val message = when {
+                    e.message?.contains("timeout", ignoreCase = true) == true ->
+                        "Request timed out. Check your connection and try again."
+                    e.message?.contains("network", ignoreCase = true) == true ||
+                    e.message?.contains("connect", ignoreCase = true) == true ->
+                        "No internet connection. Please check your network."
+                    else -> "Failed to save note. Please try again."
+                }
+                Result.Error(message)
             }
         }
     }

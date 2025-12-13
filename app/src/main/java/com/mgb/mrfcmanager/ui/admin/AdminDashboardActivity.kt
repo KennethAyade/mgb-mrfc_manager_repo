@@ -54,8 +54,9 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
 
     override fun onResume() {
         super.onResume()
-        // Refresh dashboard statistics when returning from other activities
-        loadDashboardStatistics()
+        // FIX: Don't auto-reload on every resume - this causes HTTP 429 errors
+        // Statistics are already loaded in onCreate()
+        // Only refresh if explicitly requested by user or after significant actions
     }
 
     /**
@@ -116,11 +117,14 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
                         findViewById<TextView>(R.id.tvTotalMrfcs).text = totalMrfcs.toString()
                         Log.d("Dashboard", "Total MRFCs: $totalMrfcs")
                     } else {
-                        findViewById<TextView>(R.id.tvTotalMrfcs).text = "0"
+                        // FIX: Show dash instead of 0 on error to avoid confusion
+                        Log.w("Dashboard", "MRFC API returned error: ${response.code()}")
+                        findViewById<TextView>(R.id.tvTotalMrfcs).text = "-"
                     }
                 } catch (e: Exception) {
+                    // FIX: Show dash instead of 0 on network error
                     Log.e("Dashboard", "Error loading MRFC count", e)
-                    findViewById<TextView>(R.id.tvTotalMrfcs).text = "0"
+                    findViewById<TextView>(R.id.tvTotalMrfcs).text = "-"
                 }
             }
 
@@ -134,11 +138,14 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
                         findViewById<TextView>(R.id.tvTotalUsers).text = totalUsers.toString()
                         Log.d("Dashboard", "Total Users: $totalUsers")
                     } else {
-                        findViewById<TextView>(R.id.tvTotalUsers).text = "0"
+                        // FIX: Show dash instead of 0 on error
+                        Log.w("Dashboard", "Users API returned error: ${response.code()}")
+                        findViewById<TextView>(R.id.tvTotalUsers).text = "-"
                     }
                 } catch (e: Exception) {
+                    // FIX: Show dash instead of 0 on network error
                     Log.e("Dashboard", "Error loading user count", e)
-                    findViewById<TextView>(R.id.tvTotalUsers).text = "0"
+                    findViewById<TextView>(R.id.tvTotalUsers).text = "-"
                 }
             }
 
@@ -162,8 +169,9 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
                     findViewById<TextView>(R.id.tvUpcomingMeetings).text = pendingMeetings.toString()
                     Log.d("Dashboard", "Pending Meetings: $pendingMeetings (Draft: $draftCount, Published: $publishedCount)")
                 } catch (e: Exception) {
+                    // FIX: Show dash instead of 0 on network error
                     Log.e("Dashboard", "Error loading meeting count", e)
-                    findViewById<TextView>(R.id.tvUpcomingMeetings).text = "0"
+                    findViewById<TextView>(R.id.tvUpcomingMeetings).text = "-"
                 }
             }
 

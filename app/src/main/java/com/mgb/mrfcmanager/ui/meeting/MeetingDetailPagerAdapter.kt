@@ -7,28 +7,28 @@ import com.mgb.mrfcmanager.ui.meeting.fragments.AgendaFragment
 import com.mgb.mrfcmanager.ui.meeting.fragments.AttendanceFragment
 import com.mgb.mrfcmanager.ui.meeting.fragments.MinutesFragment
 import com.mgb.mrfcmanager.ui.meeting.fragments.OtherMattersFragment
-import com.mgb.mrfcmanager.ui.meeting.fragments.ProposalsFragment
 import com.mgb.mrfcmanager.ui.meeting.fragments.VoiceRecordingFragment
 
 /**
  * ViewPager adapter for Meeting Detail tabs
  * Manages fragments based on user role:
- * - Regular users: Attendance, Agenda, Other Matters, Minutes, Proposals (5 tabs)
- * - Admin users: Same + Recordings (6 tabs)
+ * - Regular users: Attendance, Agenda, Other Matters, Minutes (4 tabs)
+ * - Admin users: Same + Recordings (5 tabs)
  *
  * Tab order:
  * 0: Attendance - Log attendance with photo
  * 1: Agenda - View approved agenda items
  * 2: Other Matters - Items added after main agenda finalized
  * 3: Minutes - Meeting minutes/notes
- * 4: Proposals - Propose/approve agenda items
- * 5: Recordings - Voice recordings (Admin only)
+ * 4: Recordings - Voice recordings (Admin only)
+ *
+ * NOTE: Proposals tab has been removed per requirements
  */
 class MeetingDetailPagerAdapter(
     activity: FragmentActivity,
     private val agendaId: Long,
     private val mrfcId: Long,
-    private val tabCount: Int = 6  // Default 6 for admin (5 for regular users)
+    private val tabCount: Int = 5  // Default 5 for admin (4 for regular users)
 ) : FragmentStateAdapter(activity) {
 
     override fun getItemCount(): Int = tabCount
@@ -39,8 +39,7 @@ class MeetingDetailPagerAdapter(
             1 -> AgendaFragment.newInstance(agendaId, mrfcId)
             2 -> OtherMattersFragment.newInstance(agendaId, mrfcId)
             3 -> MinutesFragment.newInstance(agendaId, mrfcId)
-            4 -> ProposalsFragment.newInstance(agendaId)
-            5 -> VoiceRecordingFragment.newInstance(agendaId, mrfcId)
+            4 -> VoiceRecordingFragment.newInstance(agendaId, mrfcId) // Admin only
             else -> AttendanceFragment.newInstance(agendaId, mrfcId)
         }
     }

@@ -374,9 +374,23 @@ export const streamVoiceRecording = async (req: Request, res: Response): Promise
       return;
     }
 
+    // Determine MIME type based on file extension
+    const fileName = recording.file_name || 'recording.m4a';
+    const ext = fileName.split('.').pop()?.toLowerCase() || 'm4a';
+    const mimeType = {
+      'm4a': 'audio/mp4',
+      'mp3': 'audio/mpeg',
+      'wav': 'audio/wav',
+      'ogg': 'audio/ogg',
+      'webm': 'audio/webm',
+      'aac': 'audio/aac',
+      '3gp': 'audio/3gpp',
+      'amr': 'audio/amr'
+    }[ext] || 'audio/mp4'; // Default to audio/mp4 for M4A files
+
     // Set response headers before streaming
-    res.setHeader('Content-Type', 'audio/m4a');
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(recording.file_name)}"`);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
     res.setHeader('Accept-Ranges', 'bytes');
     if (recording.file_size) {
       res.setHeader('Content-Length', recording.file_size.toString());

@@ -1,6 +1,7 @@
 package com.mgb.mrfcmanager.data.remote
 
 import com.mgb.mrfcmanager.data.remote.interceptor.AuthInterceptor
+import com.mgb.mrfcmanager.data.remote.interceptor.RetryInterceptor
 import com.mgb.mrfcmanager.utils.TokenManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -43,8 +44,10 @@ object RetrofitClient {
         }
 
         // OkHttp client with interceptors and timeouts
+        // Order matters: Auth first, then retry (so retries include auth), then logging
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor(tokenManager))
+            .addInterceptor(RetryInterceptor()) // Handles 429, 500, 502, 503, 504 with exponential backoff
             .addInterceptor(loggingInterceptor)
             .connectTimeout(ApiConfig.CONNECT_TIMEOUT, TimeUnit.SECONDS)
             .readTimeout(ApiConfig.READ_TIMEOUT, TimeUnit.SECONDS)

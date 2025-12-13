@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 import com.mgb.mrfcmanager.MRFCManagerApp
@@ -34,6 +35,7 @@ class OtherMattersFragment : Fragment() {
     private lateinit var tvEmptyState: TextView
     private lateinit var fabAddItem: FloatingActionButton
     private lateinit var progressBar: ProgressBar
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
 
     private lateinit var apiService: AgendaItemApiService
     private lateinit var adapter: OtherMattersAdapter
@@ -93,8 +95,9 @@ class OtherMattersFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Reload data when fragment becomes visible
-        loadOtherMatters()
+        // FIX: Don't auto-reload on every resume - this causes HTTP 429 errors
+        // Data is already loaded in onViewCreated()
+        // Users can use swipe-to-refresh or navigate back to trigger explicit reload
     }
 
     private fun initializeViews(view: View) {
@@ -102,6 +105,13 @@ class OtherMattersFragment : Fragment() {
         tvEmptyState = view.findViewById(R.id.tvEmptyState)
         fabAddItem = view.findViewById(R.id.fabAddItem)
         progressBar = view.findViewById(R.id.progressBar)
+        swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout)
+
+        // Setup SwipeRefresh for manual refresh (allows users to sync highlight updates)
+        swipeRefreshLayout.setColorSchemeResources(R.color.tab_icon_other_matters)
+        swipeRefreshLayout.setOnRefreshListener {
+            loadOtherMatters()
+        }
     }
 
     private fun setupApiService() {
@@ -343,6 +353,10 @@ class OtherMattersFragment : Fragment() {
 
     private fun showLoading(isLoading: Boolean) {
         progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        // Also stop swipe refresh animation when loading is done
+        if (!isLoading && ::swipeRefreshLayout.isInitialized) {
+            swipeRefreshLayout.isRefreshing = false
+        }
     }
 
     private fun showError(message: String) {

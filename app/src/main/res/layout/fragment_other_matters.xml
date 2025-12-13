@@ -6,6 +6,12 @@
     android:layout_height="match_parent"
     android:background="@color/background">
 
+    <!-- Swipe to Refresh for manual data refresh (highlight sync) -->
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
     <!-- Main Content -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -33,6 +39,8 @@
             android:visibility="gone" />
 
     </LinearLayout>
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- FAB for Adding Other Matter -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton

@@ -87,9 +87,9 @@ class ProposalsFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Reload data when fragment becomes visible
-        // This ensures data is fresh when switching tabs
-        loadProposals()
+        // FIX: Don't auto-reload on every resume - this causes HTTP 429 errors
+        // Data is already loaded in onViewCreated()
+        // Users can manually refresh if needed
     }
 
     private fun initializeViews(view: View) {
