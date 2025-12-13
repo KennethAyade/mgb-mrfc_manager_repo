@@ -6,6 +6,19 @@
     android:layout_height="match_parent"
     android:background="@color/background">
 
+    <!-- Offline Banner -->
+    <TextView
+        android:id="@+id/tvOfflineBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="You are offline. Showing cached data."
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:padding="8dp"
+        android:background="@color/status_warning"
+        android:visibility="gone" />
+
     <!-- Swipe to Refresh for manual data refresh (highlight sync) -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefreshLayout"

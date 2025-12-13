@@ -30,11 +30,13 @@ import com.mgb.mrfcmanager.data.remote.api.NotesApiService
 import com.mgb.mrfcmanager.data.remote.dto.CreateNoteRequest
 import com.mgb.mrfcmanager.data.remote.dto.NotesDto
 import com.mgb.mrfcmanager.data.remote.dto.UpdateNoteRequest
-import com.mgb.mrfcmanager.data.repository.NotesRepository
-import com.mgb.mrfcmanager.utils.TokenManager
+import com.mgb.mrfcmanager.data.repository.OfflineNotesRepository
+import com.mgb.mrfcmanager.data.repository.Result
 import com.mgb.mrfcmanager.viewmodel.NotesListState
 import com.mgb.mrfcmanager.viewmodel.NotesViewModel
 import com.mgb.mrfcmanager.viewmodel.NotesViewModelFactory
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -100,12 +102,31 @@ class NotesActivity : AppCompatActivity() {
     }
 
     private fun setupViewModel() {
-        // Use singleton TokenManager to prevent DataStore conflicts
+        // Use singleton instances for offline-first architecture
         val tokenManager = MRFCManagerApp.getTokenManager()
         val retrofit = RetrofitClient.getInstance(tokenManager)
         val notesApiService = retrofit.create(NotesApiService::class.java)
-        val notesRepository = NotesRepository(notesApiService)
-        val factory = NotesViewModelFactory(notesRepository)
+
+        // Get database and network manager for offline-first repository
+        val database = MRFCManagerApp.getDatabase()
+        val networkManager = MRFCManagerApp.getNetworkManager()
+        val moshi = Moshi.Builder()
+            .addLast(KotlinJsonAdapterFactory())
+            .build()
+
+        // Create offline-first repository
+        val offlineNotesRepository = OfflineNotesRepository(
+            apiService = notesApiService,
+            noteDao = database.noteDao(),
+            pendingSyncDao = database.pendingSyncDao(),
+            networkManager = networkManager,
+            moshi = moshi
+        )
+
+        // Get current user ID from token
+        val userId = tokenManager.getUserId() ?: 0L
+
+        val factory = NotesViewModelFactory(offlineNotesRepository, userId)
         viewModel = ViewModelProvider(this, factory)[NotesViewModel::class.java]
     }
 
@@ -215,16 +236,19 @@ class NotesActivity : AppCompatActivity() {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_note, null)
         val etNoteTitle = dialogView.findViewById<TextInputEditText>(R.id.etNoteTitle)
         val etNoteContent = dialogView.findViewById<TextInputEditText>(R.id.etNoteContent)
+        val btnSave = dialogView.findViewById<MaterialButton>(R.id.btnSave)
+        val btnCancel = dialogView.findViewById<MaterialButton>(R.id.btnCancel)
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
+            .setCancelable(false) // Prevent dismissal while saving
             .create()
 
-        dialogView.findViewById<MaterialButton>(R.id.btnCancel).setOnClickListener {
+        btnCancel.setOnClickListener {
             dialog.dismiss()
         }
 
-        dialogView.findViewById<MaterialButton>(R.id.btnSave).setOnClickListener {
+        btnSave.setOnClickListener {
             val title = etNoteTitle.text.toString().trim()
             val content = etNoteContent.text.toString().trim()
 
@@ -238,8 +262,25 @@ class NotesActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            saveNote(title, content)
-            dialog.dismiss()
+            // Disable buttons while saving
+            btnSave.isEnabled = false
+            btnCancel.isEnabled = false
+            btnSave.text = "Saving..."
+
+            saveNoteWithCallback(title, content) { success, message ->
+                runOnUiThread {
+                    if (success) {
+                        Toast.makeText(this, "Note saved", Toast.LENGTH_SHORT).show()
+                        dialog.dismiss()
+                    } else {
+                        // Re-enable buttons on failure
+                        btnSave.isEnabled = true
+                        btnCancel.isEnabled = true
+                        btnSave.text = "Save"
+                        Toast.makeText(this, message ?: "Failed to save note", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
         }
 
         dialog.show()
@@ -250,6 +291,8 @@ class NotesActivity : AppCompatActivity() {
         val tvDialogTitle = dialogView.findViewById<TextView>(R.id.tvDialogTitle)
         val etNoteTitle = dialogView.findViewById<TextInputEditText>(R.id.etNoteTitle)
         val etNoteContent = dialogView.findViewById<TextInputEditText>(R.id.etNoteContent)
+        val btnSave = dialogView.findViewById<MaterialButton>(R.id.btnSave)
+        val btnCancel = dialogView.findViewById<MaterialButton>(R.id.btnCancel)
 
         tvDialogTitle.text = "Edit Note"
         etNoteTitle.setText(note.title)
@@ -257,13 +300,14 @@ class NotesActivity : AppCompatActivity() {
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
+            .setCancelable(false) // Prevent dismissal while saving
             .create()
 
-        dialogView.findViewById<MaterialButton>(R.id.btnCancel).setOnClickListener {
+        btnCancel.setOnClickListener {
             dialog.dismiss()
         }
 
-        dialogView.findViewById<MaterialButton>(R.id.btnSave).setOnClickListener {
+        btnSave.setOnClickListener {
             val title = etNoteTitle.text.toString().trim()
             val content = etNoteContent.text.toString().trim()
 
@@ -272,8 +316,25 @@ class NotesActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            updateNote(note, title, content)
-            dialog.dismiss()
+            // Disable buttons while saving
+            btnSave.isEnabled = false
+            btnCancel.isEnabled = false
+            btnSave.text = "Saving..."
+
+            updateNoteWithCallback(note, title, content) { success, message ->
+                runOnUiThread {
+                    if (success) {
+                        Toast.makeText(this, "Note updated", Toast.LENGTH_SHORT).show()
+                        dialog.dismiss()
+                    } else {
+                        // Re-enable buttons on failure
+                        btnSave.isEnabled = true
+                        btnCancel.isEnabled = true
+                        btnSave.text = "Save"
+                        Toast.makeText(this, message ?: "Failed to update note", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
         }
 
         dialog.show()
@@ -298,7 +359,11 @@ class NotesActivity : AppCompatActivity() {
         popup.show()
     }
 
-    private fun saveNote(title: String, content: String) {
+    /**
+     * Save note with callback for dialog handling
+     * Uses offline-first approach - saves locally and syncs to server
+     */
+    private fun saveNoteWithCallback(title: String, content: String, callback: (Boolean, String?) -> Unit) {
         val request = CreateNoteRequest(
             mrfcId = mrfcId.takeIf { it > 0 },
             quarterId = null,
@@ -310,21 +375,24 @@ class NotesActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             when (val result = viewModel.createNote(request)) {
-                is com.mgb.mrfcmanager.data.repository.Result.Success -> {
-                    Toast.makeText(this@NotesActivity, "Note saved", Toast.LENGTH_SHORT).show()
-                    loadNotes() // Refresh list
+                is Result.Success -> {
+                    callback(true, null)
                 }
-                is com.mgb.mrfcmanager.data.repository.Result.Error -> {
-                    showError("Failed to save note: ${result.message}")
+                is Result.Error -> {
+                    callback(false, result.message)
                 }
-                is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
-                    // Nothing to do
+                is Result.Loading -> {
+                    // Still loading, wait for completion
                 }
             }
         }
     }
 
-    private fun updateNote(note: NotesDto, title: String, content: String) {
+    /**
+     * Update note with callback for dialog handling
+     * Uses offline-first approach - updates locally and syncs to server
+     */
+    private fun updateNoteWithCallback(note: NotesDto, title: String, content: String, callback: (Boolean, String?) -> Unit) {
         val request = UpdateNoteRequest(
             title = title,
             content = content
@@ -332,15 +400,14 @@ class NotesActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             when (val result = viewModel.updateNote(note.id, request)) {
-                is com.mgb.mrfcmanager.data.repository.Result.Success -> {
-                    Toast.makeText(this@NotesActivity, "Note updated", Toast.LENGTH_SHORT).show()
-                    loadNotes() // Refresh list
+                is Result.Success -> {
+                    callback(true, null)
                 }
-                is com.mgb.mrfcmanager.data.repository.Result.Error -> {
-                    showError("Failed to update note: ${result.message}")
+                is Result.Error -> {
+                    callback(false, result.message)
                 }
-                is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
-                    // Nothing to do
+                is Result.Loading -> {
+                    // Still loading, wait for completion
                 }
             }
         }
@@ -353,14 +420,14 @@ class NotesActivity : AppCompatActivity() {
             .setPositiveButton("Delete") { _, _ ->
                 lifecycleScope.launch {
                     when (val result = viewModel.deleteNote(note.id)) {
-                        is com.mgb.mrfcmanager.data.repository.Result.Success -> {
+                        is Result.Success -> {
                             Toast.makeText(this@NotesActivity, "Note deleted", Toast.LENGTH_SHORT).show()
-                            loadNotes() // Refresh list
+                            // No need to manually reload - Flow will update automatically
                         }
-                        is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                        is Result.Error -> {
                             showError("Failed to delete note: ${result.message}")
                         }
-                        is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
+                        is Result.Loading -> {
                             // Nothing to do
                         }
                     }

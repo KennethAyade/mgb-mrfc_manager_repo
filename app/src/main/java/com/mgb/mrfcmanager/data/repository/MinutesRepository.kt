@@ -145,39 +145,6 @@ class MinutesRepository(private val minutesApiService: MinutesApiService) {
     }
 
     /**
-     * Approve meeting minutes (ADMIN only)
-     */
-    suspend fun approveMinutes(id: Long): Result<MeetingMinutesDto> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = minutesApiService.approveMinutes(id)
-
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body?.success == true && body.data != null) {
-                        Result.Success(body.data)
-                    } else {
-                        Result.Error(
-                            message = body?.error?.message ?: "Failed to approve minutes",
-                            code = body?.error?.code
-                        )
-                    }
-                } else {
-                    Result.Error(
-                        message = "HTTP ${response.code()}: ${response.message()}",
-                        code = response.code().toString()
-                    )
-                }
-            } catch (e: Exception) {
-                Result.Error(
-                    message = e.localizedMessage ?: "Network error",
-                    code = "NETWORK_ERROR"
-                )
-            }
-        }
-    }
-
-    /**
      * Delete meeting minutes
      */
     suspend fun deleteMinutes(id: Long): Result<Unit> {

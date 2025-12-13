@@ -1,8 +1,178 @@
 # MGB MRFC Manager - Project Status & Development Tracker
 
-**Last Updated:** December 12, 2025 (Asia/Manila)
-**Version:** 2.0.36 (PRODUCTION READY)
-**Status:** 🚀 **PRODUCTION LIVE (Railway)** | ✅ **Tablet Number Feature (Full CRUD)** | ✅ **Recording State Persistence** | ✅ **Notes Validation** | ✅ **Offline Auth Fix** | ✅ **Claude AI Analysis (Haiku 4.5)** | ✅ **AWS S3 Storage** | ✅ **Real Compliance Dashboard** | ✅ **Reanalysis Feature** | ✅ **OCR Working** | ✅ **Railway Deployment Fixed** | ✅ **Android UI Polish** | ✅ **Agenda Item Proposal Workflow Complete** | ✅ **Proposals Tab Fully Functional** | ✅ **Enhanced Agenda Features** | ✅ **Tablet Layout Optimized** | ✅ **Meeting Edit/Delete** | ✅ **Tablet-Based Attendance** | ✅ **Critical Bug Fixes v2.0.30** | ✅ **Dynamic Quarter Creation** | ✅ **Notes Feature Complete** | ✅ **Voice Recording Feature** | ✅ **Offline Support (Room DB)** | ✅ **Other Matters Tab** | ✅ **Other Matters Admin Approval (Approve/Deny)** | ✅ **Agenda Tab “Other Matters” Section** | ✅ **Agenda Highlighting** | ✅ **Attendance Type (ONSITE/ONLINE)** | ✅ **WARP.md Added**
+**Last Updated:** December 14, 2025 (Asia/Manila)
+**Version:** 2.0.37 (PRODUCTION READY)
+**Status:** 🚀 **PRODUCTION LIVE (Railway)** | ✅ **Minutes Approval Removed** | ✅ **Notes Offline-First Save** | ✅ **Agenda Highlight Real-Time Sync** | ✅ **Offline Access with Cached Data** | ✅ **Tablet Number Feature (Full CRUD)** | ✅ **Recording State Persistence** | ✅ **Notes Validation** | ✅ **Offline Auth Fix** | ✅ **Claude AI Analysis (Haiku 4.5)** | ✅ **AWS S3 Storage** | ✅ **Real Compliance Dashboard** | ✅ **Reanalysis Feature** | ✅ **OCR Working** | ✅ **Railway Deployment Fixed** | ✅ **Android UI Polish** | ✅ **Agenda Item Proposal Workflow Complete** | ✅ **Proposals Tab Fully Functional** | ✅ **Enhanced Agenda Features** | ✅ **Tablet Layout Optimized** | ✅ **Meeting Edit/Delete** | ✅ **Tablet-Based Attendance** | ✅ **Critical Bug Fixes v2.0.30** | ✅ **Dynamic Quarter Creation** | ✅ **Notes Feature Complete** | ✅ **Voice Recording Feature** | ✅ **Offline Support (Room DB)** | ✅ **Other Matters Tab** | ✅ **Other Matters Admin Approval (Approve/Deny)** | ✅ **Agenda Tab "Other Matters" Section** | ✅ **Agenda Highlighting** | ✅ **Attendance Type (ONSITE/ONLINE)** | ✅ **WARP.md Added**
+
+---
+
+## 🆕 Critical Bug Fixes & Enhancements (December 14, 2025)
+
+### ✅ v2.0.37 - Minutes, Notes, Sync & Offline Improvements
+**Date:** December 14, 2025 | **Build:** Successful
+
+**Description:** Comprehensive fixes addressing 4 critical user-reported issues affecting meeting workflow reliability.
+
+---
+
+### Issue 1: Minutes Approval Workflow Removed
+**Impact:** 🔴 HIGH | **Status:** ✅ RESOLVED
+
+**Problem:** Minutes approval workflow was broken - the backend `PUT /minutes/{id}/approve` endpoint never existed, causing 404 errors when admins tried to approve minutes.
+
+**Solution:** Completely removed approval workflow from all layers. Minutes are now edit-only (no approval state).
+
+**Files Modified:**
+- `MinutesFragment.kt` - Removed `btnApprove` field, click listener, visibility logic, and `approveMinutes()` method
+- `MinutesViewModel.kt` - Removed `approveMinutes()` method
+- `MinutesRepository.kt` - Removed `approveMinutes()` method
+- `MinutesApiService.kt` - Removed `@PUT("minutes/{id}/approve")` endpoint
+- `fragment_minutes.xml` - Removed `btnApprove` button (lines 45-54)
+
+---
+
+### Issue 2: My Notes - Failed to Save (Fixed with Offline-First Architecture)
+**Impact:** 🔴 HIGH | **Status:** ✅ RESOLVED
+
+**Problem:** Notes were failing to save reliably. Users experienced data loss when switching tabs, backgrounding the app, or on network issues.
+
+**Root Causes Identified:**
+1. Using online-only `NotesRepository` instead of offline-first `OfflineNotesRepository`
+2. Dialog dismissed before save completed (race condition)
+3. No local persistence for notes
+
+**Solution:** Rewrote notes system with offline-first architecture:
+- Switched to `OfflineNotesRepository` with Room database backing
+- Notes save locally first, then sync to server
+- Dialog stays open until save completes (shows "Saving..." state)
+- Uses Flow for reactive local data observation
+
+**Files Modified:**
+- `NotesActivity.kt` - Switched to `OfflineNotesRepository`, fixed dialog race condition with callback pattern
+- `NotesViewModel.kt` - Complete rewrite with `SaveState` sealed class, Flow-based local observation
+- `NotesViewModelFactory.kt` - Updated to accept `OfflineNotesRepository` and `userId`
+
+**Key Code Changes:**
+```kotlin
+// NotesViewModel now uses offline-first approach
+class NotesViewModel(
+    private val repository: OfflineNotesRepository,
+    private val userId: Long
+) : ViewModel() {
+    sealed class SaveState {
+        object Idle : SaveState()
+        object Saving : SaveState()
+        data class Success(val message: String) : SaveState()
+        data class Error(val message: String) : SaveState()
+    }
+
+    fun loadNotes(mrfcId: Long?, agendaId: Long?) {
+        // Observe local Room database with Flow
+        viewModelScope.launch {
+            repository.getNotesFlow(userId).collectLatest { notes ->
+                _notesListState.value = NotesListState.Success(notes)
+            }
+        }
+        // Sync from server in background
+        viewModelScope.launch {
+            repository.syncFromServer(userId, mrfcId, agendaId)
+        }
+    }
+}
+```
+
+---
+
+### Issue 3: Agenda Highlight Real-Time Sync
+**Impact:** 🟡 MEDIUM | **Status:** ✅ RESOLVED
+
+**Problem:** When admin highlights an agenda item, users don't see the highlight until they manually refresh or restart the app.
+
+**Solution:** Implemented smart polling mechanism with 30-second intervals:
+- Auto-refreshes agenda data every 30 seconds when fragment is visible
+- Only updates UI when highlight changes detected (prevents flicker)
+- Stops polling when fragment is paused (battery efficient)
+- Minimum 5-second interval between refreshes (prevents API spam)
+- Network check before polling (skips when offline)
+
+**Files Modified:**
+- `AgendaFragment.kt` - Added `Handler/Runnable` polling mechanism, `startPolling()`, `stopPolling()`, `silentRefresh()`
+- `OtherMattersFragment.kt` - Added same polling mechanism for consistency
+
+**Key Implementation:**
+```kotlin
+private val refreshHandler = Handler(Looper.getMainLooper())
+private val refreshRunnable = object : Runnable {
+    override fun run() {
+        silentRefresh()
+        refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS)
+    }
+}
+
+companion object {
+    private const val REFRESH_INTERVAL_MS = 30_000L  // 30 seconds
+    private const val MIN_REFRESH_INTERVAL_MS = 5_000L  // Rate limit
+}
+
+override fun onResume() {
+    super.onResume()
+    startPolling()
+}
+
+override fun onPause() {
+    super.onPause()
+    stopPolling()
+}
+```
+
+---
+
+### Issue 4: Offline Access - App Works Without Internet
+**Impact:** 🔴 HIGH | **Status:** ✅ RESOLVED
+
+**Problem:** App crashed or showed errors when opened without internet. Previously loaded data was not accessible offline.
+
+**Solution:** Added offline indicators and graceful degradation:
+- Added "You are offline. Showing cached data." banner to Agenda and Other Matters tabs
+- Network state checked via `NetworkConnectivityManager` before API calls
+- Cached data displayed when offline (from Room database)
+- Banner auto-hides when connection restored
+- SwipeRefreshLayout for manual refresh when back online
+
+**Files Modified:**
+- `fragment_agenda.xml` - Added `tvOfflineBanner` TextView with warning styling
+- `fragment_other_matters.xml` - Added `tvOfflineBanner` TextView with warning styling
+- `AgendaFragment.kt` - Added `updateOfflineIndicator()` method, network checks in polling
+- `OtherMattersFragment.kt` - Added `updateOfflineIndicator()` method, network checks in polling
+
+**Layout Addition:**
+```xml
+<TextView
+    android:id="@+id/tvOfflineBanner"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="You are offline. Showing cached data."
+    android:textColor="@android:color/white"
+    android:textSize="12sp"
+    android:gravity="center"
+    android:padding="8dp"
+    android:background="@color/status_warning"
+    android:visibility="gone" />
+```
+
+---
+
+### Summary of Changes
+
+| Issue | Problem | Solution | Files Changed |
+|-------|---------|----------|---------------|
+| 1. Minutes Approval | 404 on approve endpoint | Removed approval workflow entirely | 5 files |
+| 2. Notes Save | Data loss, race condition | Offline-first with Room DB | 3 files |
+| 3. Highlight Sync | No auto-sync to users | 30-second smart polling | 2 files |
+| 4. Offline Access | App unusable offline | Offline banner + cached data | 4 files |
+
+**Total Files Modified:** 14 files
+**Build Status:** ✅ Successful (warnings only, no errors)
 
 ---
 

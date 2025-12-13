@@ -20,7 +20,9 @@
       "Bash(git -C \"d:\\FREELANCE\\MGB\" status --short)",
       "Bash(git -C \"d:\\FREELANCE\\MGB\" diff backend/package.json app/build.gradle.kts)",
       "Bash(./gradlew.bat clean assembleDebug)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(xargs:*)",
+      "Bash(./gradlew.bat assembleDebug)"
     ],
     "deny": [],
     "ask": []

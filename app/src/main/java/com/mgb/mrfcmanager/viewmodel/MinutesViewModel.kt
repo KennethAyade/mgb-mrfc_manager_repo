@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 
 /**
  * ViewModel for Meeting Minutes management
- * Handles minutes state and operations with approval workflow
+ * Handles minutes state and edit operations
  */
 class MinutesViewModel(private val repository: MinutesRepository) : ViewModel() {
 
@@ -104,21 +104,6 @@ class MinutesViewModel(private val repository: MinutesRepository) : ViewModel() 
             if (result is Result.Success) {
                 _minutesState.value = MinutesState.Success(result.data)
                 _isEditMode.value = false
-            }
-        }
-    }
-
-    /**
-     * Approve minutes (mark as final)
-     */
-    fun approveMinutes(id: Long, onComplete: (Result<MeetingMinutesDto>) -> Unit) {
-        viewModelScope.launch {
-            val result = repository.approveMinutes(id)
-            onComplete(result)
-
-            // Reload on success
-            if (result is Result.Success) {
-                _minutesState.value = MinutesState.Success(result.data)
             }
         }
     }

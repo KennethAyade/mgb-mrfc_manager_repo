@@ -33,7 +33,6 @@ class MinutesFragment : Fragment() {
     private lateinit var etMinutesSummary: EditText
     private lateinit var btnEdit: MaterialButton
     private lateinit var btnSave: MaterialButton
-    private lateinit var btnApprove: MaterialButton
     private lateinit var tvEmptyState: TextView
     private lateinit var progressBar: ProgressBar
 
@@ -95,10 +94,6 @@ class MinutesFragment : Fragment() {
         btnSave.setOnClickListener {
             saveMinutes()
         }
-
-        btnApprove.setOnClickListener {
-            approveMinutes()
-        }
     }
 
     private fun initializeViews(view: View) {
@@ -106,14 +101,12 @@ class MinutesFragment : Fragment() {
         etMinutesSummary = view.findViewById(R.id.etMinutesSummary)
         btnEdit = view.findViewById(R.id.btnEdit)
         btnSave = view.findViewById(R.id.btnSave)
-        btnApprove = view.findViewById(R.id.btnApprove)
         tvEmptyState = view.findViewById(R.id.tvEmptyState)
         progressBar = view.findViewById(R.id.progressBar)
 
         // Only organizers can edit
         btnEdit.visibility = if (isOrganizer) View.VISIBLE else View.GONE
         btnSave.visibility = View.GONE
-        btnApprove.visibility = View.GONE
     }
 
     private fun setupViewModel() {
@@ -162,10 +155,9 @@ class MinutesFragment : Fragment() {
         tvMinutesContent.visibility = View.VISIBLE
         tvEmptyState.visibility = View.GONE
 
-        // Show appropriate buttons
+        // Show edit button for organizers (no approval workflow)
         if (isOrganizer) {
-            btnEdit.visibility = if (!isFinal) View.VISIBLE else View.GONE
-            btnApprove.visibility = if (!isFinal) View.VISIBLE else View.GONE
+            btnEdit.visibility = View.VISIBLE
         }
     }
 
@@ -196,14 +188,12 @@ class MinutesFragment : Fragment() {
             etMinutesSummary.visibility = View.VISIBLE
             btnEdit.visibility = View.GONE
             btnSave.visibility = View.VISIBLE
-            btnApprove.visibility = View.GONE
         } else {
             tvMinutesContent.visibility = View.VISIBLE
             etMinutesSummary.visibility = View.GONE
-            // BUG FIX 4: Only show edit/approve buttons for organizers (ADMIN/SUPER_ADMIN)
+            // Only show edit button for organizers (ADMIN/SUPER_ADMIN)
             btnEdit.visibility = if (isOrganizer) View.VISIBLE else View.GONE
             btnSave.visibility = View.GONE
-            btnApprove.visibility = if (isOrganizer && minutesId != null) View.VISIBLE else View.GONE
         }
     }
 
@@ -252,25 +242,6 @@ class MinutesFragment : Fragment() {
             }
             is Result.Loading -> {
                 // Loading state
-            }
-        }
-    }
-
-    private fun approveMinutes() {
-        minutesId?.let { id ->
-            viewModel.approveMinutes(id) { result ->
-                when (result) {
-                    is Result.Success -> {
-                        Toast.makeText(requireContext(), "Minutes approved", Toast.LENGTH_SHORT).show()
-                        loadMinutes() // Reload to update UI
-                    }
-                    is Result.Error -> {
-                        showError("Failed to approve: ${result.message}")
-                    }
-                    is Result.Loading -> {
-                        // Loading state
-                    }
-                }
             }
         }
     }

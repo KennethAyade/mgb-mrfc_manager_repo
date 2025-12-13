@@ -3,6 +3,8 @@ package com.mgb.mrfcmanager.ui.meeting.fragments
 import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -39,6 +41,7 @@ class AgendaFragment : Fragment() {
     private lateinit var fabAddItem: FloatingActionButton
     private lateinit var progressBar: ProgressBar
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
+    private var tvOfflineBanner: TextView? = null
 
     // Other Matters section (shown at bottom of Agenda tab)
     private lateinit var tvOtherMattersHeader: TextView
@@ -56,6 +59,35 @@ class AgendaFragment : Fragment() {
     private var agendaId: Long = 0L
     private var mrfcId: Long = 0L
 
+    // Smart polling for highlight sync (30 second interval)
+    private val refreshHandler = Handler(Looper.getMainLooper())
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            // Silent refresh - only if network is available
+            silentRefresh()
+            // Schedule next refresh in 30 seconds
+            refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS)
+        }
+    }
+    private var lastRefreshTime = 0L
+    private var isPollingActive = false
+
+    companion object {
+        private const val ARG_AGENDA_ID = "agenda_id"
+        private const val ARG_MRFC_ID = "mrfc_id"
+        private const val REFRESH_INTERVAL_MS = 30_000L // 30 seconds
+        private const val MIN_REFRESH_INTERVAL_MS = 5_000L // Minimum 5 seconds between refreshes
+
+        fun newInstance(agendaId: Long, mrfcId: Long): AgendaFragment {
+            return AgendaFragment().apply {
+                arguments = Bundle().apply {
+                    putLong(ARG_AGENDA_ID, agendaId)
+                    putLong(ARG_MRFC_ID, mrfcId)
+                }
+            }
+        }
+    }
+
     // Data for dropdowns
     private val mrfcList = mutableListOf<Pair<Long, String>>() // ID to Name
     private val proponentList = mutableListOf<Pair<Long, String>>() // ID to Name
@@ -69,20 +101,6 @@ class AgendaFragment : Fragment() {
         "AEPEP" to "AEPEP Report",
         "OTHER" to "Other"
     )
-
-    companion object {
-        private const val ARG_AGENDA_ID = "agenda_id"
-        private const val ARG_MRFC_ID = "mrfc_id"
-
-        fun newInstance(agendaId: Long, mrfcId: Long): AgendaFragment {
-            return AgendaFragment().apply {
-                arguments = Bundle().apply {
-                    putLong(ARG_AGENDA_ID, agendaId)
-                    putLong(ARG_MRFC_ID, mrfcId)
-                }
-            }
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,14 +138,141 @@ class AgendaFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // FIX: Don't auto-reload on every resume - this causes HTTP 429 errors
-        // Data is already loaded in onViewCreated()
-        // Users can manually refresh if needed, or data updates when they take actions
+        // Start smart polling for highlight sync
+        // This allows users to see agenda highlights without manual refresh
+        startPolling()
+        // Update offline indicator
+        updateOfflineIndicator()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Stop polling when fragment is not visible
+        stopPolling()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // Clean up handler callbacks
+        stopPolling()
+    }
+
+    /**
+     * Start polling for agenda updates
+     * Polls every 30 seconds when fragment is visible
+     */
+    private fun startPolling() {
+        if (!isPollingActive) {
+            isPollingActive = true
+            // Initial delay before first poll (let user see current data first)
+            refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL_MS)
+        }
+    }
+
+    /**
+     * Stop polling when fragment is paused or destroyed
+     */
+    private fun stopPolling() {
+        isPollingActive = false
+        refreshHandler.removeCallbacks(refreshRunnable)
+    }
+
+    /**
+     * Silent refresh - fetches new data without showing loading indicator
+     * Only runs if network is available and minimum interval has passed
+     */
+    private fun silentRefresh() {
+        val now = System.currentTimeMillis()
+        // Respect minimum interval to prevent excessive API calls
+        if (now - lastRefreshTime < MIN_REFRESH_INTERVAL_MS) {
+            return
+        }
+
+        // Check network availability
+        val networkManager = MRFCManagerApp.getNetworkManager()
+        if (!networkManager.isNetworkAvailable()) {
+            updateOfflineIndicator()
+            return
+        }
+
+        lastRefreshTime = now
+
+        // Silent load - don't show loading spinner
+        lifecycleScope.launch {
+            try {
+                val response = apiService.getItemsByAgenda(agendaId)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val items = response.body()?.data ?: emptyList()
+                    // Only update if data has changed (check for highlight changes)
+                    val approvedItems = items.filter { it.status == "APPROVED" }
+                    if (hasHighlightChanges(approvedItems)) {
+                        updateAgendaItems(approvedItems)
+                    }
+                }
+
+                // Also refresh other matters section
+                val otherMattersResponse = apiService.getOtherMatters(agendaId)
+                if (otherMattersResponse.isSuccessful && otherMattersResponse.body()?.success == true) {
+                    val otherItems = otherMattersResponse.body()?.data ?: emptyList()
+                    val approved = otherItems.filter { it.status == "APPROVED" }
+                    updateOtherMattersSection(approved)
+                }
+
+                // Hide offline indicator on success
+                hideOfflineIndicator()
+            } catch (e: Exception) {
+                // Silent fail - don't show error for background refresh
+                updateOfflineIndicator()
+            }
+        }
+    }
+
+    /**
+     * Check if there are highlight changes that need UI update
+     */
+    private fun hasHighlightChanges(newItems: List<AgendaItemDto>): Boolean {
+        if (newItems.size != agendaItems.size) return true
+
+        for (newItem in newItems) {
+            val existingItem = agendaItems.find { it.id == newItem.id }
+            if (existingItem == null || existingItem.isHighlighted != newItem.isHighlighted) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Update offline indicator based on network status
+     */
+    private fun updateOfflineIndicator() {
+        val networkManager = MRFCManagerApp.getNetworkManager()
+        if (!networkManager.isNetworkAvailable()) {
+            showOfflineIndicator()
+        } else {
+            hideOfflineIndicator()
+        }
+    }
+
+    /**
+     * Show offline indicator banner
+     */
+    private fun showOfflineIndicator() {
+        tvOfflineBanner?.visibility = View.VISIBLE
+    }
+
+    /**
+     * Hide offline indicator banner
+     */
+    private fun hideOfflineIndicator() {
+        tvOfflineBanner?.visibility = View.GONE
     }
 
     private fun initializeViews(view: View) {
         rvAgendaItems = view.findViewById(R.id.rvAgendaItems)
         tvEmptyState = view.findViewById(R.id.tvEmptyState)
+        // Offline banner (may be null if not in layout)
+        tvOfflineBanner = view.findViewById(R.id.tvOfflineBanner)
         fabAddItem = view.findViewById(R.id.fabAddItem)
         progressBar = view.findViewById(R.id.progressBar)
         swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout)

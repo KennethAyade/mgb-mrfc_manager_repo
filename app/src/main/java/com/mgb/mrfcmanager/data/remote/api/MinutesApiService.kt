@@ -50,15 +50,6 @@ interface MinutesApiService {
     ): Response<ApiResponse<MeetingMinutesDto>>
 
     /**
-     * Approve meeting minutes (ADMIN only)
-     * PUT /minutes/:id/approve
-     */
-    @PUT("minutes/{id}/approve")
-    suspend fun approveMinutes(
-        @Path("id") id: Long
-    ): Response<ApiResponse<MeetingMinutesDto>>
-
-    /**
      * Delete meeting minutes
      * DELETE /minutes/:id
      */

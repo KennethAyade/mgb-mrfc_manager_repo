@@ -35,21 +35,9 @@
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:layout_marginEnd="8dp"
             android:text="Save"
             android:visibility="gone"
             app:backgroundTint="@color/primary"
-            app:cornerRadius="8dp"
-            app:icon="@drawable/ic_check" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnApprove"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="Approve"
-            android:visibility="gone"
-            app:backgroundTint="@color/status_success"
             app:cornerRadius="8dp"
             app:icon="@drawable/ic_check" />
 
