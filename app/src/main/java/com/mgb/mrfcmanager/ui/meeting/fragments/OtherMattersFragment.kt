@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,6 +22,7 @@ import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.AgendaItemApiService
 import com.mgb.mrfcmanager.data.remote.dto.AgendaItemDto
 import com.mgb.mrfcmanager.data.remote.dto.CreateAgendaItemRequest
+import com.mgb.mrfcmanager.viewmodel.MeetingRealtimeViewModel
 import kotlinx.coroutines.launch
 
 /**
@@ -32,6 +34,9 @@ import kotlinx.coroutines.launch
  * Only ADMIN can mark existing items as "other matters"
  */
 class OtherMattersFragment : Fragment() {
+
+    private val realtimeViewModel: MeetingRealtimeViewModel by activityViewModels()
+    private var lastRealtimeRefreshAt: Long = 0L
 
     private lateinit var rvOtherMatters: RecyclerView
     private lateinit var tvEmptyState: TextView
@@ -48,7 +53,7 @@ class OtherMattersFragment : Fragment() {
     private var mrfcId: Long = 0L
     private var isAdmin: Boolean = false
 
-    // Smart polling for highlight sync (30 second interval)
+    // Smart polling for highlight sync (10 second interval)
     private val refreshHandler = Handler(Looper.getMainLooper())
     private val refreshRunnable = object : Runnable {
         override fun run() {
@@ -62,7 +67,7 @@ class OtherMattersFragment : Fragment() {
     companion object {
         private const val ARG_AGENDA_ID = "agenda_id"
         private const val ARG_MRFC_ID = "mrfc_id"
-        private const val REFRESH_INTERVAL_MS = 30_000L // 30 seconds
+        private const val REFRESH_INTERVAL_MS = 10_000L // 10 seconds
         private const val MIN_REFRESH_INTERVAL_MS = 5_000L // Minimum 5 seconds between refreshes
 
         fun newInstance(agendaId: Long, mrfcId: Long): OtherMattersFragment {
@@ -102,6 +107,7 @@ class OtherMattersFragment : Fragment() {
         initializeViews(view)
         setupApiService()
         setupRecyclerView()
+        observeRealtimeEvents()
         loadOtherMatters()
 
         fabAddItem.setOnClickListener {
@@ -129,7 +135,8 @@ class OtherMattersFragment : Fragment() {
     private fun startPolling() {
         if (!isPollingActive) {
             isPollingActive = true
-            refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL_MS)
+            // Run immediately (tab return should sync highlights right away)
+            refreshHandler.post(refreshRunnable)
         }
     }
 
@@ -220,6 +227,21 @@ class OtherMattersFragment : Fragment() {
         )
         rvOtherMatters.layoutManager = LinearLayoutManager(requireContext())
         rvOtherMatters.adapter = adapter
+    }
+
+    private fun observeRealtimeEvents() {
+        realtimeViewModel.events.observe(viewLifecycleOwner) { evt ->
+            evt ?: return@observe
+            if (evt.agendaId != agendaId) return@observe
+
+            val now = System.currentTimeMillis()
+            if (now - lastRealtimeRefreshAt < 500L) return@observe
+            lastRealtimeRefreshAt = now
+
+            // Force refresh even if we recently refreshed via polling
+            lastRefreshTime = 0L
+            silentRefresh()
+        }
     }
 
     private fun loadOtherMatters() {

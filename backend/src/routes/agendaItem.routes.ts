@@ -19,8 +19,108 @@
 
 import { Router, Request, Response } from 'express';
 import { authenticate, adminOnly } from '../middleware/auth';
+import { isRealtimeEnabled, publishMeetingEvent } from '../realtime';
+import { sseHub } from '../realtime/sseHub';
+import type { MeetingEvent } from '../realtime/types';
 
 const router = Router();
+
+/**
+ * ================================================
+ * GET /agenda-items/meeting/:agendaId/events
+ * ================================================
+ * Server-Sent Events stream for meeting (agenda) realtime updates
+ * Authenticated; enforces the same MRFC access rules as meeting reads.
+ */
+router.get('/meeting/:agendaId/events', authenticate, async (req: Request, res: Response) => {
+  try {
+    if (!isRealtimeEnabled()) {
+      return res.status(503).json({
+        success: false,
+        error: { code: 'REALTIME_DISABLED', message: 'Realtime is disabled on this server' }
+      });
+    }
+
+    const { Agenda } = require('../models');
+
+    const agendaId = parseInt(req.params.agendaId);
+    if (isNaN(agendaId)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_ID', message: 'Invalid agenda ID' }
+      });
+    }
+
+    const agenda = await Agenda.findByPk(agendaId);
+    if (!agenda) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'AGENDA_NOT_FOUND', message: 'Meeting not found' }
+      });
+    }
+
+    // MRFC access check for USER role (skip for general meetings where mrfc_id is null)
+    if (req.user?.role === 'USER' && agenda.mrfc_id !== null) {
+      const userMrfcIds = req.user.mrfcAccess || [];
+      if (!userMrfcIds.includes(agenda.mrfc_id)) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'MRFC_ACCESS_DENIED',
+            message: 'You do not have access to this meeting'
+          }
+        });
+      }
+    }
+
+    // SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    // Help reverse proxies avoid buffering
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    // Flush headers if supported
+    (res as any).flushHeaders?.();
+
+    // Recommend client reconnection delay
+    res.write('retry: 3000\n\n');
+
+    // Register client
+    sseHub.addClient(agendaId, res);
+
+    // Initial connected event
+    const connectedEvt: MeetingEvent = {
+      type: 'CONNECTED',
+      agendaId,
+      ts: new Date().toISOString()
+    };
+    res.write(`event: CONNECTED\n` + `data: ${JSON.stringify(connectedEvt)}\n\n`);
+
+    // Heartbeat to prevent idle timeouts
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(': ping\n\n');
+      } catch {
+        // ignore
+      }
+    }, 20_000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      sseHub.removeClient(agendaId, res);
+    });
+  } catch (error: any) {
+    console.error('SSE events stream error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SSE_FAILED',
+        message: error.message || 'Failed to start SSE stream'
+      }
+    });
+  }
+});
 
 /**
  * ================================================
@@ -773,6 +873,18 @@ router.post('/:id/toggle-highlight', authenticate, adminOnly, async (req: Reques
     });
 
     console.log(`🔦 Agenda item ${itemId} ${newHighlightStatus ? 'highlighted' : 'unhighlighted'} by user ${req.user?.userId}`);
+
+    // Publish realtime event (SSE via Redis fanout)
+    await publishMeetingEvent({
+      type: 'AGENDA_ITEM_HIGHLIGHT_CHANGED',
+      agendaId: item.agenda_id,
+      itemId: item.id,
+      payload: {
+        isHighlighted: newHighlightStatus,
+        isOtherMatter: item.is_other_matter === true
+      },
+      ts: new Date().toISOString()
+    });
 
     res.json({
       success: true,

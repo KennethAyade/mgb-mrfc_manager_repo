@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -28,6 +29,7 @@ import com.mgb.mrfcmanager.data.repository.Result
 import com.mgb.mrfcmanager.viewmodel.AgendaItemViewModel
 import com.mgb.mrfcmanager.viewmodel.AgendaItemViewModelFactory
 import com.mgb.mrfcmanager.viewmodel.ItemsListState
+import com.mgb.mrfcmanager.viewmodel.MeetingRealtimeViewModel
 
 /**
  * Agenda Fragment
@@ -35,6 +37,9 @@ import com.mgb.mrfcmanager.viewmodel.ItemsListState
  * ALL users can view and add agenda items
  */
 class AgendaFragment : Fragment() {
+
+    private val realtimeViewModel: MeetingRealtimeViewModel by activityViewModels()
+    private var lastRealtimeRefreshAt: Long = 0L
 
     private lateinit var rvAgendaItems: RecyclerView
     private lateinit var tvEmptyState: TextView
@@ -59,13 +64,13 @@ class AgendaFragment : Fragment() {
     private var agendaId: Long = 0L
     private var mrfcId: Long = 0L
 
-    // Smart polling for highlight sync (30 second interval)
+    // Smart polling for highlight sync (10 second interval)
     private val refreshHandler = Handler(Looper.getMainLooper())
     private val refreshRunnable = object : Runnable {
         override fun run() {
             // Silent refresh - only if network is available
             silentRefresh()
-            // Schedule next refresh in 30 seconds
+            // Schedule next refresh
             refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS)
         }
     }
@@ -75,7 +80,7 @@ class AgendaFragment : Fragment() {
     companion object {
         private const val ARG_AGENDA_ID = "agenda_id"
         private const val ARG_MRFC_ID = "mrfc_id"
-        private const val REFRESH_INTERVAL_MS = 30_000L // 30 seconds
+        private const val REFRESH_INTERVAL_MS = 10_000L // 10 seconds
         private const val MIN_REFRESH_INTERVAL_MS = 5_000L // Minimum 5 seconds between refreshes
 
         fun newInstance(agendaId: Long, mrfcId: Long): AgendaFragment {
@@ -127,6 +132,7 @@ class AgendaFragment : Fragment() {
         setupRecyclerView()
         setupOtherMattersSection()
         observeViewModel()
+        observeRealtimeEvents()
         loadAgendaItems()
         loadOtherMattersForAgendaSection()
         loadMRFCsAndProponentsData() // Load MRFC and Proponent names for detail dialog
@@ -138,8 +144,8 @@ class AgendaFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Start smart polling for highlight sync
-        // This allows users to see agenda highlights without manual refresh
+        // Start smart polling for highlight sync.
+        // Phase 1: refresh immediately on tab return (no initial 30s wait).
         startPolling()
         // Update offline indicator
         updateOfflineIndicator()
@@ -159,13 +165,14 @@ class AgendaFragment : Fragment() {
 
     /**
      * Start polling for agenda updates
-     * Polls every 30 seconds when fragment is visible
+     * Phase 1: run the first refresh immediately when the fragment becomes visible,
+     * then continue polling at REFRESH_INTERVAL_MS.
      */
     private fun startPolling() {
         if (!isPollingActive) {
             isPollingActive = true
-            // Initial delay before first poll (let user see current data first)
-            refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL_MS)
+            // Run immediately (tab return should sync highlights right away)
+            refreshHandler.post(refreshRunnable)
         }
     }
 
@@ -353,6 +360,23 @@ class AgendaFragment : Fragment() {
                     showLoading(false)
                 }
             }
+        }
+    }
+
+    private fun observeRealtimeEvents() {
+        realtimeViewModel.events.observe(viewLifecycleOwner) { evt ->
+            evt ?: return@observe
+            // Ignore events for other meetings
+            if (evt.agendaId != agendaId) return@observe
+
+            // Debounce to avoid refresh storms
+            val now = System.currentTimeMillis()
+            if (now - lastRealtimeRefreshAt < 500L) return@observe
+            lastRealtimeRefreshAt = now
+
+            // Force refresh even if we recently refreshed via polling
+            lastRefreshTime = 0L
+            silentRefresh()
         }
     }
 

@@ -45,6 +45,7 @@ import com.mgb.mrfcmanager.ui.base.BaseActivity
 import com.mgb.mrfcmanager.viewmodel.AgendaDetailState
 import com.mgb.mrfcmanager.viewmodel.AgendaViewModel
 import com.mgb.mrfcmanager.viewmodel.AgendaViewModelFactory
+import com.mgb.mrfcmanager.viewmodel.MeetingRealtimeViewModel
 
 /**
  * Meeting Detail Screen
@@ -70,6 +71,7 @@ class MeetingDetailActivity : BaseActivity() {
     private lateinit var btnEndMeeting: MaterialButton
 
     private lateinit var viewModel: AgendaViewModel
+    private lateinit var realtimeViewModel: MeetingRealtimeViewModel
     private lateinit var pagerAdapter: MeetingDetailPagerAdapter
 
     private var agendaId: Long = 0L
@@ -92,6 +94,7 @@ class MeetingDetailActivity : BaseActivity() {
         setupToolbar()
         initializeViews()
         setupViewModel()
+        setupRealtime()
         setupViewPager()
         setupTimerSection()
         observeViewModel()
@@ -148,6 +151,10 @@ class MeetingDetailActivity : BaseActivity() {
         val agendaRepository = AgendaRepository(agendaApiService)
         val factory = AgendaViewModelFactory(agendaRepository)
         viewModel = ViewModelProvider(this, factory)[AgendaViewModel::class.java]
+    }
+
+    private fun setupRealtime() {
+        realtimeViewModel = ViewModelProvider(this)[MeetingRealtimeViewModel::class.java]
     }
 
     private fun setupViewPager() {
@@ -399,6 +406,18 @@ class MeetingDetailActivity : BaseActivity() {
 
     private fun showError(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Start meeting realtime stream (SSE) while this screen is visible
+        realtimeViewModel.start(agendaId)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Stop SSE stream when leaving the meeting screen to avoid leaks
+        realtimeViewModel.stop()
     }
 
     override fun onDestroy() {

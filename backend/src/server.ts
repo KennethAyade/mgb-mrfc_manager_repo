@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import { testConnection } from './config/database';
 import routes from './routes';
+import { initRealtime } from './realtime';
 
 // Load environment variables
 dotenv.config();
@@ -54,7 +55,12 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-app.use('/api', limiter);
+// NOTE: SSE connections are long-lived; avoid counting them against rate limiting.
+app.use('/api', (req, res, next) => {
+  const isSse = req.path.endsWith('/events') && req.path.includes('/agenda-items/meeting/');
+  if (isSse) return next();
+  return limiter(req, res, next);
+});
 
 /**
  * ===========================================
@@ -67,7 +73,16 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Response compression
-app.use(compression());
+// IMPORTANT: SSE can break if responses are buffered.
+app.use(
+  compression({
+    filter: (req, res) => {
+      const isSse = req.path.endsWith('/events') && req.path.includes('/agenda-items/meeting/');
+      if (isSse) return false;
+      return compression.filter(req, res);
+    }
+  })
+);
 
 // Logging (only in development)
 if (process.env.NODE_ENV === 'development') {
@@ -208,6 +223,9 @@ const startServer = async (): Promise<void> => {
   try {
     // Initialize database
     await initializeDatabase();
+
+    // Initialize realtime infra (SSE + Redis Pub/Sub) before accepting requests.
+    await initRealtime();
 
     // Start listening on all network interfaces (0.0.0.0)
     // This allows access from Android emulator (10.0.2.2)
