@@ -1,8 +1,62 @@
 # MGB MRFC Manager - Project Status & Development Tracker
 
-**Last Updated:** December 14, 2025 (Asia/Manila)
+**Last Updated:** December 15, 2025 1:40 AM (Asia/Manila)
 **Version:** 2.0.37 (PRODUCTION READY)
-**Status:** 🚀 **PRODUCTION LIVE (Railway)** | ✅ **Minutes Approval Removed** | ✅ **Notes Offline-First Save** | ✅ **Agenda Highlight Real-Time Sync** | ✅ **Offline Access with Cached Data** | ✅ **Tablet Number Feature (Full CRUD)** | ✅ **Recording State Persistence** | ✅ **Notes Validation** | ✅ **Offline Auth Fix** | ✅ **Claude AI Analysis (Haiku 4.5)** | ✅ **AWS S3 Storage** | ✅ **Real Compliance Dashboard** | ✅ **Reanalysis Feature** | ✅ **OCR Working** | ✅ **Railway Deployment Fixed** | ✅ **Android UI Polish** | ✅ **Agenda Item Proposal Workflow Complete** | ✅ **Proposals Tab Fully Functional** | ✅ **Enhanced Agenda Features** | ✅ **Tablet Layout Optimized** | ✅ **Meeting Edit/Delete** | ✅ **Tablet-Based Attendance** | ✅ **Critical Bug Fixes v2.0.30** | ✅ **Dynamic Quarter Creation** | ✅ **Notes Feature Complete** | ✅ **Voice Recording Feature** | ✅ **Offline Support (Room DB)** | ✅ **Other Matters Tab** | ✅ **Other Matters Admin Approval (Approve/Deny)** | ✅ **Agenda Tab "Other Matters" Section** | ✅ **Agenda Highlighting** | ✅ **Attendance Type (ONSITE/ONLINE)** | ✅ **WARP.md Added**
+**Status:** 🚀 **PRODUCTION LIVE (Railway)** | ✅ **Realtime Meeting Sync (SSE + Redis)** | ✅ **Minutes Approval Removed** | ✅ **Notes Offline-First Save** | ✅ **Agenda Highlight Sync (Realtime)** | ✅ **Offline Access with Cached Data** | ✅ **Tablet Number Feature (Full CRUD)** | ✅ **Recording Persistence on Tab Switch** | ✅ **Notes Validation** | ✅ **Offline Auth Fix** | ✅ **Claude AI Analysis (Haiku 4.5)** | ✅ **AWS S3 Storage** | ✅ **Real Compliance Dashboard** | ✅ **Reanalysis Feature** | ✅ **OCR Working** | ✅ **Railway Deployment Fixed** | ✅ **Android UI Polish** | ✅ **Agenda Item Proposal Workflow Complete** | ✅ **Proposals Tab Fully Functional** | ✅ **Enhanced Agenda Features** | ✅ **Tablet Layout Optimized** | ✅ **Meeting Edit/Delete** | ✅ **Tablet-Based Attendance** | ✅ **Critical Bug Fixes v2.0.30** | ✅ **Dynamic Quarter Creation** | ✅ **Notes Feature Complete** | ✅ **Voice Recording Feature** | ✅ **Offline Support (Room DB)** | ✅ **Other Matters Tab** | ✅ **Other Matters Admin Approval (Approve/Deny)** | ✅ **Agenda Tab "Other Matters" Section** | ✅ **Agenda Highlighting** | ✅ **Attendance Type (ONSITE/ONLINE)** | ✅ **WARP.md Added**
+
+---
+
+## 🆕 Realtime Meeting Sync Upgrade (December 15, 2025)
+**Date:** December 15, 2025 | **Build:** ✅ Android assembleDebug + ✅ Android lintDebug + ✅ Backend TypeScript build
+
+### ✅ Agenda/Other Matters Highlight Sync (True Realtime)
+**Impact:** 🔴 HIGH | **Status:** ✅ RESOLVED
+
+**Problem:** Highlight changes ("discussed") were not visible to other users until manual refresh/tab switching.
+
+**Solution:** Implemented **Server-Sent Events (SSE)** + **Redis Pub/Sub** realtime update pipeline:
+- Backend now exposes a meeting-scoped SSE stream:
+  - `GET /api/v1/agenda-items/meeting/:agendaId/events`
+- When an admin toggles highlight:
+  - `POST /api/v1/agenda-items/:id/toggle-highlight` updates DB and publishes `AGENDA_ITEM_HIGHLIGHT_CHANGED`.
+- Redis Pub/Sub provides cross-instance fan-out (no single-instance memory limitation).
+- Android opens **one SSE connection per meeting screen** and triggers lightweight refreshes in:
+  - Agenda tab (agenda items + Agenda tab “Other Matters” section)
+  - Other Matters tab
+
+**Backend Files Modified/Added:**
+- `backend/src/server.ts` - realtime init + SSE-safe rate limiting/compression handling
+- `backend/src/routes/agendaItem.routes.ts` - new SSE endpoint + publish highlight events
+- `backend/src/realtime/` (NEW)
+  - `index.ts`, `redis.ts`, `sseHub.ts`, `types.ts`
+- `backend/package.json`, `backend/package-lock.json` - added `ioredis`
+- `backend/.env.example` - added `REALTIME_ENABLED`, `REDIS_URL`, `REALTIME_CHANNEL`
+
+**Android Files Modified/Added:**
+- `app/build.gradle.kts` - added `okhttp-sse`
+- `app/src/main/java/com/mgb/mrfcmanager/viewmodel/MeetingRealtimeViewModel.kt` (NEW)
+- `app/src/main/java/com/mgb/mrfcmanager/ui/meeting/MeetingDetailActivity.kt` - starts/stops SSE connection
+- `app/src/main/java/com/mgb/mrfcmanager/ui/meeting/fragments/AgendaFragment.kt` - observes realtime and refreshes
+- `app/src/main/java/com/mgb/mrfcmanager/ui/meeting/fragments/OtherMattersFragment.kt` - observes realtime and refreshes
+
+**Railway Deployment Notes (Required for production realtime):**
+- Provision Redis in Railway and set backend env var `REDIS_URL` (use the internal `REDIS_URL` from Railway Redis service)
+- Ensure backend has `REALTIME_ENABLED=true`
+
+### ✅ Phase 1 Polling Improvements (Fallback + Better UX)
+**Impact:** 🟡 MEDIUM | **Status:** ✅ RESOLVED
+
+Even with realtime enabled, polling remains as a safety fallback and for offline handling:
+- Reduced interval from 30s → 10s
+- Immediate refresh on tab return (no initial wait)
+
+### ✅ Voice Recording: Prevent Stop on Tab Switch
+**Impact:** 🔴 HIGH | **Status:** ✅ RESOLVED
+
+**Problem:** Recording stopped when switching tabs due to fragment lifecycle destruction/recreation.
+
+**Solution:** Keep meeting tabs alive in memory:
+- `MeetingDetailActivity.kt`: `viewPager.offscreenPageLimit = tabCount`
 
 ---
 
@@ -83,17 +137,14 @@ class NotesViewModel(
 
 ---
 
-### Issue 3: Agenda Highlight Real-Time Sync
+### Issue 3: Agenda Highlight Sync (Polling → Realtime Upgrade)
 **Impact:** 🟡 MEDIUM | **Status:** ✅ RESOLVED
 
-**Problem:** When admin highlights an agenda item, users don't see the highlight until they manually refresh or restart the app.
+**Problem:** When admin highlights an agenda item, users didn't see the highlight until they manually refresh or restart the app.
 
-**Solution:** Implemented smart polling mechanism with 30-second intervals:
-- Auto-refreshes agenda data every 30 seconds when fragment is visible
-- Only updates UI when highlight changes detected (prevents flicker)
-- Stops polling when fragment is paused (battery efficient)
-- Minimum 5-second interval between refreshes (prevents API spam)
-- Network check before polling (skips when offline)
+**Initial Solution (Dec 14, 2025):** Implemented smart polling (originally 30-second interval) to auto-refresh while the fragment is visible.
+
+**Upgrade (Dec 15, 2025):** Replaced reliance on polling with **true realtime sync** using **SSE + Redis Pub/Sub** (see the Dec 15 section above). Polling remains as a fallback and for offline cases.
 
 **Files Modified:**
 - `AgendaFragment.kt` - Added `Handler/Runnable` polling mechanism, `startPolling()`, `stopPolling()`, `silentRefresh()`
@@ -1712,6 +1763,7 @@ npm test
 - ✅ Notifications CRUD (Nov 10)
 - ✅ Other Matters workflow: pending approval + admin approve/deny + Agenda tab section (Dec 12)
 - ✅ Voice recording tab navigation (Dec 12)
+- ✅ Realtime meeting highlight sync via SSE + Redis (Dec 15)
 - ✅ Railway deployment schema verification (Dec 12)
 - ✅ Role-based UI visibility controls (Dec 12)
 - ⏳ Agenda Items CRUD (read-only view works)
