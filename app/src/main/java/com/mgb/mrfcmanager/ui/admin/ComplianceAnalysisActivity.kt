@@ -274,8 +274,14 @@ class ComplianceAnalysisActivity : BaseActivity() {
                     displayAnalysisResults(state.data)
                 }
                 is ComplianceAnalysisState.Error -> {
-                    showState(State.RESULTS, null)
-                    showError("Analysis Error: ${state.message}")
+                    // During active polling (analysis/reanalysis), treat transient API failures (429, timeouts)
+                    // as non-fatal and keep the progress UI.
+                    if (isPollingProgress) {
+                        android.util.Log.w("ComplianceAnalysis", "⚠️ Ignoring analysis error during polling: ${state.message}")
+                    } else {
+                        showState(State.RESULTS, null)
+                        showError("Analysis Error: ${state.message}")
+                    }
                 }
                 is ComplianceAnalysisState.Idle -> {
                     // Do nothing
@@ -304,6 +310,11 @@ class ComplianceAnalysisActivity : BaseActivity() {
     }
 
     private fun displayAnalysisResults(analysis: ComplianceAnalysisDto) {
+        // If we have a definitive persisted status, stop polling.
+        if (analysis.analysisStatus != "PENDING") {
+            isPollingProgress = false
+        }
+
         // Update status
         tvAnalysisStatus.text = "Analysis Status: ${formatStatus(analysis.analysisStatus)}"
 
@@ -435,28 +446,73 @@ class ComplianceAnalysisActivity : BaseActivity() {
         }
     }
 
-    private fun startProgressPolling() {
+    private enum class PollingMode {
+        OPEN_EXISTING,
+        REANALYZE
+    }
+
+    private fun startProgressPolling(mode: PollingMode = PollingMode.OPEN_EXISTING) {
         if (isPollingProgress) {
             return
         }
         isPollingProgress = true
-        
-        android.util.Log.d("ComplianceAnalysis", "🔄 Starting polling")
-        
+
+        val startTimeMs = System.currentTimeMillis()
+        var notFoundCount = 0
+        val notFoundGraceMs = 15_000L
+        val hardTimeoutMs = 5 * 60_000L
+
+        // If progress is missing (server restart / multi-instance), we periodically fall back to the analysis endpoint.
+        var lastAnalysisRefreshMs = 0L
+
+        android.util.Log.d("ComplianceAnalysis", "🔄 Starting polling (mode=$mode)")
+
         lifecycleScope.launch {
             while (isPollingProgress) {
                 try {
                     when (val result = viewModel.getAnalysisProgress(documentId)) {
                         is com.mgb.mrfcmanager.data.repository.Result.Success -> {
                             val progressData = result.data
-                            
+
                             android.util.Log.d("ComplianceAnalysis", "📊 Progress: ${progressData.status}, ${progressData.progress}%")
-                            
-                            if (progressData.isNotFound()) {
-                                android.util.Log.d("ComplianceAnalysis", "✅ Already cached, stopping polling")
+
+                            val elapsedMs = System.currentTimeMillis() - startTimeMs
+                            if (elapsedMs > hardTimeoutMs) {
+                                android.util.Log.e("ComplianceAnalysis", "⏱️ Polling timeout exceeded")
                                 isPollingProgress = false
                                 showState(State.RESULTS, null)
+                                showError("Reanalysis is taking longer than expected. Please try again.")
                                 viewModel.getComplianceAnalysis(documentId)
+                                continue
+                            }
+
+                            if (progressData.isNotFound()) {
+                                notFoundCount++
+
+                                // OPEN_EXISTING: treat not_found as cached/finished long ago.
+                                // REANALYZE: allow a grace period; progress may not be created yet.
+                                if (mode == PollingMode.OPEN_EXISTING) {
+                                    android.util.Log.d("ComplianceAnalysis", "✅ Already cached, stopping polling")
+                                    isPollingProgress = false
+                                    showState(State.RESULTS, null)
+                                    viewModel.getComplianceAnalysis(documentId)
+                                } else {
+                                    // Stay in progress view and keep polling for a short grace period.
+                                    if (elapsedMs <= notFoundGraceMs) {
+                                        android.util.Log.d("ComplianceAnalysis", "⏳ Progress not created yet (not_found x$notFoundCount), continuing...")
+                                        updateProgress(0, "Re-analyzing document...")
+                                    } else {
+                                        // After grace: periodically check the analysis record, because progress can be missing
+                                        // (e.g., server restarted and in-memory progress was lost).
+                                        val now = System.currentTimeMillis()
+                                        val refreshEveryMs = 15_000L
+                                        if (now - lastAnalysisRefreshMs >= refreshEveryMs) {
+                                            lastAnalysisRefreshMs = now
+                                            android.util.Log.d("ComplianceAnalysis", "⏳ Progress not found; refreshing analysis state")
+                                            viewModel.getComplianceAnalysis(documentId)
+                                        }
+                                    }
+                                }
                             } else if (progressData.isCompleted()) {
                                 android.util.Log.d("ComplianceAnalysis", "✅ Completed, stopping polling")
                                 isPollingProgress = false
@@ -480,17 +536,24 @@ class ComplianceAnalysisActivity : BaseActivity() {
                             // Continue
                         }
                     }
-                    
+
                     if (isPollingProgress) {
-                        kotlinx.coroutines.delay(2000)
+                        // Poll less aggressively to avoid request storms / rate limiting.
+                        kotlinx.coroutines.delay(5000)
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("ComplianceAnalysis", "❌ Polling error: ${e.message}")
-                    kotlinx.coroutines.delay(2000)
+                    // Keep polling, but slow down on errors.
+                    kotlinx.coroutines.delay(8000)
                 }
             }
-            
+
             android.util.Log.d("ComplianceAnalysis", "🛑 Polling stopped")
+
+            // Re-enable reanalyze after polling ends
+            runOnUiThread {
+                btnReanalyze.isEnabled = true
+            }
         }
     }
 
@@ -596,12 +659,15 @@ class ComplianceAnalysisActivity : BaseActivity() {
         // Show confirmation dialog
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Reanalyze Document?")
-            .setMessage("This will delete the existing analysis and perform a fresh analysis. This process may take several minutes.")
+            .setMessage("This will re-run OCR and compliance scoring. This process may take several minutes.")
             .setPositiveButton("Reanalyze") { _, _ ->
+                // Prevent repeated clicks
+                btnReanalyze.isEnabled = false
+
                 // Trigger reanalysis
                 android.util.Log.d("ComplianceAnalysis", "🔄 Starting reanalysis...")
                 showState(State.PROGRESS, "Re-analyzing document...")
-                startProgressPolling()
+                startProgressPolling(PollingMode.REANALYZE)
                 viewModel.reanalyzeCompliance(documentId)
             }
             .setNegativeButton("Cancel", null)

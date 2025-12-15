@@ -12,18 +12,25 @@ export const initRealtime = async (): Promise<void> => {
     return;
   }
 
-  // Start Redis subscriber (if REDIS_URL is configured)
-  await realtimeRedis.startSubscriber((evt: MeetingEvent) => {
-    // Fan-out to local SSE clients for this agendaId
-    if (typeof evt.agendaId === 'number') {
-      sseHub.broadcastToAgenda(evt.agendaId, evt);
-    }
-  });
+  try {
+    // Start Redis subscriber (if REDIS_URL is configured)
+    await realtimeRedis.startSubscriber((evt: MeetingEvent) => {
+      // Fan-out to local SSE clients for this agendaId
+      if (typeof evt.agendaId === 'number') {
+        sseHub.broadcastToAgenda(evt.agendaId, evt);
+      }
+    });
+  } catch (err: any) {
+    // In production, redis.ts will throw if strict; in dev it should self-disable.
+    // Still: do not crash server startup here.
+    console.warn('🟡 Realtime init failed; continuing without Redis fanout.');
+    if (err?.message) console.warn(err.message);
+  }
 
   if (realtimeRedis.isEnabled()) {
     console.log('✅ Realtime enabled (Redis Pub/Sub + SSE)');
   } else {
-    console.log('🟡 Realtime not active (REDIS_URL not configured)');
+    console.log('🟡 Realtime not active (REDIS_URL not configured or unreachable)');
   }
 };
 

@@ -55,10 +55,21 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-// NOTE: SSE connections are long-lived; avoid counting them against rate limiting.
+// NOTE: Some endpoints are long-lived or intentionally polled (progress).
+// Avoid counting these against global rate limiting.
 app.use('/api', (req, res, next) => {
   const isSse = req.path.endsWith('/events') && req.path.includes('/agenda-items/meeting/');
-  if (isSse) return next();
+
+  // Express strips the mount path ('/api') here, so req.path starts with '/v1/...'
+  const isComplianceProgress = req.path.startsWith(`/${API_VERSION}/compliance/progress/`);
+  const isComplianceDoc = req.path.startsWith(`/${API_VERSION}/compliance/document/`);
+  const isComplianceAnalyze = req.path === `/${API_VERSION}/compliance/analyze`;
+  const isComplianceReanalyze = req.path.startsWith(`/${API_VERSION}/compliance/reanalyze/`);
+
+  if (isSse || isComplianceProgress || isComplianceDoc || isComplianceAnalyze || isComplianceReanalyze) {
+    return next();
+  }
+
   return limiter(req, res, next);
 });
 
@@ -225,7 +236,13 @@ const startServer = async (): Promise<void> => {
     await initializeDatabase();
 
     // Initialize realtime infra (SSE + Redis Pub/Sub) before accepting requests.
-    await initRealtime();
+    // Do not block server startup if Redis is unreachable in development.
+    try {
+      await initRealtime();
+    } catch (e: any) {
+      console.warn('🟡 Realtime init threw during startup; continuing.');
+      if (e?.message) console.warn(e.message);
+    }
 
     // Start listening on all network interfaces (0.0.0.0)
     // This allows access from Android emulator (10.0.2.2)

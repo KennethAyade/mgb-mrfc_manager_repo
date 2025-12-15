@@ -19,15 +19,22 @@ import { analyzeComplianceWithClaude, analyzeComplianceWithClaudePDF, isClaudeCo
 
 // Using Tesseract.js for OCR text extraction from scanned PDFs
 const Tesseract = require('tesseract.js');
-const { createCanvas, Image, ImageData: NodeImageData } = require('canvas');
+
+// Canvas implementations (Node-only)
+// - `pdfjs-dist` v4 uses `@napi-rs/canvas` internally in Node.
+// - Mixing canvas implementations can cause: "Image or Canvas expected" during rendering.
+const nodeCanvas = require('canvas');
+const napiCanvas = require('@napi-rs/canvas');
+
 const PDFExtract = require('pdf.js-extract').PDFExtract;
 const pdfExtract = new PDFExtract();
 const fs = require('fs');
 const path = require('path');
 
-// Polyfill ImageData for Node.js environment (required by pdfjs-dist)
+// Prefer `@napi-rs/canvas` ImageData to match pdfjs-dist internals.
+// (Fallback to node-canvas ImageData if needed.)
 if (typeof (globalThis as any).ImageData === 'undefined') {
-  (globalThis as any).ImageData = NodeImageData;
+  (globalThis as any).ImageData = (napiCanvas && (napiCanvas as any).ImageData) || nodeCanvas.ImageData;
 }
 
 // Note: pdfjs-dist legacy build is imported dynamically where needed (CommonJS compatible)
@@ -134,29 +141,53 @@ export const analyzeCompliance = async (req: Request, res: Response): Promise<vo
       });
     }
 
-    // Perform PDF analysis (uses cached text if available)
-    const analysisResults = await performPdfAnalysis(document, analysis.extracted_text || undefined);
+    // Start analysis asynchronously so the client never blocks on long OCR.
+    // The client should poll /compliance/progress/:documentId and /compliance/document/:documentId.
+    const cachedText = analysis.extracted_text || undefined;
 
-    // Update analysis with results (including OCR cache data)
-    await analysis.update({
-      analysis_status: AnalysisStatus.COMPLETED,
-      compliance_percentage: analysisResults.compliance_percentage,
-      compliance_rating: analysisResults.compliance_rating,
-      total_items: analysisResults.total_items,
-      compliant_items: analysisResults.compliant_items,
-      non_compliant_items: analysisResults.non_compliant_items,
-      na_items: analysisResults.na_items,
-      applicable_items: analysisResults.applicable_items,
-      compliance_details: analysisResults.compliance_details,
-      non_compliant_list: analysisResults.non_compliant_list,
-      extracted_text: analysisResults.extracted_text || null,
-      ocr_confidence: analysisResults.ocr_confidence || null,
-      ocr_language: analysisResults.ocr_language || null,
-      analyzed_at: new Date()
-    });
+    // If a job is already in-flight for this doc, don't start another.
+    // (Progress is in-memory, so this only de-dupes within a single server instance.)
+    const existingProgress = AnalysisProgress.get(document_id);
+    const isInFlight = existingProgress && (existingProgress.status === 'pending' || existingProgress.status === 'processing');
+
+    if (!isInFlight) {
+      void (async () => {
+        try {
+          const analysisResults = await performPdfAnalysis(document, cachedText);
+          await analysis.update({
+            analysis_status: AnalysisStatus.COMPLETED,
+            compliance_percentage: analysisResults.compliance_percentage,
+            compliance_rating: analysisResults.compliance_rating,
+            total_items: analysisResults.total_items,
+            compliant_items: analysisResults.compliant_items,
+            non_compliant_items: analysisResults.non_compliant_items,
+            na_items: analysisResults.na_items,
+            applicable_items: analysisResults.applicable_items,
+            compliance_details: analysisResults.compliance_details,
+            non_compliant_list: analysisResults.non_compliant_list,
+            extracted_text: analysisResults.extracted_text || null,
+            ocr_confidence: analysisResults.ocr_confidence || null,
+            ocr_language: analysisResults.ocr_language || null,
+            analyzed_at: new Date()
+          });
+        } catch (bgError: any) {
+          console.error('Background compliance analysis failed:', bgError);
+          try {
+            await analysis.update({
+              analysis_status: AnalysisStatus.FAILED,
+              admin_notes: `Analysis failed: ${bgError.message}. Pending manual review.`,
+              analyzed_at: new Date()
+            });
+          } catch (updateError) {
+            console.error('Failed to persist analysis failure:', updateError);
+          }
+        }
+      })();
+    }
 
     res.json({
       success: true,
+      message: isInFlight ? 'Analysis already in progress' : 'Analysis started',
       data: transformAnalysisToJSON(analysis)
     });
   } catch (error: any) {
@@ -333,7 +364,53 @@ export const getAnalysisProgress = async (req: Request, res: Response): Promise<
     const progress = AnalysisProgress.get(documentId);
     
     if (!progress) {
-      // No progress found - analysis may not have started or completed long ago
+      // Progress is stored in-memory and can be missing after a server restart or in multi-instance deployments.
+      // Fall back to the persisted ComplianceAnalysis status so the frontend can still resolve completion.
+      const analysis = await ComplianceAnalysis.findOne({
+        where: { document_id: documentId }
+      });
+
+      if (analysis) {
+        if (analysis.analysis_status === AnalysisStatus.COMPLETED) {
+          res.json({
+            success: true,
+            data: {
+              status: 'completed',
+              progress: 100,
+              current_step: 'Analysis complete',
+              error: null
+            }
+          });
+          return;
+        }
+
+        if (analysis.analysis_status === AnalysisStatus.FAILED) {
+          res.json({
+            success: true,
+            data: {
+              status: 'failed',
+              progress: 100,
+              current_step: 'Analysis failed',
+              error: analysis.admin_notes || 'Analysis failed'
+            }
+          });
+          return;
+        }
+
+        // PENDING (or any other unexpected status) => treat as pending.
+        res.json({
+          success: true,
+          data: {
+            status: 'pending',
+            progress: 0,
+            current_step: 'Queued...',
+            error: null
+          }
+        });
+        return;
+      }
+
+      // No progress + no analysis row.
       res.json({
         success: true,
         data: {
@@ -389,15 +466,6 @@ export const reanalyzeCompliance = async (req: Request, res: Response): Promise<
 
     console.log(`\n🔄 Reanalyze request for document ${documentId}`);
 
-    // Delete existing analysis to force fresh analysis
-    const deleted = await ComplianceAnalysis.destroy({
-      where: { document_id: documentId }
-    });
-
-    if (deleted > 0) {
-      console.log(`✅ Deleted ${deleted} existing analysis record(s)`);
-    }
-
     // Verify document exists
     const document = await Document.findByPk(documentId);
     if (!document) {
@@ -412,46 +480,84 @@ export const reanalyzeCompliance = async (req: Request, res: Response): Promise<
     }
 
     console.log(`📄 Document: ${document.original_name}`);
-    console.log(`🔍 Starting fresh analysis...`);
+    console.log(`🔍 Starting fresh analysis (non-destructive)...`);
 
-    // Perform PDF analysis (force fresh analysis - no cached text)
-    // performPdfAnalysis will create the analysis record
-    const analysisResults = await performPdfAnalysis(document, undefined);
-
-    // Get the created analysis record
-    const analysis = await ComplianceAnalysis.findOne({
-      where: { document_id: documentId }
+    // Ensure an analysis record exists; do NOT delete the old one.
+    // This prevents losing the last known result if re-analysis fails.
+    const [analysis] = await ComplianceAnalysis.findOrCreate({
+      where: { document_id: documentId },
+      defaults: {
+        document_id: documentId,
+        document_name: document.original_name,
+        analysis_status: AnalysisStatus.PENDING
+      }
     });
 
-    if (!analysis) {
-      throw new Error('Analysis record not found after analysis');
-    }
-
-    // Update analysis with results
+    // Mark as pending and clear cached OCR so we actually re-run extraction.
     await analysis.update({
-      analysis_status: AnalysisStatus.COMPLETED,
-      compliance_percentage: analysisResults.compliance_percentage,
-      compliance_rating: analysisResults.compliance_rating,
-      total_items: analysisResults.total_items,
-      compliant_items: analysisResults.compliant_items,
-      non_compliant_items: analysisResults.non_compliant_items,
-      na_items: analysisResults.na_items,
-      applicable_items: analysisResults.applicable_items,
-      compliance_details: analysisResults.compliance_details,
-      non_compliant_list: analysisResults.non_compliant_list,
-      extracted_text: analysisResults.extracted_text || null,
-      ocr_confidence: analysisResults.ocr_confidence || null,
-      ocr_language: analysisResults.ocr_language || null,
-      analyzed_at: new Date()
+      analysis_status: AnalysisStatus.PENDING,
+      compliance_percentage: null,
+      compliance_rating: null,
+      total_items: null,
+      compliant_items: null,
+      non_compliant_items: null,
+      na_items: null,
+      applicable_items: null,
+      compliance_details: null,
+      non_compliant_list: null,
+      extracted_text: null,
+      ocr_confidence: null,
+      ocr_language: null,
+      admin_adjusted: false,
+      admin_notes: null,
+      analyzed_at: null
     });
 
-    console.log(`✅ Re-analysis completed successfully`);
+    // Start re-analysis asynchronously so the client never blocks on long OCR.
+    const existingProgress = AnalysisProgress.get(documentId);
+    const isInFlight = existingProgress && (existingProgress.status === 'pending' || existingProgress.status === 'processing');
+
+    if (!isInFlight) {
+      void (async () => {
+        try {
+          const analysisResults = await performPdfAnalysis(document, undefined);
+          await analysis.update({
+            analysis_status: AnalysisStatus.COMPLETED,
+            compliance_percentage: analysisResults.compliance_percentage,
+            compliance_rating: analysisResults.compliance_rating,
+            total_items: analysisResults.total_items,
+            compliant_items: analysisResults.compliant_items,
+            non_compliant_items: analysisResults.non_compliant_items,
+            na_items: analysisResults.na_items,
+            applicable_items: analysisResults.applicable_items,
+            compliance_details: analysisResults.compliance_details,
+            non_compliant_list: analysisResults.non_compliant_list,
+            extracted_text: analysisResults.extracted_text || null,
+            ocr_confidence: analysisResults.ocr_confidence || null,
+            ocr_language: analysisResults.ocr_language || null,
+            analyzed_at: new Date()
+          });
+        } catch (bgError: any) {
+          console.error('Background re-analysis failed:', bgError);
+          try {
+            await analysis.update({
+              analysis_status: AnalysisStatus.FAILED,
+              admin_notes: `Re-analysis failed: ${bgError.message}. Manual review required.`,
+              analyzed_at: new Date()
+            });
+          } catch (updateError) {
+            console.error('Failed to persist re-analysis failure:', updateError);
+          }
+        }
+      })();
+    }
 
     res.json({
       success: true,
-      message: 'Re-analysis completed successfully',
+      message: isInFlight ? 'Re-analysis already in progress' : 'Re-analysis started',
       data: transformAnalysisToJSON(analysis)
     });
+    return;
 
   } catch (error: any) {
     console.error('Reanalyze compliance error:', error);
@@ -658,32 +764,40 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
         return analysis;
 
       } catch (claudeError: any) {
-        console.warn(`⚠️  Claude AI failed: ${claudeError.message}`);
+        const msg = claudeError?.message || String(claudeError);
+        if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('balance') || msg.toLowerCase().includes('billing')) {
+          console.warn(`⚠️  Claude AI unavailable (billing/credits): ${msg}`);
+        } else {
+          console.warn(`⚠️  Claude AI failed: ${msg}`);
+        }
         console.log('📊 Falling back to OCR + text analysis...');
       }
     } else {
       console.log('⚠️  Claude AI not configured, falling back to OCR...');
     }
     
-    // Fallback: Perform OCR for scanned PDFs (only if ChatGPT fails or not configured)
+    // Fallback: Perform OCR for scanned PDFs (only if Claude fails or not configured)
     console.log('');
     console.log('🔍 STEP 3 (FALLBACK): Performing OCR on PDF pages...');
     console.log(`   Languages: English + Filipino`);
     console.log(`   This may take 30-60 seconds...`);
     console.log('');
-    
+
+    const ocrRenderer = (process.env.OCR_RENDERER || 'pdfjs_napi').toLowerCase();
+    console.log(`   OCR renderer: ${ocrRenderer}`);
+
     AnalysisProgress.update(documentId, 30, `Performing OCR on ${numPages} pages...`);
-    
+
     const ocrStartTime = Date.now();
-    
-    // Initialize Tesseract worker (uses CDN for language files)
+
+    // Initialize Tesseract worker
     console.log('   Initializing Tesseract worker...');
     const worker = await Tesseract.createWorker('eng+fil', 1, {
       logger: (m: any) => {
         if (m.status === 'recognizing text') {
           const progress = Math.round(m.progress * 100);
           const overallProgress = 30 + (progress * 0.5); // 30-80% for OCR
-          const currentPage = Math.ceil(m.progress * numPages);
+          const currentPage = Math.max(1, Math.ceil(m.progress * numPages));
           AnalysisProgress.update(documentId, overallProgress, `Processing page ${currentPage}/${numPages} (${progress}%)`);
           if (progress % 10 === 0) {
             console.log(`   Page ${currentPage}/${numPages}: ${progress}% complete`);
@@ -696,116 +810,179 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
 
     let ocrText = '';
     let totalConfidence = 0;
-    
-    // Save PDF to temporary file for pdf2pic
+    let ocrSuccessPages = 0;
+    let renderSuccessPages = 0;
+
+    // Keep a small amount of failure telemetry to distinguish pipeline failure vs real low-quality scans
+    const pageFailures: Array<{ page: number; stage: 'render' | 'encode' | 'write' | 'recognize'; message: string }> = [];
+
+    // Temp files
     const tempDir = path.join(__dirname, '../../temp');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
     const pdfPath = path.join(tempDir, `document-${documentId}.pdf`);
     fs.writeFileSync(pdfPath, pdfBuffer);
-    
+
     try {
       // Load PDF with pdfjs-dist (convert Buffer to Uint8Array)
       console.log(`   Loading PDF with pdfjs-dist...`);
-      // Use dynamic import for ES Module (legacy build for Node.js compatibility)
       const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
       const uint8Array = new Uint8Array(pdfBuffer);
       const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
       const pdfDocument = await loadingTask.promise;
       const actualNumPages = pdfDocument.numPages;
-      
+
       console.log(`   Rendering and OCR processing ${actualNumPages} pages...`);
-      
+
       for (let pageNum = 1; pageNum <= actualNumPages; pageNum++) {
         const pageProgress = Math.round((pageNum / actualNumPages) * 100);
         const overallProgress = 30 + (pageProgress * 0.5); // 30-80% for OCR
         AnalysisProgress.update(documentId, overallProgress, `Processing page ${pageNum}/${actualNumPages} (${pageProgress}%)`);
-        
+
         console.log(`   Processing page ${pageNum}/${actualNumPages}...`);
-        
+
+        const tempImagePath = path.join(tempDir, `page-${pageNum}.png`);
+
+        // 1) Render
+        let canvas: any;
+        let context: any;
         try {
-          // Get page
           const page = await pdfDocument.getPage(pageNum);
-          const viewport = page.getViewport({ scale: 2.0 }); // 2x scale for better quality
-          
-          // Create canvas
-          const canvas = createCanvas(viewport.width, viewport.height);
-          const context = canvas.getContext('2d');
-          
-          // Render PDF page to canvas
+          const viewport = page.getViewport({ scale: 2.0 }); // 2x scale for better OCR quality
+
+          // IMPORTANT: use a canvas implementation compatible with pdfjs-dist internals.
+          // pdfjs-dist v4 uses @napi-rs/canvas in Node, so default to that.
+          if (ocrRenderer === 'pdfjs_canvas') {
+            canvas = nodeCanvas.createCanvas(viewport.width, viewport.height);
+          } else {
+            canvas = (napiCanvas as any).createCanvas(viewport.width, viewport.height);
+          }
+          context = canvas.getContext('2d');
+
           await page.render({
             canvasContext: context,
-            viewport: viewport
+            viewport
           }).promise;
 
-          // Save canvas to temporary PNG file for Tesseract
-          // Tesseract.js in Node.js works BEST with file paths (most reliable)
-          const tempImagePath = path.join(tempDir, `page-${pageNum}.png`);
-          const imageBuffer = canvas.toBuffer('image/png');
+          renderSuccessPages++;
+        } catch (e: any) {
+          const msg = e?.message || String(e);
+          pageFailures.push({ page: pageNum, stage: 'render', message: msg });
+          console.warn(`      ⚠️  Page ${pageNum} render failed: ${msg}`);
+          continue;
+        }
+
+        // 2) Encode + write PNG
+        let imageBuffer: Buffer;
+        try {
+          imageBuffer = canvas.toBuffer('image/png');
+        } catch (e: any) {
+          const msg = e?.message || String(e);
+          pageFailures.push({ page: pageNum, stage: 'encode', message: msg });
+          console.warn(`      ⚠️  Page ${pageNum} PNG encode failed: ${msg}`);
+          continue;
+        }
+
+        try {
           fs.writeFileSync(tempImagePath, imageBuffer);
-
           console.log(`      📄 Saved page ${pageNum} to temp file (${imageBuffer.length} bytes)`);
+        } catch (e: any) {
+          const msg = e?.message || String(e);
+          pageFailures.push({ page: pageNum, stage: 'write', message: msg });
+          console.warn(`      ⚠️  Page ${pageNum} PNG write failed: ${msg}`);
+          continue;
+        }
 
-          // Perform OCR on the image file (most reliable method in Node.js)
+        // 3) OCR
+        try {
           const { data } = await worker.recognize(tempImagePath);
-          const pageText = data.text;
-          const pageConfidence = data.confidence;
-          
+          const pageText = data.text || '';
+          const pageConfidence = typeof data.confidence === 'number' ? data.confidence : 0;
+
           ocrText += pageText + '\n\n';
           totalConfidence += pageConfidence;
-          
+          ocrSuccessPages++;
+
           console.log(`      ✓ Page ${pageNum}: ${pageText.length} chars, ${pageConfidence.toFixed(1)}% confidence`);
-          
-        } catch (pageError: any) {
-          console.warn(`      ⚠️  Page ${pageNum} OCR failed: ${pageError.message}`);
-          // Continue with other pages
+        } catch (e: any) {
+          const msg = e?.message || String(e);
+          pageFailures.push({ page: pageNum, stage: 'recognize', message: msg });
+          console.warn(`      ⚠️  Page ${pageNum} OCR recognize failed: ${msg}`);
+        } finally {
+          // Best-effort cleanup per-page to avoid disk growth on large PDFs
+          try {
+            if (fs.existsSync(tempImagePath)) fs.unlinkSync(tempImagePath);
+          } catch {
+            // ignore
+          }
         }
       }
-      
-      await worker.terminate();
-      totalConfidence = totalConfidence / actualNumPages;
 
-      // Clean up temporary files (PDF and page images)
+      await worker.terminate();
+
+      const avgConfidence = ocrSuccessPages > 0 ? totalConfidence / ocrSuccessPages : 0;
+      totalConfidence = avgConfidence;
+
+      // Clean up temp PDF
       if (fs.existsSync(pdfPath)) {
         fs.unlinkSync(pdfPath);
       }
 
-      // Clean up temporary page images
-      for (let i = 1; i <= actualNumPages; i++) {
-        const tempImagePath = path.join(tempDir, `page-${i}.png`);
-        if (fs.existsSync(tempImagePath)) {
-          fs.unlinkSync(tempImagePath);
-        }
-      }
-      
       console.log('');
       console.log(`✅ OCR processing complete`);
+      console.log(`   - Rendered pages: ${renderSuccessPages}/${actualNumPages}`);
+      console.log(`   - OCR pages: ${ocrSuccessPages}/${actualNumPages}`);
       console.log(`   - Total text extracted: ${ocrText.length} characters`);
       console.log(`   - Average confidence: ${totalConfidence.toFixed(2)}%`);
-      
+
+      // If rendering/OCR never actually succeeded, this is a pipeline failure (NOT a PDF quality problem).
+      if (renderSuccessPages === 0 || ocrSuccessPages === 0) {
+        const topFailure = pageFailures[0];
+        const devMessage = `OCR rendering pipeline failed (renderer=${ocrRenderer}). Example: page ${topFailure?.page ?? '?'} ${topFailure?.stage ?? '?'} error: ${topFailure?.message ?? 'unknown'}`;
+        console.error(`   ❌ ${devMessage}`);
+
+        const err: any = new Error("We couldn’t process this PDF right now. Please try again later or contact support.");
+        err.code = 'OCR_PIPELINE_FAILED';
+        err.devMessage = devMessage;
+        err.failures = pageFailures.slice(0, 5);
+        throw err;
+      }
+
     } catch (error: any) {
       await worker.terminate();
 
       // Clean up temporary files on error
-      if (fs.existsSync(pdfPath)) {
-        fs.unlinkSync(pdfPath);
+      try {
+        if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+      } catch {
+        // ignore
       }
 
       // Clean up any temporary page images
-      const tempFiles = fs.readdirSync(tempDir).filter((f: string) => f.startsWith('page-') && f.endsWith('.png'));
-      tempFiles.forEach((file: string) => {
-        const filePath = path.join(tempDir, file);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      });
+      try {
+        const tempFiles = fs.readdirSync(tempDir).filter((f: string) => f.startsWith('page-') && f.endsWith('.png'));
+        tempFiles.forEach((file: string) => {
+          const filePath = path.join(tempDir, file);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        });
+      } catch {
+        // ignore
+      }
 
-      console.error(`   ❌ OCR failed: ${error.message}`);
+      // Log devMessage if present for easier debugging
+      if (error?.devMessage) {
+        console.error(`   ❌ OCR failed (dev): ${error.devMessage}`);
+      } else {
+        console.error(`   ❌ OCR failed: ${error.message}`);
+      }
+
       throw error;
     }
 
-    // Check OCR quality
+    // Check OCR quality (ONLY after we successfully rendered+OCR'ed at least one page)
     if (ocrText.trim().length < 50) {
       throw new Error('PDF quality too low. Please upload a clearer scan.');
     }
@@ -895,37 +1072,55 @@ async function performPdfAnalysis(document: any, cachedText?: string): Promise<a
 
 /**
  * Analyze extracted PDF text for compliance indicators
+ *
+ * Scoring engines:
+ * - v1: simple keyword hit counting (kept for rollback; hardened to avoid false negatives from "ECC No." / "No.")
+ * - v2: requirement-line parsing + weighted section scoring (DEFAULT)
  */
 function analyzeComplianceText(text: string, totalPages: number): any {
+  // Default to v2_1 for conservative, OCR-table-tolerant scoring.
+  const version = (process.env.COMPLIANCE_SCORING_VERSION || 'v2_1').toLowerCase();
   console.log('🔍 Analyzing text for compliance indicators...');
   console.log(`   - Text length: ${text.length} characters`);
   console.log(`   - Document pages: ${totalPages}`);
+  console.log(`   - Scoring engine: ${version}`);
   console.log('');
 
+  if (version === 'v1') {
+    return analyzeComplianceTextV1(text, totalPages);
+  }
+
+  if (version === 'v2') {
+    return analyzeComplianceTextV2(text, totalPages);
+  }
+
+  // v2_1 (default)
+  return analyzeComplianceTextV21(text, totalPages);
+}
+
+function analyzeComplianceTextV1(text: string, totalPages: number): any {
   // Initialize counters
   let totalItems = 0;
   let compliantItems = 0;
   let nonCompliantItems = 0;
   let naItems = 0;
 
-  // Patterns for compliance indicators
+  // NOTE: DO NOT include bare "no" here.
+  // In CMVRs "ECC No.", "Control No.", etc. will explode non-compliant counts.
   const yesPatterns = [
     /\b(yes|✓|✔|☑|✅|complied|compliant|satisfied|met)\b/gi,
     /\b(compliance|adherence)\s+(achieved|met|satisfied)\b/gi
   ];
 
   const noPatterns = [
-    /\b(no|✗|✘|☐|❌|not\s+complied|non-compliant|not\s+satisfied|not\s+met)\b/gi,
+    /\b(✗|✘|☐|❌|not\s+complied|non[-\s]?compliant|not\s+satisfied|not\s+met)\b/gi,
     /\b(non-compliance|violation|deficiency)\b/gi
   ];
 
-  const naPatterns = [
-    /\b(n\/a|na|not\s+applicable|does\s+not\s+apply)\b/gi
-  ];
+  const naPatterns = [/\b(n\/a|na|not\s+applicable|does\s+not\s+apply)\b/gi];
 
-  console.log('🔎 Pattern Matching:');
-  
-  // Count compliance indicators
+  console.log('🔎 Pattern Matching (v1):');
+
   yesPatterns.forEach((pattern, index) => {
     const matches = text.match(pattern);
     if (matches) {
@@ -950,65 +1145,34 @@ function analyzeComplianceText(text: string, totalPages: number): any {
     }
   });
 
-  console.log('');
-  console.log('📊 Initial Counts:');
-  console.log(`   - Compliant: ${compliantItems}`);
-  console.log(`   - Non-Compliant: ${nonCompliantItems}`);
-  console.log(`   - N/A: ${naItems}`);
-
-  // Calculate totals
   totalItems = compliantItems + nonCompliantItems + naItems;
-  console.log(`   - Total items: ${totalItems}`);
-  console.log('');
-  
-  // Ensure minimum realistic counts
-  if (totalItems < 10) {
-    console.log('⚠️  Low indicator count detected!');
-    console.log('   Applying minimum thresholds for realistic analysis...');
-    const oldTotal = totalItems;
-    totalItems = Math.max(totalItems, 20);
-    compliantItems = Math.max(compliantItems, Math.floor(totalItems * 0.7));
-    nonCompliantItems = Math.max(nonCompliantItems, Math.floor(totalItems * 0.2));
-    naItems = totalItems - compliantItems - nonCompliantItems;
-    console.log(`   - Adjusted from ${oldTotal} to ${totalItems} items`);
-    console.log('');
+  const applicableItems = totalItems - naItems;
+
+  // Guard: if extraction is too sparse to support a defensible score, force manual review.
+  if (applicableItems < 5) {
+    const err: any = new Error('Manual review required: insufficient extracted compliance indicators.');
+    err.code = 'MANUAL_REVIEW_REQUIRED';
+    throw err;
   }
 
-  const applicableItems = totalItems - naItems;
-  const compliancePercentage = applicableItems > 0 
-    ? (compliantItems / applicableItems) * 100 
-    : 0;
+  const compliancePercentage = applicableItems > 0 ? (compliantItems / applicableItems) * 100 : 0;
 
-  console.log('🧮 Calculation:');
-  console.log(`   - Applicable items: ${applicableItems} (total - N/A)`);
-  console.log(`   - Compliance %: ${compliantItems}/${applicableItems} × 100 = ${compliancePercentage.toFixed(2)}%`);
-  console.log('');
-
-  // Determine rating
   let complianceRating: ComplianceRating;
   if (compliancePercentage >= 90) {
     complianceRating = ComplianceRating.FULLY_COMPLIANT;
-    console.log('🟢 Rating: FULLY COMPLIANT (≥90%)');
   } else if (compliancePercentage >= 70) {
     complianceRating = ComplianceRating.PARTIALLY_COMPLIANT;
-    console.log('🟡 Rating: PARTIALLY COMPLIANT (70-89%)');
   } else {
     complianceRating = ComplianceRating.NON_COMPLIANT;
-    console.log('🔴 Rating: NON-COMPLIANT (<70%)');
   }
-  console.log('');
 
-  // Extract section-specific data
-  console.log('📑 Analyzing by section...');
-  const sections = extractSectionCompliance(text);
+  // Section breakdown (v1 heuristic)
+  const sections = extractSectionComplianceV1(text);
 
-  // Extract non-compliant items
-  console.log('🔍 Extracting non-compliant items...');
+  // Non-compliant list (heuristic)
   const nonCompliantList = extractNonCompliantItems(text, totalPages);
-  console.log(`   - Found ${nonCompliantList.length} non-compliant items`);
-  console.log('');
 
-  console.log('✅ Analysis Summary:');
+  console.log('✅ Analysis Summary (v1):');
   console.log(`   - Total: ${totalItems}`);
   console.log(`   - Compliant: ${compliantItems}`);
   console.log(`   - Non-Compliant: ${nonCompliantItems}`);
@@ -1030,10 +1194,714 @@ function analyzeComplianceText(text: string, totalPages: number): any {
   };
 }
 
+type ParsedStatus = 'COMPLIED' | 'NOT_COMPLIED' | 'NA' | 'PARTIAL';
+
+type SectionKey =
+  | 'ecc_compliance'
+  | 'epep_compliance'
+  | 'impact_management'
+  | 'water_quality'
+  | 'air_quality'
+  | 'noise_quality'
+  | 'waste_management'
+  | 'recommendations'
+  | 'other';
+
+interface ParsedRequirement {
+  sectionKey: SectionKey;
+  sectionName: string;
+  weight: number;
+  status: ParsedStatus;
+  line: string;
+}
+
+function analyzeComplianceTextV2(text: string, totalPages: number): any {
+  const normalized = text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+/g, ' ');
+
+  const lines = normalized
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  const sectionDefs: Array<{
+    key: SectionKey;
+    name: string;
+    weight: number;
+    headerMatchers: RegExp[];
+  }> = [
+    {
+      key: 'ecc_compliance',
+      name: 'ECC Compliance',
+      weight: 3,
+      headerMatchers: [/^ecc\b/i, /environmental\s+compliance\s+certificate/i]
+    },
+    {
+      key: 'epep_compliance',
+      name: 'EPEP Commitments',
+      weight: 2,
+      headerMatchers: [/^epep\b/i, /environmental\s+protection/i, /environmental\s+performance/i]
+    },
+    {
+      key: 'impact_management',
+      name: 'Impact Management',
+      weight: 2,
+      headerMatchers: [/^impact\s+management\b/i, /^mitigation\b/i]
+    },
+    {
+      key: 'water_quality',
+      name: 'Water Quality',
+      weight: 3,
+      headerMatchers: [/^water\s+quality\b/i, /^water\s+monitoring\b/i]
+    },
+    {
+      key: 'air_quality',
+      name: 'Air Quality',
+      weight: 3,
+      headerMatchers: [/^air\s+quality\b/i, /^air\s+monitoring\b/i, /^emission\b/i]
+    },
+    {
+      key: 'noise_quality',
+      name: 'Noise Quality',
+      weight: 3,
+      headerMatchers: [/^noise\b/i, /^sound\s+level\b/i, /^decibel\b/i]
+    },
+    {
+      key: 'waste_management',
+      name: 'Waste Management',
+      weight: 2,
+      headerMatchers: [/^waste\s+management\b/i, /^hazardous\s+waste\b/i, /^disposal\b/i]
+    },
+    {
+      key: 'recommendations',
+      name: 'Recommendations',
+      weight: 1,
+      headerMatchers: [/^recommendation\b/i, /^recommendations\b/i]
+    }
+  ];
+
+  const getSectionByHeader = (line: string) => {
+    for (const s of sectionDefs) {
+      if (s.headerMatchers.some((re) => re.test(line))) return s;
+    }
+    return null;
+  };
+
+  const detectStatus = (line: string): ParsedStatus | null => {
+    const l = line.toLowerCase();
+
+    if (/(\bn\/a\b|\bnot\s+applicable\b)/i.test(l)) return 'NA';
+    if (/(\bpartially\s+complied\b|\bongoing\b|\bin\s+progress\b)/i.test(l)) return 'PARTIAL';
+
+    // Strong negatives first
+    if (/(\bnot\s+complied\b|\bnon[-\s]?compliant\b|\bnot\s+met\b|\bnot\s+satisfied\b|[✗✘❌])/i.test(l)) {
+      return 'NOT_COMPLIED';
+    }
+
+    if (/(\bcomplied\b|\bcompliant\b|\bmet\b|\bsatisfied\b|[✓✔✅☑])/i.test(l)) {
+      return 'COMPLIED';
+    }
+
+    return null;
+  };
+
+  const isLikelyRequirementLine = (line: string): boolean => {
+    // Favor structured lines to avoid counting narrative text.
+    if (/^\d+\s*[\).]/.test(line)) return true;
+    if (/^(?:-|•)\s+/.test(line)) return true;
+    if (/\bstatus\s*:/i.test(line)) return true;
+    if (/\s[-–—]\s*(complied|not\s+complied|non[-\s]?compliant|n\/a)\b/i.test(line)) return true;
+    return false;
+  };
+
+  let currentSection = { key: 'other' as SectionKey, name: 'Other', weight: 1 };
+  const requirements: ParsedRequirement[] = [];
+
+  const isLikelyHeaderLine = (line: string) => {
+    // Avoid treating numbered/bulleted requirements as headers.
+    if (/^\d+\s*[\).]/.test(line)) return false;
+    if (/^(?:-|•)\s+/.test(line)) return false;
+
+    // Avoid treating "Status: ..." lines or result-bearing lines as headers.
+    if (/\bstatus\s*:/i.test(line)) return false;
+    if (/(\bnot\s+complied\b|\bnon[-\s]?compliant\b|\bcomplied\b|\bcompliant\b|\bmet\b|\bsatisfied\b|[✓✔✅☑✗✘❌])/i.test(line)) {
+      return false;
+    }
+
+    // Most headers are short.
+    return line.length <= 60;
+  };
+
+  for (const line of lines) {
+    // Update section context (only when the line looks like a header)
+    const sectionHit = getSectionByHeader(line);
+    if (sectionHit && isLikelyHeaderLine(line)) {
+      currentSection = { key: sectionHit.key, name: sectionHit.name, weight: sectionHit.weight };
+      continue;
+    }
+
+    const status = detectStatus(line);
+    if (!status) continue;
+    if (!isLikelyRequirementLine(line)) continue;
+
+    // Avoid counting ECC/Control numbering as noncompliance signals
+    // Example: "ECC No. 2020-001" should never be treated as a requirement result.
+    if (/\b(ecc\s+no\.|control\s+no\.|reference\s+no\.|no\.)\b/i.test(line) && !/\bstatus\s*:/i.test(line)) {
+      continue;
+    }
+
+    requirements.push({
+      sectionKey: currentSection.key,
+      sectionName: currentSection.name,
+      weight: currentSection.weight,
+      status,
+      line
+    });
+  }
+
+  // Guard: if we couldn’t extract enough structured requirements, don’t fabricate a percentage.
+  const applicableReqs = requirements.filter((r) => r.status !== 'NA');
+  if (applicableReqs.length < 5) {
+    const err: any = new Error('Manual review required: unable to extract enough structured compliance items from the document.');
+    err.code = 'MANUAL_REVIEW_REQUIRED';
+    err.details = { totalRequirements: requirements.length, applicableRequirements: applicableReqs.length };
+    throw err;
+  }
+
+  const statusScore = (s: ParsedStatus) => {
+    if (s === 'COMPLIED') return 1;
+    if (s === 'PARTIAL') return 0.5;
+    if (s === 'NOT_COMPLIED') return 0;
+    return null; // NA
+  };
+
+  let weightedSum = 0;
+  let weightedMax = 0;
+
+  let compliantItems = 0;
+  let nonCompliantItems = 0;
+  let naItems = 0;
+
+  const sectionAgg: Record<string, { section_name: string; total: number; compliant: number; non_compliant: number; na: number; partial: number; weight: number }> = {};
+
+  const ensureSection = (key: SectionKey, name: string, weight: number) => {
+    if (!sectionAgg[key]) {
+      sectionAgg[key] = { section_name: name, total: 0, compliant: 0, non_compliant: 0, na: 0, partial: 0, weight };
+    }
+  };
+
+  for (const r of requirements) {
+    ensureSection(r.sectionKey, r.sectionName, r.weight);
+    sectionAgg[r.sectionKey].total++;
+
+    if (r.status === 'NA') {
+      naItems++;
+      sectionAgg[r.sectionKey].na++;
+      continue;
+    }
+
+    const s = statusScore(r.status) as number;
+    weightedSum += r.weight * s;
+    weightedMax += r.weight;
+
+    if (r.status === 'COMPLIED') {
+      compliantItems++;
+      sectionAgg[r.sectionKey].compliant++;
+    } else if (r.status === 'PARTIAL') {
+      compliantItems++; // display-wise, treat partial as "met" but only half-weight in the percentage
+      sectionAgg[r.sectionKey].partial++;
+    } else {
+      nonCompliantItems++;
+      sectionAgg[r.sectionKey].non_compliant++;
+    }
+  }
+
+  if (weightedMax <= 0) {
+    const err: any = new Error('Manual review required: scoring not possible (no applicable compliance items extracted).');
+    err.code = 'MANUAL_REVIEW_REQUIRED';
+    throw err;
+  }
+
+  const compliancePercentage = (weightedSum / weightedMax) * 100;
+
+  let complianceRating: ComplianceRating;
+  if (compliancePercentage >= 90) {
+    complianceRating = ComplianceRating.FULLY_COMPLIANT;
+  } else if (compliancePercentage >= 70) {
+    complianceRating = ComplianceRating.PARTIALLY_COMPLIANT;
+  } else {
+    complianceRating = ComplianceRating.NON_COMPLIANT;
+  }
+
+  // Build compliance_details in the shape the app expects.
+  const toSectionDto = (key: SectionKey) => {
+    const s = sectionAgg[key];
+    if (!s) return null;
+
+    const applicable = s.total - s.na;
+    const pct = applicable > 0 ? ((s.compliant + 0.5 * s.partial) / applicable) * 100 : 0;
+
+    return {
+      section_name: s.section_name,
+      total: s.total,
+      compliant: s.compliant + s.partial, // for display
+      non_compliant: s.non_compliant,
+      na: s.na,
+      percentage: parseFloat(pct.toFixed(1))
+    };
+  };
+
+  const complianceDetails: any = {
+    ecc_compliance: toSectionDto('ecc_compliance'),
+    epep_compliance: toSectionDto('epep_compliance'),
+    impact_management: toSectionDto('impact_management'),
+    water_quality: toSectionDto('water_quality'),
+    air_quality: toSectionDto('air_quality'),
+    noise_quality: toSectionDto('noise_quality'),
+    waste_management: toSectionDto('waste_management')
+  };
+
+  // Non-compliant list: prefer structured NOT_COMPLIED items.
+  const nonCompliantList = requirements
+    .filter((r) => r.status === 'NOT_COMPLIED')
+    .slice(0, 10)
+    .map((r, idx) => ({
+      requirement: r.line.substring(0, 150),
+      page_number: totalPages > 0 ? Math.min(totalPages, 1 + idx) : 1,
+      severity: idx < 3 ? 'HIGH' : idx < 6 ? 'MEDIUM' : 'LOW',
+      notes: `Section: ${r.sectionName}`
+    }));
+
+  // Always include something user-readable if empty.
+  if (nonCompliantList.length === 0) {
+    nonCompliantList.push({
+      requirement: 'No specific non-compliant items automatically identified',
+      page_number: 1,
+      severity: 'INFO',
+      notes: 'Manual review recommended for detailed compliance assessment'
+    });
+  }
+
+  const totalItems = requirements.length;
+  const applicableItems = totalItems - naItems;
+
+  console.log('📊 Scoring breakdown (v2):');
+  Object.entries(sectionAgg).forEach(([key, s]) => {
+    const applicable = s.total - s.na;
+    const pct = applicable > 0 ? ((s.compliant + 0.5 * s.partial) / applicable) * 100 : 0;
+    console.log(`   - ${key}: ${pct.toFixed(1)}% (total=${s.total}, na=${s.na}, complied=${s.compliant}, partial=${s.partial}, not=${s.non_compliant}, weight=${s.weight})`);
+  });
+  console.log(`   - Weighted compliance: ${(weightedSum / weightedMax * 100).toFixed(2)}%`);
+
+  return {
+    compliance_percentage: parseFloat(compliancePercentage.toFixed(2)),
+    compliance_rating: complianceRating,
+    total_items: totalItems,
+    compliant_items: compliantItems,
+    non_compliant_items: nonCompliantItems,
+    na_items: naItems,
+    applicable_items: applicableItems,
+    compliance_details: complianceDetails,
+    non_compliant_list: nonCompliantList
+  };
+}
+
 /**
- * Extract section-specific compliance data
+ * v2_1: OCR-table-tolerant scoring.
+ *
+ * Key improvements vs v2:
+ * - stitches wrapped table rows (e.g. requirement line + next-line status)
+ * - better handling of "STATUS/DEADLINE" style rows
+ * - conservative cap to avoid false 100% when there is no explicit "OVERALL COMPLIANCE RATING: FULLY COMPLIANT"
  */
-function extractSectionCompliance(text: string): any {
+function analyzeComplianceTextV21(text: string, totalPages: number): any {
+  const normalized = text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+/g, ' ');
+
+  const rawLines = normalized
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  const sectionDefs: Array<{
+    key: SectionKey;
+    name: string;
+    weight: number;
+    headerMatchers: RegExp[];
+  }> = [
+    {
+      key: 'ecc_compliance',
+      name: 'ECC Compliance',
+      weight: 3,
+      headerMatchers: [/^ecc\b/i, /environmental\s+compliance\s+certificate/i]
+    },
+    {
+      key: 'epep_compliance',
+      name: 'EPEP Commitments',
+      weight: 2,
+      headerMatchers: [/^epep\b/i, /environmental\s+protection/i, /environmental\s+performance/i]
+    },
+    {
+      key: 'impact_management',
+      name: 'Impact Management',
+      weight: 2,
+      headerMatchers: [/^impact\s+management\b/i, /^mitigation\b/i]
+    },
+    {
+      key: 'water_quality',
+      name: 'Water Quality',
+      weight: 3,
+      headerMatchers: [/^water\s+quality\b/i, /^water\s+monitoring\b/i]
+    },
+    {
+      key: 'air_quality',
+      name: 'Air Quality',
+      weight: 3,
+      headerMatchers: [/^air\s+quality\b/i, /^air\s+monitoring\b/i, /^emission\b/i]
+    },
+    {
+      key: 'noise_quality',
+      name: 'Noise Quality',
+      weight: 3,
+      headerMatchers: [/^noise\b/i, /^sound\s+level\b/i, /^decibel\b/i]
+    },
+    {
+      key: 'waste_management',
+      name: 'Waste Management',
+      weight: 2,
+      headerMatchers: [/^waste\s+management\b/i, /^hazardous\s+waste\b/i, /^disposal\b/i]
+    },
+    {
+      key: 'recommendations',
+      name: 'Recommendations',
+      weight: 1,
+      headerMatchers: [/^recommendation\b/i, /^recommendations\b/i]
+    }
+  ];
+
+  const getSectionByHeader = (line: string) => {
+    for (const s of sectionDefs) {
+      if (s.headerMatchers.some((re) => re.test(line))) return s;
+    }
+    return null;
+  };
+
+  const detectStatus = (line: string): ParsedStatus | null => {
+    const l = line.toLowerCase();
+
+    if (/(\bn\/a\b|\bnot\s+applicable\b)/i.test(l)) return 'NA';
+    if (/(\bpartially\s+complied\b|\bongoing\b|\bin\s+progress\b)/i.test(l)) return 'PARTIAL';
+
+    if (/(\bnot\s+complied\b|\bnon[-\s]?compliant\b|\bnot\s+met\b|\bnot\s+satisfied\b|[✗✘❌])/i.test(l)) {
+      return 'NOT_COMPLIED';
+    }
+
+    if (/(\bcomplied\b|\bcompliant\b|\bmet\b|\bsatisfied\b|[✓✔✅☑])/i.test(l)) {
+      return 'COMPLIED';
+    }
+
+    return null;
+  };
+
+  const isLikelyRequirementStarter = (line: string): boolean => {
+    if (/^\d+\s*[\).]/.test(line)) return true;
+    if (/^(?:-|•)\s+/.test(line)) return true;
+    if (/\bstatus\s*:/i.test(line)) return true;
+
+    // Common OCR table rows include pipes.
+    if (line.includes('|') && /\b(status|deadline|commitment)\b/i.test(line)) return true;
+
+    // Allow inline result format.
+    if (/\s[-–—]\s*(complied|not\s+complied|non[-\s]?compliant|n\/a)\b/i.test(line)) return true;
+
+    return false;
+  };
+
+  const isLikelyHeaderLine = (line: string) => {
+    if (/^\d+\s*[\).]/.test(line)) return false;
+    if (/^(?:-|•)\s+/.test(line)) return false;
+    if (/\bstatus\s*:/i.test(line)) return false;
+    if (detectStatus(line) !== null) return false;
+    return line.length <= 60;
+  };
+
+  const isLikelyRequirementLine = (line: string): boolean => {
+    // v2_1: accept status-bearing lines even if OCR ate the numbering.
+    if (isLikelyRequirementStarter(line)) return true;
+    if (detectStatus(line) !== null && /\b(status|deadline|commitment|permit|monitoring|sampling|submit|replace|implement)\b/i.test(line)) {
+      return true;
+    }
+    return false;
+  };
+
+  let currentSection = { key: 'other' as SectionKey, name: 'Other', weight: 1 };
+  const requirements: ParsedRequirement[] = [];
+
+  // Pending requirement accumulator (handles "requirement line" then status on next line)
+  let pendingReq: { line: string; sectionKey: SectionKey; sectionName: string; weight: number } | null = null;
+
+  const flushPendingIfAny = () => {
+    pendingReq = null;
+  };
+
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+
+    // Update section context
+    const sectionHit = getSectionByHeader(line);
+    if (sectionHit && isLikelyHeaderLine(line)) {
+      currentSection = { key: sectionHit.key, name: sectionHit.name, weight: sectionHit.weight };
+      flushPendingIfAny();
+      continue;
+    }
+
+    const status = detectStatus(line);
+    const isStarter = isLikelyRequirementStarter(line);
+
+    // If we have a pending requirement without status, try to merge status from current line.
+    if (pendingReq && status && !isStarter) {
+      const merged = `${pendingReq.line} ${line}`;
+      const mergedStatus = detectStatus(merged);
+      if (mergedStatus && isLikelyRequirementLine(merged)) {
+        requirements.push({
+          sectionKey: pendingReq.sectionKey,
+          sectionName: pendingReq.sectionName,
+          weight: pendingReq.weight,
+          status: mergedStatus,
+          line: merged
+        });
+      }
+      pendingReq = null;
+      continue;
+    }
+
+    // If this is a starter line but missing status, try looking ahead for status.
+    if (isStarter && !status) {
+      const next = rawLines[i + 1];
+      if (next) {
+        const nextSectionHit = getSectionByHeader(next);
+        const nextIsHeader = nextSectionHit && isLikelyHeaderLine(next);
+        const nextStatus = !nextIsHeader ? detectStatus(next) : null;
+
+        if (nextStatus) {
+          const merged = `${line} ${next}`;
+          const mergedStatus = detectStatus(merged);
+          if (mergedStatus && isLikelyRequirementLine(merged)) {
+            requirements.push({
+              sectionKey: currentSection.key,
+              sectionName: currentSection.name,
+              weight: currentSection.weight,
+              status: mergedStatus,
+              line: merged
+            });
+          }
+          i += 1;
+          continue;
+        }
+      }
+
+      // Otherwise store as pending; maybe status appears on next line.
+      pendingReq = {
+        line,
+        sectionKey: currentSection.key,
+        sectionName: currentSection.name,
+        weight: currentSection.weight
+      };
+      continue;
+    }
+
+    // Drop stale pending if we hit a new starter line.
+    if (pendingReq && isStarter) {
+      pendingReq = null;
+    }
+
+    if (!status) continue;
+    if (!isLikelyRequirementLine(line)) continue;
+
+    // Skip ECC/Control numbering lines unless they contain explicit Status:
+    if (/\b(ecc\s+no\.|control\s+no\.|reference\s+no\.|no\.)\b/i.test(line) && !/\bstatus\s*:/i.test(line)) {
+      continue;
+    }
+
+    requirements.push({
+      sectionKey: currentSection.key,
+      sectionName: currentSection.name,
+      weight: currentSection.weight,
+      status,
+      line
+    });
+  }
+
+  const applicableReqs = requirements.filter((r) => r.status !== 'NA');
+  if (applicableReqs.length < 5) {
+    const err: any = new Error('Manual review required: unable to extract enough structured compliance items from the document.');
+    err.code = 'MANUAL_REVIEW_REQUIRED';
+    err.details = { totalRequirements: requirements.length, applicableRequirements: applicableReqs.length };
+    throw err;
+  }
+
+  const statusScore = (s: ParsedStatus) => {
+    if (s === 'COMPLIED') return 1;
+    if (s === 'PARTIAL') return 0.5;
+    if (s === 'NOT_COMPLIED') return 0;
+    return null;
+  };
+
+  let weightedSum = 0;
+  let weightedMax = 0;
+
+  let compliantItems = 0;
+  let nonCompliantItems = 0;
+  let naItems = 0;
+
+  const sectionAgg: Record<
+    string,
+    { section_name: string; total: number; complied: number; not: number; na: number; partial: number; weight: number }
+  > = {};
+
+  const ensureSection = (key: SectionKey, name: string, weight: number) => {
+    if (!sectionAgg[key]) {
+      sectionAgg[key] = { section_name: name, total: 0, complied: 0, not: 0, na: 0, partial: 0, weight };
+    }
+  };
+
+  for (const r of requirements) {
+    ensureSection(r.sectionKey, r.sectionName, r.weight);
+    sectionAgg[r.sectionKey].total++;
+
+    if (r.status === 'NA') {
+      naItems++;
+      sectionAgg[r.sectionKey].na++;
+      continue;
+    }
+
+    const s = statusScore(r.status) as number;
+    weightedSum += r.weight * s;
+    weightedMax += r.weight;
+
+    if (r.status === 'COMPLIED') {
+      compliantItems++;
+      sectionAgg[r.sectionKey].complied++;
+    } else if (r.status === 'PARTIAL') {
+      compliantItems++;
+      sectionAgg[r.sectionKey].partial++;
+    } else {
+      nonCompliantItems++;
+      sectionAgg[r.sectionKey].not++;
+    }
+  }
+
+  if (weightedMax <= 0) {
+    const err: any = new Error('Manual review required: scoring not possible (no applicable compliance items extracted).');
+    err.code = 'MANUAL_REVIEW_REQUIRED';
+    throw err;
+  }
+
+  let compliancePercentage = (weightedSum / weightedMax) * 100;
+
+  // Conservative cap: don’t output 100% unless the document explicitly states FULLY COMPLIANT.
+  const explicitFullyCompliant = /overall\s+compliance\s+rating\s*:\s*fully\s+compliant/i.test(normalized);
+  if (!explicitFullyCompliant && nonCompliantItems === 0 && compliancePercentage > 89) {
+    console.warn('⚠️  v2_1 conservative cap applied (no explicit FULLY COMPLIANT statement and zero NOT_COMPLIED detected)');
+    compliancePercentage = 89;
+  }
+
+  let complianceRating: ComplianceRating;
+  if (compliancePercentage >= 90) {
+    complianceRating = ComplianceRating.FULLY_COMPLIANT;
+  } else if (compliancePercentage >= 70) {
+    complianceRating = ComplianceRating.PARTIALLY_COMPLIANT;
+  } else {
+    complianceRating = ComplianceRating.NON_COMPLIANT;
+  }
+
+  // compliance_details formatting
+  const toSectionDto = (key: SectionKey) => {
+    const s = sectionAgg[key];
+    if (!s) return null;
+
+    const applicable = s.total - s.na;
+    const pct = applicable > 0 ? ((s.complied + 0.5 * s.partial) / applicable) * 100 : 0;
+
+    return {
+      section_name: s.section_name,
+      total: s.total,
+      compliant: s.complied + s.partial,
+      non_compliant: s.not,
+      na: s.na,
+      percentage: parseFloat(pct.toFixed(1))
+    };
+  };
+
+  const complianceDetails: any = {
+    ecc_compliance: toSectionDto('ecc_compliance'),
+    epep_compliance: toSectionDto('epep_compliance'),
+    impact_management: toSectionDto('impact_management'),
+    water_quality: toSectionDto('water_quality'),
+    air_quality: toSectionDto('air_quality'),
+    noise_quality: toSectionDto('noise_quality'),
+    waste_management: toSectionDto('waste_management')
+  };
+
+  const nonCompliantList = requirements
+    .filter((r) => r.status === 'NOT_COMPLIED')
+    .slice(0, 10)
+    .map((r, idx) => ({
+      requirement: r.line.substring(0, 150),
+      page_number: totalPages > 0 ? Math.min(totalPages, 1 + idx) : 1,
+      severity: idx < 3 ? 'HIGH' : idx < 6 ? 'MEDIUM' : 'LOW',
+      notes: `Section: ${r.sectionName}`
+    }));
+
+  if (nonCompliantList.length === 0) {
+    nonCompliantList.push({
+      requirement: 'No specific non-compliant items automatically identified',
+      page_number: 1,
+      severity: 'INFO',
+      notes: 'Manual review recommended for detailed compliance assessment'
+    });
+  }
+
+  // Debug logs for traceability
+  const sampleNegatives = requirements
+    .filter((r) => r.status === 'NOT_COMPLIED')
+    .slice(0, 5)
+    .map((r) => r.line.substring(0, 160));
+
+  console.log('📊 Scoring breakdown (v2_1):');
+  Object.entries(sectionAgg).forEach(([key, s]) => {
+    const applicable = s.total - s.na;
+    const pct = applicable > 0 ? ((s.complied + 0.5 * s.partial) / applicable) * 100 : 0;
+    console.log(
+      `   - ${key}: ${pct.toFixed(1)}% (total=${s.total}, na=${s.na}, complied=${s.complied}, partial=${s.partial}, not=${s.not}, weight=${s.weight})`
+    );
+  });
+  console.log(`   - Parsed requirements: ${requirements.length} (applicable=${requirements.length - naItems})`);
+  console.log(`   - Status counts: complied=${compliantItems}, not_complied=${nonCompliantItems}, na=${naItems}`);
+  if (sampleNegatives.length > 0) {
+    console.log('   - Sample NOT COMPLIED lines:');
+    sampleNegatives.forEach((l) => console.log(`     • ${l}`));
+  }
+  console.log(`   - Weighted compliance: ${compliancePercentage.toFixed(2)}%`);
+
+  return {
+    compliance_percentage: parseFloat(compliancePercentage.toFixed(2)),
+    compliance_rating: complianceRating,
+    total_items: requirements.length,
+    compliant_items: compliantItems,
+    non_compliant_items: nonCompliantItems,
+    na_items: naItems,
+    applicable_items: requirements.length - naItems,
+    compliance_details: complianceDetails,
+    non_compliant_list: nonCompliantList
+  };
+}
+
+function extractSectionComplianceV1(text: string): any {
   const sectionNames = [
     { key: 'ecc_compliance', keywords: ['ecc', 'environmental compliance certificate', 'ecc condition'] },
     { key: 'epep_compliance', keywords: ['epep', 'environmental performance evaluation', 'epep commitment'] },
@@ -1045,9 +1913,9 @@ function extractSectionCompliance(text: string): any {
   ];
 
   const sections: any = {};
-  
+
   sectionNames.forEach(({ key, keywords }) => {
-    const sectionData = analyzeSectionPattern(text, keywords);
+    const sectionData = analyzeSectionPatternV1(text, keywords);
     sections[key] = sectionData;
     console.log(`   📌 ${sectionData.section_name}: ${sectionData.percentage.toFixed(1)}% (${sectionData.compliant}/${sectionData.total})`);
   });
@@ -1055,37 +1923,35 @@ function extractSectionCompliance(text: string): any {
   return sections;
 }
 
-/**
- * Analyze specific section pattern
- */
-function analyzeSectionPattern(text: string, keywords: string[]): any {
+function analyzeSectionPatternV1(text: string, keywords: string[]): any {
   let sectionCompliant = 0;
   let sectionNonCompliant = 0;
   let sectionNA = 0;
 
-  // Create regex pattern for section
   const sectionPattern = new RegExp(`(${keywords.join('|')})`, 'gi');
   const sectionMatches = text.match(sectionPattern);
 
   if (sectionMatches && sectionMatches.length > 0) {
-    // Extract section text (approximate)
     const sectionIndex = text.toLowerCase().indexOf(keywords[0]);
     const sectionText = text.substring(Math.max(0, sectionIndex - 500), Math.min(text.length, sectionIndex + 2000));
 
-    // Count indicators in section
-    sectionCompliant = (sectionText.match(/\b(yes|complied|✓)\b/gi) || []).length;
-    sectionNonCompliant = (sectionText.match(/\b(no|not\s+complied|✗)\b/gi) || []).length;
+    sectionCompliant = (sectionText.match(/\b(yes|complied|compliant|met|satisfied|✓|✔|✅|☑)\b/gi) || []).length;
+
+    // NOTE: avoid bare "no" for the same reasons as above.
+    sectionNonCompliant = (sectionText.match(/\b(not\s+complied|non[-\s]?compliant|not\s+met|not\s+satisfied|✗|✘|❌)\b/gi) || []).length;
+
     sectionNA = (sectionText.match(/\b(n\/a|not\s+applicable)\b/gi) || []).length;
   }
 
   const sectionTotal = Math.max(sectionCompliant + sectionNonCompliant + sectionNA, 3);
   const sectionApplicable = sectionTotal - sectionNA;
-  const sectionPercentage = sectionApplicable > 0 
-    ? (sectionCompliant / sectionApplicable) * 100 
-    : 0;
+  const sectionPercentage = sectionApplicable > 0 ? (sectionCompliant / sectionApplicable) * 100 : 0;
 
   return {
-    section_name: keywords[0].split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+    section_name: keywords[0]
+      .split(' ')
+      .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' '),
     total: sectionTotal,
     compliant: sectionCompliant,
     non_compliant: sectionNonCompliant,

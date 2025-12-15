@@ -734,13 +734,27 @@ AWS_REGION=us-east-1
 ---
 
 ### 9. AI-Powered CMVR Compliance Analysis ✅
-**Status:** ✅ PRODUCTION READY - Anthropic Claude + Auto-Trigger + Real OCR
-**Last Updated:** Nov 13, 2025 (v2.0.8 - AI Migration)
+**Status:** ✅ PRODUCTION READY - Claude (optional) + Auto-Trigger + OCR Fallback + Weighted Scoring
+**Last Updated:** Dec 15, 2025 @ 9:20 PM (OCR reliability + scoring accuracy fixes)
 
 #### What is it?
-Fully automated, AI-powered PDF analysis system that calculates compliance percentages for CMVR documents using Anthropic Claude (Haiku 4.5) for intelligent analysis and real OCR for text extraction. Analysis is automatically triggered when viewing documents.
+Fully automated CMVR PDF analysis system that calculates compliance percentages for CMVR documents. When Claude is available it can be used for intelligent analysis; otherwise the system uses OCR + deterministic scoring. Analysis is automatically triggered when viewing documents.
 
 #### Recent Updates:
+
+##### 🛠️ OCR Reliability + Scoring Accuracy Fixes (Dec 15, 2025)
+- **Claude Billing Failures Handled Cleanly:** When Claude errors due to credits/billing, backend logs clearly and continues to OCR scoring.
+- **OCR Rendering Pipeline Fixed (Scanned PDFs):** Resolved the "Image or Canvas expected" failure by aligning the PDF rendering canvas implementation with `pdfjs-dist` Node internals.
+  - Default renderer is now compatible with `pdfjs-dist` v4 (uses `@napi-rs/canvas`).
+  - Added env toggle: `OCR_RENDERER=pdfjs_napi | pdfjs_canvas`.
+- **Correct Error Messaging:**
+  - Pipeline/rendering failures no longer report "PDF quality too low".
+  - User-safe message returned when OCR pipeline fails; "PDF quality too low" only used when OCR truly succeeded but output is unusable.
+- **Compliance Scoring v2 (DEFAULT):** Added deterministic requirement-line parsing + weighted section scoring (ECC + required monitoring sections weighted higher).
+  - Added env toggle: `COMPLIANCE_SCORING_VERSION=v2 | v1`.
+  - Eliminated false non-compliance from frequent CMVR numbering patterns like "ECC No." / "No.".
+- **Manual Review Guard:** If extraction is insufficient for a defensible score, analysis is marked FAILED (app shows "Pending Manual Review") rather than returning a misleading low percentage.
+- **Reanalyze Made Non-Destructive:** Reanalyze no longer deletes the previous analysis before computing a new one; failures preserve a FAILED record with admin_notes instead of wiping data.
 
 ##### 🔄 v2.0.8 - Claude Migration (Nov 13, 2025)
 - **Migrated from Gemini to Claude**: Seamless transition, zero frontend changes
@@ -829,23 +843,26 @@ if (isClaudeConfigured()) {
 const pdfData = await pdfExtract.extractBuffer(pdfBuffer);
 const quickText = extractTextFromPages(pdfData.pages);
 if (quickText.trim().length > 100) {
-  // Fast path: < 1 second
-  return analyzeComplianceWithClaude(quickText);
+  // Fast path
+  return analyzeComplianceText(quickText, numPages);
 }
 
 // Scanned PDFs (images only)
-const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
-const pdfDocument = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+// Render each page via pdfjs-dist (Node) to a PNG and OCR with Tesseract.js.
+// IMPORTANT: Use a canvas implementation compatible with pdfjs-dist Node internals.
+// Renderer is configurable via OCR_RENDERER (default: pdfjs_napi).
+const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+const pdfDocument = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBuffer) }).promise;
 for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
   const page = await pdfDocument.getPage(pageNum);
-  const canvas = createCanvas(viewport.width, viewport.height);
-  await page.render({ canvasContext: context, viewport }).promise;
-  const imageBuffer = canvas.toBuffer('image/png');
-  const result = await worker.recognize(imageBuffer);
+  const viewport = page.getViewport({ scale: 2.0 });
+  const canvas = createCompatibleCanvas(viewport.width, viewport.height);
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+  const pngPath = writeTempPng(canvas);
+  const result = await worker.recognize(pngPath);
   allText += result.data.text;
 }
-// Slower: 2-3 minutes for 25 pages
-return analyzeComplianceWithClaude(allText);
+return analyzeComplianceText(allText, numPages);
 ```
 
 ##### Database Schema:
@@ -2020,22 +2037,26 @@ Backend returns `{success: true, data: {...}}`, but Android expected unwrapped d
 
 #### ✅ 9. OCR "Image or Canvas expected" Error
 **Impact:** 🔴 HIGH
-**Status:** ✅ RESOLVED (v2.0.5 - Nov 11, 2025)
-**Reported:** Nov 11, 2025
+**Status:** ✅ RESOLVED (Dec 15, 2025)
+**Reported:** Dec 2025
 
 **Description:**
-OCR processing for scanned PDFs failed with "Image or Canvas expected" error from Tesseract.js. All pages failed with 0 characters extracted, causing analysis to fail with "PDF quality too low" error.
+When Claude credits expired, the backend correctly fell back to OCR. However, OCR rendering failed for every page with "Image or Canvas expected", resulting in 0 extracted characters and an incorrect user-facing error "PDF quality too low".
 
 **Root Cause:**
-Tesseract.js in Node.js only accepts base64 data URLs (`data:image/png;base64,...`) or file paths, NOT raw buffers. Canvas buffers were being passed directly to `worker.recognize()` which is not supported.
+Canvas implementation mismatch during `pdfjs-dist` page rendering in Node:
+- `pdfjs-dist` v4 uses `@napi-rs/canvas` internally for Node rendering.
+- The OCR pipeline created render targets with a different canvas implementation (`canvas` / node-canvas), causing type incompatibilities during rendering (e.g., drawImage rejecting non-matching Image/Canvas types).
 
 **Solution Implemented:**
-- Converted `canvas.toBuffer('image/png')` to base64 data URL string
-- Changed from passing raw buffer to passing `data:image/png;base64,${imageBuffer.toString('base64')}`
-- OCR now works correctly with base64-encoded image data
+- Default PDF rendering canvas for OCR now matches `pdfjs-dist` Node internals (uses `@napi-rs/canvas`).
+- Added feature flag: `OCR_RENDERER=pdfjs_napi | pdfjs_canvas`.
+- Added per-page stage telemetry (render/encode/write/recognize) so failures are correctly classified.
+- Updated error handling so pipeline failures do **not** blame PDF scan quality.
 
 **Files Modified:**
-- `backend/src/controllers/complianceAnalysis.controller.ts` - Fixed Tesseract.js input format
+- `backend/src/controllers/complianceAnalysis.controller.ts` - OCR renderer compatibility + robust failure handling
+- `backend/.env.example` - Documented OCR_RENDERER and COMPLIANCE_SCORING_VERSION
 
 ---
 
@@ -2055,6 +2076,27 @@ App kept calling `/compliance/progress` forever when viewing cached analyses.
 **Files Modified:**
 - `app/src/main/java/.../AnalysisProgressDto.kt`
 - `app/src/main/java/.../ComplianceAnalysisActivity.kt`
+
+---
+
+#### ✅ 10b. Compliance Score Collapsing to ~20–30% (False Non-Compliance)
+**Impact:** 🔴 HIGH (Demo/defense trust risk)
+**Status:** ✅ RESOLVED (Dec 15, 2025)
+
+**Description:**
+Compliance percentages were sometimes extremely low (e.g., ~24%) for Partially Compliant CMVRs even when an independent baseline indicated ~70–75%.
+
+**Root Cause:**
+The legacy keyword-based scoring treated the token "no" as a non-compliance indicator. CMVRs frequently contain "ECC No.", "Control No.", etc., which matched `\bno\b` and inflated non-compliant counts dramatically.
+
+**Solution Implemented:**
+- Removed bare `no` from non-compliance patterns.
+- Implemented compliance scoring v2 (DEFAULT): requirement-line parsing + weighted section scoring.
+- Added manual-review guard when extraction is insufficient.
+- Added env toggle for rollback: `COMPLIANCE_SCORING_VERSION=v2 | v1`.
+
+**Files Modified:**
+- `backend/src/controllers/complianceAnalysis.controller.ts` - scoring v2 + hardened v1
 
 ---
 
@@ -2432,8 +2474,9 @@ Password: Admin@123
 
 ## 📝 Document Change Log
 
-| Date | Version | Changes | Author |
-|------|---------|---------|--------|
+|| Date | Version | Changes | Author |
+||------|---------|---------|--------|
+|| Dec 15, 2025 | main | **CMVR Compliance Analysis Trustworthiness Fixes:** Repaired OCR fallback rendering for scanned PDFs (resolved "Image or Canvas expected" via pdfjs-dist Node-compatible canvas), improved OCR failure classification + user messaging, added scoring v2 (requirement-line parsing + weighted sections) and removed false non-compliance from "ECC No."/"No." patterns, made reanalyze non-destructive, documented new env toggles (OCR_RENDERER, COMPLIANCE_SCORING_VERSION). | AI Assistant |
 | Nov 25, 2025 | 2.0.34 | **🎨 MGB LOGO INTEGRATION - v2.0.34 (COMPLETE):** Integrated official MGB logo throughout the application, replacing placeholder DENR branding. Logo now appears on splash screen and app launcher icon with matching sage green background color. **Assets Organization:** Created dedicated assets folder structure for branding materials. New folder: assets/logos/ for storing logo files and variants. Added MGBLOGO_FINAL.PNG (751x711, circular design with MGB letters, nature elements, and water droplet). **Logo Implementation:** Copied logo to app/src/main/res/drawable/mgb_logo.png for use throughout the app. Logo features stylized "MGB" letters with leaves, trees, and flowing water elements representing environmental stewardship. **Splash Screen Updates:** Updated activity_splash.xml to display MGB logo instead of ic_denr_logo. Increased logo size from 120dp to 180dp for better visibility and impact. Added scaleType="fitCenter" for proper aspect ratio maintenance. Changed background color from denr_green (#1B5E20) to mgb_sage_green (#a2b271) matching logo's background. **Launcher Icon Updates:** Updated ic_launcher_foreground.xml to use MGB logo with proper sizing (72dp x 72dp) to fit within adaptive icon safe zone. Fixed cropping issue where only portion of logo was visible - now shows complete circular logo. Updated ic_launcher_background.xml from white to sage green (#a2b271) matching logo background for consistent branding. Adaptive icon now displays full logo centered on matching background across all device launcher styles (circle, squircle, rounded square). **Color Palette Addition:** Added mgb_sage_green color (#a2b271) to colors.xml for consistent brand color usage throughout app. Color extracted using eyedropper tool from original logo file to ensure exact match. Sage green represents environmental consciousness and aligns with MGB's mission. **Branding Consistency:** Splash screen and launcher icon now share identical sage green background (#a2b271). Logo displays consistently across all app entry points with proper sizing and aspect ratio. Professional appearance with cohesive color scheme throughout user journey from app launch to login. **Technical Implementation:** Used Android adaptive icon system (108dp canvas with 72dp safe zone) for launcher icon. Layer-list drawable with centered bitmap for foreground, vector drawable for background. Maintained backward compatibility with devices on older Android versions. Logo asset organized in repository root assets/logos/ folder for easy access and future updates. **Files Created:** (1) assets/logos/MGBLOGO_FINAL.PNG - Original high-resolution logo file, (2) assets/README.md - Documentation for assets folder structure and usage, (3) app/src/main/res/drawable/mgb_logo.png - Logo copy for app resources. **Files Modified:** (1) app/src/main/res/layout/activity_splash.xml - Updated logo reference from ic_denr_logo to mgb_logo, increased size to 180dp, changed background to mgb_sage_green, (2) app/src/main/res/drawable/ic_launcher_foreground.xml - Replaced default Android icon with MGB logo, constrained to 72dp for proper display, (3) app/src/main/res/drawable/ic_launcher_background.xml - Changed from white to sage green (#a2b271), (4) app/src/main/res/values/colors.xml - Added mgb_sage_green color definition, (5) app/build.gradle.kts - Updated versionCode to 34 and versionName to "2.0.34". **User Experience:** App now launches with professional MGB branding immediately visible on splash screen. Home screen icon clearly identifies app with official MGB logo on sage green background. Consistent visual identity from launcher icon through splash screen to main app. Logo's natural elements (leaves, water) visually communicate environmental focus of MGB mission. **Status:** Logo integration complete ✅ | Splash screen updated ✅ | Launcher icon updated ✅ | Color matching exact ✅ | Assets organized ✅ | No cropping issues ✅ | Adaptive icon working ✅ | Professional branding ✅ | Production-ready ✅ | AI Assistant |
 | Nov 25, 2025 | 2.0.33 | **🔒 VOICE RECORDING RBAC - v2.0.33 (COMPLETE):** Implemented role-based access control for voice recording feature. Recording functionality is now restricted to Admin and SuperAdmin users only. Regular users cannot access the Recordings tab or any recording endpoints. **Permission Changes:** Voice recording feature changed from "all users" to "Admin and SuperAdmin only". Regular users no longer see Recordings tab in meeting detail screen. **Backend Implementation:** Updated voice recording routes in voiceRecording.routes.ts with adminOnly middleware on 3 endpoints: (1) POST /voice-recordings/upload - now admin only (line 35-40), (2) PUT /voice-recordings/:id - now admin only (line 82-86), (3) DELETE /voice-recordings/:id - now admin only (line 94-98). GET endpoints remain accessible to all authenticated users (streaming and viewing). **Android Implementation - Conditional Tab Display:** Updated MeetingDetailActivity.kt setupViewPager() method to dynamically set tab count based on user role (line 370-407). Uses existing isAdminOrSuperAdmin flag derived from TokenManager.getUserRole(). Sets tabCount = 5 for admin/superadmin, tabCount = 4 for regular users. Updated TabLayoutMediator configuration to conditionally show tab 4 (Recordings): label set to "Recordings" or empty string based on role, icon set to ic_mic or null based on role, color set to tab_icon_recordings or null based on role. Updated MeetingDetailPagerAdapter.kt constructor to accept tabCount parameter with default value of 5 for backward compatibility. Changed getItemCount() from hardcoded 5 to return tabCount parameter. Fragment creation logic remains unchanged (position-based). **Android Implementation - Defensive Check:** Added defensive role verification in VoiceRecordingFragment.kt onViewCreated() method (line 117-137). Uses TokenManager.getUserRole() to verify user is ADMIN or SUPER_ADMIN. If non-admin user somehow accesses fragment, displays Toast message "Recording feature is only available to administrators", hides recording controls (cardRecordingControl), hides recordings header, shows access denied message in empty state TextView, and returns early without initializing recording functionality. This acts as safety net in case tab hiding logic fails. **User Experience:** Admin/SuperAdmin: See 5 tabs in meeting detail (Attendance, Agenda, Other Matters, Minutes, Recordings). Can create, view, play, update, and delete voice recordings. Full CRUD access maintained. Regular users: See only 4 tabs in meeting detail (Attendance, Agenda, Other Matters, Minutes). Recordings tab completely hidden from view. Cannot access recording functionality through UI or API. Attempting direct API access returns 403 Forbidden. **Files Modified:** Backend: (1) backend/src/routes/voiceRecording.routes.ts - Added adminOnly middleware to POST /upload, PUT /:id, DELETE /:id routes. Android: (2) app/.../meeting/MeetingDetailActivity.kt - Added tabCount calculation based on isAdminOrSuperAdmin flag, updated TabLayoutMediator to conditionally configure tab 4, (3) app/.../meeting/MeetingDetailPagerAdapter.kt - Added tabCount constructor parameter with default value 5, changed getItemCount() to return tabCount, updated class documentation, (4) app/.../fragments/VoiceRecordingFragment.kt - Added defensive role check in onViewCreated() with early return and access denied UI, (5) app/build.gradle.kts - Updated versionCode to 33 and versionName to "2.0.33". **Technical Implementation:** Backend uses proven adminOnly middleware pattern (authorize(['SUPER_ADMIN', 'ADMIN'])). Android uses existing TokenManager.getUserRole() pattern consistent with timer section and edit/delete menus. Tab count dynamically adjusts ViewPager2 fragment count. Default parameter ensures backward compatibility. Defensive check provides multiple layers of security. **Status:** RBAC implementation complete ✅ | Backend routes restricted ✅ | Tab visibility conditional ✅ | Defensive checks added ✅ | Regular users blocked ✅ | Admin/SuperAdmin full access maintained ✅ | Zero features broken ✅ | Production-ready ✅ | AI Assistant |
 | Nov 25, 2025 | 2.0.32 | **🐛 VOICE RECORDING BUG FIXES - v2.0.32 (FOR TESTING):** Fixed 4 critical bugs in voice recording feature to enable audio playback and proper UI functionality. **Bug 1: Database Migration - Missing Description Column** - Database query failed with "column VoiceRecording.description does not exist" error. Issue: voice_recordings table was created by schema.sql without description column, while migration used CREATE TABLE IF NOT EXISTS which skipped adding the column. Fixed: (1) Updated backend/database/migrations/012_create_voice_recordings_table.sql - Added DO block to ALTER TABLE and add description column if missing, ensures idempotent migration. (2) Updated backend/database/schema.sql - Added description TEXT field to voice_recordings table definition. Migration now safely handles both fresh deployments and existing tables. **Bug 2: Android Build Error - Duplicate SimpleUserDto Class** - Kotlin compilation failed with "Duplicate class" error. SimpleUserDto was defined in both AgendaDto.kt (line 259) and VoiceRecordingDto.kt (line 101) in same package. Fixed: Removed duplicate SimpleUserDto from VoiceRecordingDto.kt, kept only the definition in AgendaDto.kt. Classes in same package automatically have access without import. **Bug 3: UI Scrolling Issue - Cannot Scroll to See Saved Recordings** - RecyclerView for saved recordings was not scrollable, users couldn't see recordings below the fold. Issue: fragment_voice_recording.xml used LinearLayout with layout_weight inside ViewPager2, causing incorrect height calculation. Fixed: Wrapped content in NestedScrollView with fillViewport=true, changed RecyclerView from layout_height="0dp" with weight to "wrap_content" with nestedScrollingEnabled="false". Entire page now scrolls smoothly including recording controls and recordings list. **Bug 4: Audio Playback Failure - S3 Access Denied Error** - MediaPlayer couldn't play recordings, showed "Access Denied" when accessing S3 URLs directly. Issue: S3 bucket policy doesn't allow public read access to voice-recordings/* folder. MediaPlayer tried direct S3 access which failed with 403 error. Fixed using backend streaming proxy pattern (same as documents): (1) **Backend:** Created streamVoiceRecording() function in voiceRecording.controller.ts that downloads audio from S3 using backend AWS credentials and streams to client with audio/m4a headers. Added GET /voice-recordings/:id/stream route. Updated auth.ts middleware to accept token from query parameter (req.query.token) as fallback for MediaPlayer compatibility since MediaPlayer doesn't support custom headers. (2) **Android:** Updated VoiceRecordingAdapter.kt to use backend streaming URL instead of direct S3 URL. Constructs: `${baseUrl}/voice-recordings/${id}/stream?token=${token}`. Uses MRFCManagerApp.getTokenManager().getAccessToken() for authentication. MediaPlayer now streams through authenticated backend proxy. **Technical Implementation:** Backend streaming bypasses S3 bucket policy restrictions by using server-side AWS credentials. Query parameter authentication enables MediaPlayer support without custom headers. Same proven pattern used for document downloads. **Files Modified:** Backend: (1) backend/database/migrations/012_create_voice_recordings_table.sql - Added DO block for ALTER TABLE, (2) backend/database/schema.sql - Added description column to table definition, (3) backend/src/controllers/voiceRecording.controller.ts - Added streamVoiceRecording() function with downloadFromS3() import, (4) backend/src/routes/voiceRecording.routes.ts - Added streaming route before /:id route, (5) backend/src/middleware/auth.ts - Added query parameter token fallback. Android: (6) app/.../dto/VoiceRecordingDto.kt - Removed duplicate SimpleUserDto class, (7) app/res/layout/fragment_voice_recording.xml - Wrapped in NestedScrollView, changed RecyclerView to wrap_content, (8) app/.../VoiceRecordingAdapter.kt - Added context parameter, uses MRFCManagerApp.getTokenManager(), constructs backend streaming URL with token query param, (9) app/.../VoiceRecordingFragment.kt - Pass requireContext() to adapter constructor, (10) app/build.gradle.kts - Updated to version 2.0.32. **Status:** Database migration fixed ✅ | Build errors resolved ✅ | Scrolling working ✅ | Audio playback functional via backend streaming ✅ | For further testing ⏳ | No features affected ✅ | AI Assistant |
