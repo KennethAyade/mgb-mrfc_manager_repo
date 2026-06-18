@@ -101,10 +101,18 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     const quarters = await Quarter.findAll({
       where,
       order: [
-        ['year', sort_order as string],
-        ['quarter_number', sort_order as string]
+        ['year', sort_order === 'ASC' ? 'ASC' : 'DESC'],
+        ['quarter_number', 'ASC']
       ]
     });
+
+    if (year && quarters.length === 0) {
+      console.warn('No reporting quarters configured', {
+        requestedYear: Number(year),
+        userId: req.user?.userId,
+        username: req.user?.username
+      });
+    }
 
     res.json({
       success: true,

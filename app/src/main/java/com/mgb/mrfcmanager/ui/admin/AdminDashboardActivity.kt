@@ -235,7 +235,7 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
 
         // Documents Card
         findViewById<MaterialCardView>(R.id.cardDocuments).setOnClickListener {
-            startActivity(Intent(this, FileUploadActivity::class.java))
+            openProponentSelectionForUpload()
         }
 
         // Compliance Card
@@ -299,10 +299,10 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
             
             // Documents Section
             R.id.nav_documents -> {
-                startActivity(Intent(this, FileUploadActivity::class.java))
+                openProponentSelectionForUpload()
             }
             R.id.nav_file_upload -> {
-                startActivity(Intent(this, FileUploadActivity::class.java))
+                openProponentSelectionForUpload()
             }
             R.id.nav_document_review -> {
                 startActivity(Intent(this, DocumentReviewActivity::class.java))
@@ -366,6 +366,15 @@ class AdminDashboardActivity : AppCompatActivity(), NavigationView.OnNavigationI
 
         drawerLayout.closeDrawer(GravityCompat.START)
         return true
+    }
+
+    private fun openProponentSelectionForUpload() {
+        Toast.makeText(
+            this,
+            "Select an MRFC and proponent before uploading.",
+            Toast.LENGTH_SHORT
+        ).show()
+        startActivity(Intent(this, MRFCListActivity::class.java))
     }
 
     private fun logout() {

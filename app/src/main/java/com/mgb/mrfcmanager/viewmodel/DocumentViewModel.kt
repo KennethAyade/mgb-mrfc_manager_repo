@@ -111,9 +111,8 @@ class DocumentViewModel(private val repository: DocumentRepository) : ViewModel(
     fun uploadDocument(
         file: File,
         category: DocumentCategory,
-        mrfcId: Long? = null,
-        proponentId: Long? = null,
-        quarterId: Long? = null,
+        proponentId: Long,
+        quarterId: Long,
         description: String? = null
     ) {
         _uploadState.value = DocumentUploadState.Loading
@@ -123,7 +122,6 @@ class DocumentViewModel(private val repository: DocumentRepository) : ViewModel(
             when (val result = repository.uploadDocument(
                 file = file,
                 category = category,
-                mrfcId = mrfcId,
                 proponentId = proponentId,
                 quarterId = quarterId,
                 description = description,

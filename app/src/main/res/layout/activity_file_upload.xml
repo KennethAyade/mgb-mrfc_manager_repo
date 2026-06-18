@@ -61,6 +61,21 @@
                         android:textColor="@color/text_primary"
                         android:layout_marginBottom="12dp" />
 
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilYear"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:hint="Reporting year">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/actvYear"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
                     <!-- Quarter Selection Grid -->
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -70,7 +85,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnQuarter1"
-                            style="@style/Widget.Material3.Button.ElevatedButton"
+                            style="@style/QuarterButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -81,7 +96,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnQuarter2"
-                            style="@style/Widget.Material3.Button.ElevatedButton"
+                            style="@style/QuarterButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -92,7 +107,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnQuarter3"
-                            style="@style/Widget.Material3.Button.ElevatedButton"
+                            style="@style/QuarterButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -103,7 +118,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnQuarter4"
-                            style="@style/Widget.Material3.Button.ElevatedButton"
+                            style="@style/QuarterButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -113,6 +128,24 @@
                             app:cornerRadius="8dp" />
 
                     </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvQuarterStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textColor="@color/status_error"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnRetryQuarters"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Retry"
+                        android:textColor="@color/primary"
+                        android:visibility="gone" />
 
                 </LinearLayout>
 

@@ -16,18 +16,14 @@ import com.mgb.mrfcmanager.MRFCManagerApp
 import com.mgb.mrfcmanager.R
 import com.mgb.mrfcmanager.data.remote.RetrofitClient
 import com.mgb.mrfcmanager.data.remote.api.ProponentApiService
-import com.mgb.mrfcmanager.data.remote.api.QuarterApiService
 import com.mgb.mrfcmanager.data.remote.dto.ProponentDto
-import com.mgb.mrfcmanager.data.remote.dto.QuarterDto
 import com.mgb.mrfcmanager.data.repository.ProponentRepository
-import com.mgb.mrfcmanager.data.repository.QuarterRepository
 import com.mgb.mrfcmanager.data.repository.Result
 import com.mgb.mrfcmanager.ui.base.BaseActivity
 import com.mgb.mrfcmanager.viewmodel.ProponentDetailState
 import com.mgb.mrfcmanager.viewmodel.ProponentViewModel
 import com.mgb.mrfcmanager.viewmodel.ProponentViewModelFactory
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 class ProponentDetailActivity : BaseActivity() {
 
@@ -44,12 +40,10 @@ class ProponentDetailActivity : BaseActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var viewModel: ProponentViewModel
     private lateinit var repository: ProponentRepository
-    private lateinit var quarterRepository: QuarterRepository
 
     private var proponentId: Long = -1
     private var mrfcId: Long = -1
     private var currentProponent: ProponentDto? = null
-    private var quarters: List<QuarterDto> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,34 +92,6 @@ class ProponentDetailActivity : BaseActivity() {
         repository = ProponentRepository(proponentApiService)
         val factory = ProponentViewModelFactory(repository)
         viewModel = ViewModelProvider(this, factory)[ProponentViewModel::class.java]
-        
-        // Initialize quarter repository
-        val quarterApiService = retrofit.create(QuarterApiService::class.java)
-        quarterRepository = QuarterRepository(quarterApiService)
-        
-        // Load quarters for current year
-        loadQuarters()
-    }
-    
-    private fun loadQuarters() {
-        lifecycleScope.launch {
-            val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-            when (val result = quarterRepository.getQuarters(year = currentYear)) {
-                is Result.Success -> {
-                    quarters = result.data
-                }
-                is Result.Error -> {
-                    Toast.makeText(
-                        this@ProponentDetailActivity,
-                        "Failed to load quarters: ${result.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                is Result.Loading -> {
-                    // Loading state
-                }
-            }
-        }
     }
 
     private fun observeProponent() {
@@ -181,21 +147,10 @@ class ProponentDetailActivity : BaseActivity() {
     }
 
     private fun setupQuarterlyServices() {
-        // BUG FIX 1: Hide File Upload button for regular users (only admins can upload)
-        val tokenManager = MRFCManagerApp.getTokenManager()
-        val userRole = tokenManager.getUserRole()
-        val isAdmin = userRole == "ADMIN" || userRole == "SUPER_ADMIN"
-        
         val btnFileUpload = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnFileUpload)
-        
-        // Only show File Upload button for admins
-        if (isAdmin) {
-            btnFileUpload.visibility = View.VISIBLE
-            btnFileUpload.setOnClickListener {
-                openFileUpload()
-            }
-        } else {
-            btnFileUpload.visibility = View.GONE
+        btnFileUpload.visibility = View.VISIBLE
+        btnFileUpload.setOnClickListener {
+            openFileUpload()
         }
 
         // View buttons are available for all users

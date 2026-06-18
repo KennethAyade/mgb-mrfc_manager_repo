@@ -16,6 +16,7 @@ import { uploadToS3, deleteFromS3, downloadFromS3, S3_FOLDERS } from '../config/
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import { canUploadToMrfc } from '../services/documentUploadAccess.service';
 
 /**
  * List documents with filtering
@@ -282,7 +283,7 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
   let tempFilePath: string | undefined;
 
   try {
-    const { proponent_id, quarter_id, category, description } = req.body;
+    const { proponent_id, quarter_id, category } = req.body;
     const currentUser = (req as any).user;
     const file = (req as any).file; // From multer middleware
 
@@ -293,6 +294,29 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
         error: {
           code: 'MISSING_REQUIRED_FIELDS',
           message: 'proponent_id, quarter_id, and category are required'
+        }
+      });
+      return;
+    }
+
+    const parsedProponentId = Number(proponent_id);
+    const parsedQuarterId = Number(quarter_id);
+    if (!Number.isInteger(parsedProponentId) || parsedProponentId <= 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_PROPONENT_ID',
+          message: 'proponent_id must be a positive integer'
+        }
+      });
+      return;
+    }
+    if (!Number.isInteger(parsedQuarterId) || parsedQuarterId <= 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_QUARTER_ID',
+          message: 'quarter_id must be a positive integer'
         }
       });
       return;
@@ -325,7 +349,7 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
     }
 
     // Fetch proponent with MRFC
-    const proponent = await Proponent.findByPk(proponent_id, {
+    const proponent = await Proponent.findByPk(parsedProponentId, {
       include: [
         {
           model: Mrfc,
@@ -346,8 +370,23 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    const hasUploadAccess = await canUploadToMrfc(
+      currentUser,
+      Number(proponent.mrfc_id)
+    );
+    if (!hasUploadAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'MRFC_ACCESS_DENIED',
+          message: 'You are not allowed to upload documents for this MRFC'
+        }
+      });
+      return;
+    }
+
     // Fetch quarter (required)
-    const quarter = await Quarter.findByPk(quarter_id);
+    const quarter = await Quarter.findByPk(parsedQuarterId);
     if (!quarter) {
       res.status(404).json({
         success: false,
@@ -377,8 +416,8 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
     const document = await sequelize.transaction(async (t) => {
       const newDocument = await Document.create(
         {
-          proponent_id,
-          quarter_id,
+          proponent_id: parsedProponentId,
+          quarter_id: parsedQuarterId,
           file_name: generatedFileName,
           original_name: file.originalname,
           file_type: file.mimetype,
@@ -403,8 +442,8 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
             action_type: 'UPLOAD_DOCUMENT',
             filename: generatedFileName,
             original_name: file.originalname,
-            proponent_id,
-            quarter_id,
+            proponent_id: parsedProponentId,
+            quarter_id: parsedQuarterId,
             category,
             file_size: file.size
           }

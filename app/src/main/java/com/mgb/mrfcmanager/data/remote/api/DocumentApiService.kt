@@ -13,16 +13,15 @@ interface DocumentApiService {
 
     /**
      * Upload a document (multipart)
-     * Requires either mrfc_id or proponent_id
+     * Requires proponent_id
      */
     @Multipart
     @POST("documents/upload")
     suspend fun uploadDocument(
         @Part file: MultipartBody.Part,
         @Part("category") category: RequestBody,
-        @Part("mrfc_id") mrfcId: RequestBody? = null,
-        @Part("proponent_id") proponentId: RequestBody? = null,
-        @Part("quarter_id") quarterId: RequestBody? = null,
+        @Part("proponent_id") proponentId: RequestBody,
+        @Part("quarter_id") quarterId: RequestBody,
         @Part("description") description: RequestBody? = null
     ): Response<ApiResponse<DocumentUploadResponse>>
 

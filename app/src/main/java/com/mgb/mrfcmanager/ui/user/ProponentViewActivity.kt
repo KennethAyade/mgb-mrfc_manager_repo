@@ -31,6 +31,7 @@ class ProponentViewActivity : AppCompatActivity() {
     private lateinit var tvContactNumber: TextView
     private lateinit var btnViewAgenda: MaterialButton
     private lateinit var btnViewDocuments: MaterialButton
+    private lateinit var btnUploadDocuments: MaterialButton
     private lateinit var progressBar: ProgressBar
     private lateinit var viewModel: ProponentViewModel
 
@@ -71,6 +72,7 @@ class ProponentViewActivity : AppCompatActivity() {
         tvContactNumber = findViewById(R.id.tvContactNumber)
         btnViewAgenda = findViewById(R.id.btnViewAgenda)
         btnViewDocuments = findViewById(R.id.btnViewDocuments)
+        btnUploadDocuments = findViewById(R.id.btnUploadDocuments)
         progressBar = findViewById(R.id.progressBar)
     }
 
@@ -96,6 +98,14 @@ class ProponentViewActivity : AppCompatActivity() {
 
         btnViewAgenda.setOnClickListener { navigateToQuarters() }
         btnViewDocuments.setOnClickListener { navigateToQuarters() }
+        btnUploadDocuments.setOnClickListener {
+            val intent = Intent(
+                this,
+                com.mgb.mrfcmanager.ui.admin.FileUploadActivity::class.java
+            )
+            intent.putExtra("PROPONENT_ID", proponentId)
+            startActivity(intent)
+        }
     }
 
     private fun loadProponentData() {
@@ -132,6 +142,7 @@ class ProponentViewActivity : AppCompatActivity() {
         progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         btnViewAgenda.isEnabled = !isLoading
         btnViewDocuments.isEnabled = !isLoading
+        btnUploadDocuments.isEnabled = !isLoading
     }
 
     private fun displayProponentData(proponent: ProponentDto) {

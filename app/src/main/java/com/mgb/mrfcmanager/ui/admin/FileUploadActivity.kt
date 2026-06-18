@@ -30,7 +30,8 @@ import com.mgb.mrfcmanager.data.remote.dto.DocumentCategory
 import com.mgb.mrfcmanager.data.remote.dto.DocumentDto
 import com.mgb.mrfcmanager.data.repository.DocumentRepository
 import com.mgb.mrfcmanager.ui.base.BaseActivity
-import com.mgb.mrfcmanager.utils.TokenManager
+import com.mgb.mrfcmanager.util.QuarterLoadState
+import com.mgb.mrfcmanager.util.QuarterSelectionResolver
 import com.mgb.mrfcmanager.viewmodel.DocumentListState
 import com.mgb.mrfcmanager.viewmodel.DocumentUploadState
 import com.mgb.mrfcmanager.viewmodel.DocumentViewModel
@@ -40,6 +41,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Calendar
 import java.util.Locale
 
 class FileUploadActivity : BaseActivity() {
@@ -48,6 +50,9 @@ class FileUploadActivity : BaseActivity() {
     private lateinit var btnQuarter2: MaterialButton
     private lateinit var btnQuarter3: MaterialButton
     private lateinit var btnQuarter4: MaterialButton
+    private lateinit var actvYear: AutoCompleteTextView
+    private lateinit var tvQuarterStatus: TextView
+    private lateinit var btnRetryQuarters: MaterialButton
     private lateinit var tilCategory: TextInputLayout
     private lateinit var actvCategory: AutoCompleteTextView
     private lateinit var etDescription: TextInputEditText
@@ -64,6 +69,9 @@ class FileUploadActivity : BaseActivity() {
     private var selectedFileName: String = ""
     private var selectedCategory: DocumentCategory? = null
     private var selectedQuarter: Int = 1
+    private var selectedYear: Int? = null
+    private var quarterState: QuarterLoadState = QuarterLoadState.Loading
+    private var preferredQuarterId: Long? = null
 
     private val uploadedFiles = mutableListOf<DocumentDto>()
     private lateinit var filesAdapter: UploadedFilesAdapter
@@ -71,7 +79,6 @@ class FileUploadActivity : BaseActivity() {
     private lateinit var quarterRepository: com.mgb.mrfcmanager.data.repository.QuarterRepository
     private var quarters: List<com.mgb.mrfcmanager.data.remote.dto.QuarterDto> = emptyList()
 
-    private var mrfcId: Long = 0L
     private var proponentId: Long? = null
     private var quarterId: Long? = null
 
@@ -85,8 +92,8 @@ class FileUploadActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_file_upload)
 
-        mrfcId = intent.getLongExtra("MRFC_ID", 0L)
         proponentId = intent.getLongExtra("PROPONENT_ID", -1L).takeIf { it != -1L }
+        preferredQuarterId = intent.getLongExtra("QUARTER_ID", -1L).takeIf { it != -1L }
 
         setupToolbar()
         initializeViews()
@@ -115,6 +122,9 @@ class FileUploadActivity : BaseActivity() {
         btnQuarter2 = findViewById(R.id.btnQuarter2)
         btnQuarter3 = findViewById(R.id.btnQuarter3)
         btnQuarter4 = findViewById(R.id.btnQuarter4)
+        actvYear = findViewById(R.id.actvYear)
+        tvQuarterStatus = findViewById(R.id.tvQuarterStatus)
+        btnRetryQuarters = findViewById(R.id.btnRetryQuarters)
         tilCategory = findViewById(R.id.tilCategory)
         actvCategory = findViewById(R.id.actvCategory)
         etDescription = findViewById(R.id.etDescription)
@@ -145,29 +155,7 @@ class FileUploadActivity : BaseActivity() {
     private fun setupQuarterSelection() {
         val quarterButtons = listOf(btnQuarter1, btnQuarter2, btnQuarter3, btnQuarter4)
 
-        // Helper function to update button selection visual state
-        fun updateQuarterButtonStates(selectedButton: MaterialButton) {
-            val selectedColor = getColor(R.color.primary)
-            val unselectedColor = getColor(R.color.background_light)
-            val selectedTextColor = getColor(android.R.color.white)
-            val unselectedTextColor = getColor(R.color.text_primary)
-            
-            quarterButtons.forEach { button ->
-                if (button == selectedButton) {
-                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(selectedColor)
-                    button.setTextColor(selectedTextColor)
-                    button.strokeWidth = 0
-                } else {
-                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(unselectedColor)
-                    button.setTextColor(unselectedTextColor)
-                    button.strokeWidth = 2
-                    button.strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.border))
-                }
-            }
-        }
-
-        // Set Q1 as default selected
-        updateQuarterButtonStates(btnQuarter1)
+        updateQuarterButtonStates(null)
 
         // Quarter button click listeners
         quarterButtons.forEachIndexed { index, button ->
@@ -178,21 +166,40 @@ class FileUploadActivity : BaseActivity() {
             }
         }
     }
+
+    private fun updateQuarterButtonStates(selectedButton: MaterialButton?) {
+        val buttons = listOf(btnQuarter1, btnQuarter2, btnQuarter3, btnQuarter4)
+        buttons.forEach { button ->
+            val selected = button == selectedButton
+            button.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                getColor(if (selected) R.color.primary else R.color.white)
+            )
+            button.setTextColor(getColor(if (selected) R.color.white else R.color.primary))
+            button.strokeWidth = if (selected) 0 else 2
+            button.strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.primary))
+        }
+    }
     
     private fun loadQuarters() {
+        quarterState = QuarterLoadState.Loading
+        showQuarterStatus("Loading reporting quarters…", canRetry = false)
+        updateUploadButtonState()
         lifecycleScope.launch {
-            val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-            when (val result = quarterRepository.getQuarters(year = currentYear)) {
+            when (val result = quarterRepository.getQuarters()) {
                 is com.mgb.mrfcmanager.data.repository.Result.Success -> {
                     quarters = result.data
-                    updateQuarterId() // Set initial quarter ID for Q1
+                    val calendar = Calendar.getInstance()
+                    quarterState = QuarterSelectionResolver.resolve(
+                        quarters = quarters,
+                        currentYear = calendar.get(Calendar.YEAR),
+                        currentQuarterNumber = calendar.get(Calendar.MONTH) / 3 + 1,
+                        preferredQuarterId = preferredQuarterId
+                    )
+                    renderQuarterState()
                 }
                 is com.mgb.mrfcmanager.data.repository.Result.Error -> {
-                    Toast.makeText(
-                        this@FileUploadActivity,
-                        "Failed to load quarters: ${result.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    quarterState = QuarterLoadState.Failed(result.message)
+                    renderQuarterState()
                 }
                 is com.mgb.mrfcmanager.data.repository.Result.Loading -> {
                     // Loading state
@@ -200,13 +207,101 @@ class FileUploadActivity : BaseActivity() {
             }
         }
     }
-    
+
+    private fun renderQuarterState() {
+        when (val state = quarterState) {
+            is QuarterLoadState.Available -> {
+                selectedYear = state.selectedYear
+                val yearAdapter = ArrayAdapter(
+                    this,
+                    android.R.layout.simple_dropdown_item_1line,
+                    state.years.map(Int::toString)
+                )
+                actvYear.setAdapter(yearAdapter)
+                actvYear.setText(state.selectedYear.toString(), false)
+                actvYear.setOnItemClickListener { _, _, position, _ ->
+                    selectedYear = state.years[position]
+                    val yearQuarters = QuarterSelectionResolver.quartersForYear(
+                        state,
+                        selectedYear ?: state.selectedYear
+                    )
+                    val defaultQuarter = yearQuarters.find { it.isCurrent } ?: yearQuarters.firstOrNull()
+                    quarterId = defaultQuarter?.id
+                    selectedQuarter = defaultQuarter?.quarterNumber ?: 0
+                    renderQuarterButtonsForYear()
+                    updateUploadButtonState()
+                }
+                state.selectedQuarter?.let {
+                    selectedQuarter = it.quarterNumber
+                    quarterId = it.id
+                }
+                hideQuarterStatus()
+                renderQuarterButtonsForYear()
+            }
+            is QuarterLoadState.Empty -> {
+                quarterId = null
+                showQuarterStatus(
+                    "No reporting quarters are configured for ${state.requestedYear}.",
+                    canRetry = true
+                )
+                setQuarterButtonsEnabled(false)
+            }
+            is QuarterLoadState.Failed -> {
+                quarterId = null
+                showQuarterStatus("Failed to load quarters: ${state.message}", canRetry = true)
+                setQuarterButtonsEnabled(false)
+            }
+            QuarterLoadState.Loading -> Unit
+        }
+        updateUploadButtonState()
+    }
+
+    private fun renderQuarterButtonsForYear() {
+        val state = quarterState as? QuarterLoadState.Available ?: return
+        val available = QuarterSelectionResolver.quartersForYear(
+            state,
+            selectedYear ?: state.selectedYear
+        )
+        val buttons = listOf(btnQuarter1, btnQuarter2, btnQuarter3, btnQuarter4)
+        buttons.forEachIndexed { index, button ->
+            val quarter = available.find { it.quarterNumber == index + 1 }
+            button.isEnabled = quarter != null
+            if (quarter == null && selectedQuarter == index + 1) {
+                quarterId = null
+            }
+        }
+        val selectedButton = selectedQuarter
+            .takeIf { number -> available.any { it.quarterNumber == number && it.id == quarterId } }
+            ?.let { buttons[it - 1] }
+        updateQuarterButtonStates(selectedButton)
+    }
+
+    private fun setQuarterButtonsEnabled(enabled: Boolean) {
+        listOf(btnQuarter1, btnQuarter2, btnQuarter3, btnQuarter4).forEach {
+            it.isEnabled = enabled
+        }
+        actvYear.isEnabled = enabled
+        updateQuarterButtonStates(null)
+    }
+
+    private fun showQuarterStatus(message: String, canRetry: Boolean) {
+        tvQuarterStatus.text = message
+        tvQuarterStatus.visibility = View.VISIBLE
+        btnRetryQuarters.visibility = if (canRetry) View.VISIBLE else View.GONE
+    }
+
+    private fun hideQuarterStatus() {
+        tvQuarterStatus.visibility = View.GONE
+        btnRetryQuarters.visibility = View.GONE
+        actvYear.isEnabled = true
+    }
+
     private fun updateQuarterId() {
-        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-        val matchingQuarter = quarters.find { 
-            it.quarterNumber == selectedQuarter && it.year == currentYear 
+        val matchingQuarter = quarters.find {
+            it.quarterNumber == selectedQuarter && it.year == selectedYear
         }
         quarterId = matchingQuarter?.id
+        updateUploadButtonState()
     }
 
     private fun observeUploadState() {
@@ -218,6 +313,7 @@ class FileUploadActivity : BaseActivity() {
                 is DocumentUploadState.Success -> {
                     showUploadProgress(false)
                     Toast.makeText(this, "File uploaded successfully", Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_OK)
                     resetForm()
                     viewModel.resetUploadState()
                     loadUploadedFiles() // Refresh the list
@@ -271,8 +367,12 @@ class FileUploadActivity : BaseActivity() {
 
     private fun showUploadProgress(show: Boolean) {
         cardUploadProgress.visibility = if (show) View.VISIBLE else View.GONE
-        btnUpload.isEnabled = !show
         btnBrowseFile.isEnabled = !show
+        if (show) {
+            btnUpload.isEnabled = false
+        } else {
+            updateUploadButtonState()
+        }
     }
 
     private fun setupCategoryDropdown() {
@@ -282,6 +382,13 @@ class FileUploadActivity : BaseActivity() {
             selectedCategory = DocumentCategory.values()[position]
             updateUploadButtonState()
         }
+        intent.getStringExtra("DEFAULT_CATEGORY")
+            ?.let { name -> runCatching { DocumentCategory.valueOf(name) }.getOrNull() }
+            ?.let { category ->
+                selectedCategory = category
+                actvCategory.setText(category.getDisplayName(), false)
+            }
+        updateUploadButtonState()
     }
 
     private fun setupRecyclerView() {
@@ -301,6 +408,7 @@ class FileUploadActivity : BaseActivity() {
         btnUpload.setOnClickListener {
             uploadFile()
         }
+        btnRetryQuarters.setOnClickListener { loadQuarters() }
     }
 
     private fun openFilePicker() {
@@ -344,7 +452,12 @@ class FileUploadActivity : BaseActivity() {
     }
 
     private fun updateUploadButtonState() {
-        btnUpload.isEnabled = selectedFileUri != null && selectedCategory != null
+        btnUpload.isEnabled =
+            selectedFileUri != null &&
+                selectedCategory != null &&
+                quarterId != null &&
+                proponentId != null &&
+                quarterState is QuarterLoadState.Available
     }
 
     private fun uploadFile() {
@@ -354,13 +467,18 @@ class FileUploadActivity : BaseActivity() {
         }
         
         if (quarterId == null) {
-            Toast.makeText(this, "Please wait, loading quarters...", Toast.LENGTH_SHORT).show()
+            val message = when (val state = quarterState) {
+                QuarterLoadState.Loading -> "Reporting quarters are still loading."
+                is QuarterLoadState.Empty -> "No reporting quarters are configured for ${state.requestedYear}."
+                is QuarterLoadState.Failed -> "Could not load reporting quarters. Tap Retry."
+                is QuarterLoadState.Available -> "Please select an available quarter."
+            }
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Validate that at least one ID is provided (mrfc_id or proponent_id)
-        if (mrfcId == 0L && proponentId == null) {
-            Toast.makeText(this, "MRFC ID or Proponent ID is required", Toast.LENGTH_SHORT).show()
+        if (proponentId == null) {
+            Toast.makeText(this, "Select a proponent before uploading a file.", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -377,9 +495,8 @@ class FileUploadActivity : BaseActivity() {
                 viewModel.uploadDocument(
                     file = tempFile,
                     category = category,
-                    mrfcId = if (mrfcId != 0L) mrfcId else null,
-                    proponentId = proponentId,
-                    quarterId = quarterId,
+                    proponentId = proponentId!!,
+                    quarterId = quarterId!!,
                     description = description.ifEmpty { null }
                 )
 
@@ -467,20 +584,10 @@ class FileUploadActivity : BaseActivity() {
     }
 
     private fun loadUploadedFiles() {
-        // Load documents based on available context
-        when {
-            proponentId != null -> {
-                // If proponent ID is available, load documents for this specific proponent
-                viewModel.loadDocumentsByProponent(proponentId!!)
-            }
-            mrfcId != 0L -> {
-                // Otherwise, load documents for the entire MRFC
-                viewModel.loadDocumentsByMrfc(mrfcId)
-            }
-            else -> {
-                // No valid ID, just show empty state
-                updateFileListVisibility()
-            }
+        if (proponentId != null) {
+            viewModel.loadDocumentsByProponent(proponentId!!)
+        } else {
+            updateFileListVisibility()
         }
     }
 

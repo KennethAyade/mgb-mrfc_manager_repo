@@ -474,7 +474,7 @@ INSERT INTO quarters (name, year, quarter_number, start_date, end_date, is_curre
 ('Q1 2025', 2025, 1, '2025-01-01', '2025-03-31', FALSE),
 ('Q2 2025', 2025, 2, '2025-04-01', '2025-06-30', FALSE),
 ('Q3 2025', 2025, 3, '2025-07-01', '2025-09-30', FALSE),
-('Q4 2025', 2025, 4, '2025-10-01', '2025-12-31', TRUE)
+('Q4 2025', 2025, 4, '2025-10-01', '2025-12-31', FALSE)
 ON CONFLICT (name) DO NOTHING;
 
 -- Note: Super admin user will be created by the application on first run

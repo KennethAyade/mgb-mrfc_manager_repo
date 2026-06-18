@@ -10,6 +10,8 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import androidx.lifecycle.ViewModelProvider
 import com.mgb.mrfcmanager.ui.base.BaseActivity
 import androidx.recyclerview.widget.GridLayoutManager
@@ -24,6 +26,8 @@ import com.mgb.mrfcmanager.data.remote.api.DocumentApiService
 import com.mgb.mrfcmanager.data.remote.dto.DocumentCategory
 import com.mgb.mrfcmanager.data.remote.dto.DocumentDto
 import com.mgb.mrfcmanager.data.repository.DocumentRepository
+import com.mgb.mrfcmanager.util.QuarterLoadState
+import com.mgb.mrfcmanager.util.QuarterSelectionResolver
 import com.mgb.mrfcmanager.viewmodel.DocumentListState
 import com.mgb.mrfcmanager.viewmodel.DocumentViewModel
 import com.mgb.mrfcmanager.viewmodel.DocumentViewModelFactory
@@ -34,6 +38,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.Calendar
 
 /**
  * DocumentListActivity - Shows documents filtered by category
@@ -46,6 +51,7 @@ class DocumentListActivity : BaseActivity() {
     private lateinit var btnFilterQ2: MaterialButton
     private lateinit var btnFilterQ3: MaterialButton
     private lateinit var btnFilterQ4: MaterialButton
+    private lateinit var actvFilterYear: AutoCompleteTextView
     private lateinit var rvDocuments: RecyclerView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvEmptyState: TextView
@@ -57,6 +63,8 @@ class DocumentListActivity : BaseActivity() {
     private lateinit var viewModel: DocumentViewModel
     private lateinit var quarterRepository: com.mgb.mrfcmanager.data.repository.QuarterRepository
     private var quarters: List<com.mgb.mrfcmanager.data.remote.dto.QuarterDto> = emptyList()
+    private var quarterState: QuarterLoadState = QuarterLoadState.Loading
+    private var selectedYear: Int? = null
     
     private var proponentId: Long = -1L
     private var quarterId: Long? = null // Now nullable for "All" filter
@@ -113,6 +121,7 @@ class DocumentListActivity : BaseActivity() {
         btnFilterQ2 = findViewById(R.id.btnFilterQ2)
         btnFilterQ3 = findViewById(R.id.btnFilterQ3)
         btnFilterQ4 = findViewById(R.id.btnFilterQ4)
+        actvFilterYear = findViewById(R.id.actvFilterYear)
         rvDocuments = findViewById(R.id.rvDocuments)
         progressBar = findViewById(R.id.progressBar)
         tvEmptyState = findViewById(R.id.tvEmptyState)
@@ -192,9 +201,8 @@ class DocumentListActivity : BaseActivity() {
     }
     
     private fun setQuarterFilter(quarter: Int, button: MaterialButton, updateStates: (MaterialButton) -> Unit) {
-        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-        val matchingQuarter = quarters.find { 
-            it.quarterNumber == quarter && it.year == currentYear 
+        val matchingQuarter = quarters.find {
+            it.quarterNumber == quarter && it.year == selectedYear
         }
         
         if (matchingQuarter != null) {
@@ -209,8 +217,17 @@ class DocumentListActivity : BaseActivity() {
     private fun applyQuarterFilter() {
         documents.clear()
         if (quarterId == null) {
-            // Show all documents
-            documents.addAll(allDocuments)
+            val yearQuarterIds = quarters
+                .filter { it.year == selectedYear }
+                .map { it.id }
+                .toSet()
+            documents.addAll(
+                if (selectedYear != null && yearQuarterIds.isNotEmpty()) {
+                    allDocuments.filter { it.quarterId in yearQuarterIds }
+                } else {
+                    allDocuments
+                }
+            )
         } else {
             // Filter by quarter
             documents.addAll(allDocuments.filter { it.quarterId == quarterId })
@@ -221,13 +238,20 @@ class DocumentListActivity : BaseActivity() {
     
     private fun loadQuarters() {
         lifecycleScope.launch {
-            val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-            when (val result = quarterRepository.getQuarters(year = currentYear)) {
+            when (val result = quarterRepository.getQuarters()) {
                 is com.mgb.mrfcmanager.data.repository.Result.Success -> {
                     quarters = result.data
+                    val calendar = Calendar.getInstance()
+                    quarterState = QuarterSelectionResolver.resolve(
+                        quarters = quarters,
+                        currentYear = calendar.get(Calendar.YEAR),
+                        currentQuarterNumber = calendar.get(Calendar.MONTH) / 3 + 1
+                    )
+                    configureYearFilter()
                     loadDocuments() // Load documents after quarters are loaded
                 }
                 is com.mgb.mrfcmanager.data.repository.Result.Error -> {
+                    quarterState = QuarterLoadState.Failed(result.message)
                     Toast.makeText(
                         this@DocumentListActivity,
                         "Failed to load quarters: ${result.message}",
@@ -239,6 +263,77 @@ class DocumentListActivity : BaseActivity() {
                     // Loading state
                 }
             }
+        }
+    }
+
+    private fun configureYearFilter() {
+        when (val state = quarterState) {
+            is QuarterLoadState.Available -> {
+                selectedYear = state.selectedYear
+                actvFilterYear.setAdapter(
+                    ArrayAdapter(
+                        this,
+                        android.R.layout.simple_dropdown_item_1line,
+                        state.years.map(Int::toString)
+                    )
+                )
+                actvFilterYear.setText(state.selectedYear.toString(), false)
+                actvFilterYear.setOnItemClickListener { _, _, position, _ ->
+                    selectedYear = state.years[position]
+                    quarterId = null
+                    updateFilterButtonStates(btnFilterAll)
+                    updateQuarterAvailability()
+                    applyQuarterFilter()
+                }
+                setQuarterButtonsEnabled(true)
+                updateQuarterAvailability()
+            }
+            is QuarterLoadState.Empty -> {
+                selectedYear = null
+                actvFilterYear.setText("", false)
+                actvFilterYear.isEnabled = false
+                setQuarterButtonsEnabled(false)
+                Toast.makeText(
+                    this,
+                    "No reporting quarters are configured for ${state.requestedYear}.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            is QuarterLoadState.Failed -> {
+                actvFilterYear.isEnabled = false
+                setQuarterButtonsEnabled(false)
+            }
+            QuarterLoadState.Loading -> Unit
+        }
+    }
+
+    private fun setQuarterButtonsEnabled(enabled: Boolean) {
+        listOf(btnFilterQ1, btnFilterQ2, btnFilterQ3, btnFilterQ4).forEach {
+            it.isEnabled = enabled
+        }
+    }
+
+    private fun updateQuarterAvailability() {
+        val availableNumbers = quarters
+            .filter { it.year == selectedYear }
+            .map { it.quarterNumber }
+            .toSet()
+        listOf(btnFilterQ1, btnFilterQ2, btnFilterQ3, btnFilterQ4)
+            .forEachIndexed { index, button ->
+                button.isEnabled = index + 1 in availableNumbers
+            }
+    }
+
+    private fun updateFilterButtonStates(selectedButton: MaterialButton) {
+        val filterButtons = listOf(btnFilterAll, btnFilterQ1, btnFilterQ2, btnFilterQ3, btnFilterQ4)
+        filterButtons.forEach { button ->
+            val selected = button == selectedButton
+            button.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                getColor(if (selected) R.color.primary else R.color.white)
+            )
+            button.setTextColor(getColor(if (selected) R.color.white else R.color.primary))
+            button.strokeWidth = if (selected) 0 else 2
+            button.strokeColor = android.content.res.ColorStateList.valueOf(getColor(R.color.primary))
         }
     }
 

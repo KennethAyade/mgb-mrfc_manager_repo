@@ -36,7 +36,7 @@ describe('Quarter Management Routes', () => {
 
       expect([200, 401, 500]).toContain(response.status);
       if (response.status === 200) {
-        expect(response.body.data).toHaveProperty('quarters');
+        expect(Array.isArray(response.body.data)).toBe(true);
       }
     });
 
@@ -45,7 +45,9 @@ describe('Quarter Management Routes', () => {
         .get('/api/v1/quarters?year=2025')
         .set('Authorization', `Bearer ${adminToken}`);
 
-      expect([200, 401, 500]).toContain(response.status);
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data.every((quarter: any) => quarter.year === 2025)).toBe(true);
     });
 
     it('should reject without authentication', async () => {

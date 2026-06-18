@@ -116,9 +116,8 @@ class DocumentRepository(private val apiService: DocumentApiService) {
     suspend fun uploadDocument(
         file: File,
         category: DocumentCategory,
-        mrfcId: Long? = null,
-        proponentId: Long? = null,
-        quarterId: Long? = null,
+        proponentId: Long,
+        quarterId: Long,
         description: String? = null,
         onProgress: ((Int) -> Unit)? = null
     ): Result<DocumentUploadResponse> {
@@ -143,17 +142,15 @@ class DocumentRepository(private val apiService: DocumentApiService) {
                 }
                 val filePart = MultipartBody.Part.createFormData("file", file.name, requestFile)
 
-                // Create other parts - category is required, others are optional
+                // Create required upload context
                 val categoryPart = category.name.toRequestBody("text/plain".toMediaTypeOrNull())
-                val mrfcIdPart = mrfcId?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
-                val proponentIdPart = proponentId?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
-                val quarterIdPart = quarterId?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val proponentIdPart = proponentId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+                val quarterIdPart = quarterId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
                 val descriptionPart = description?.toRequestBody("text/plain".toMediaTypeOrNull())
 
                 val response = apiService.uploadDocument(
                     file = filePart,
                     category = categoryPart,
-                    mrfcId = mrfcIdPart,
                     proponentId = proponentIdPart,
                     quarterId = quarterIdPart,
                     description = descriptionPart

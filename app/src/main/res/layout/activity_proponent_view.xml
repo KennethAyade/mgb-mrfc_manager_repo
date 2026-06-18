@@ -295,6 +295,16 @@
 
             </LinearLayout>
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUploadDocuments"
+                style="@style/PrimaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginBottom="8dp"
+                android:text="Upload Document"
+                app:icon="@drawable/ic_upload"
+                app:iconGravity="textStart" />
+
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
