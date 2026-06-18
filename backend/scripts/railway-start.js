@@ -92,7 +92,6 @@ if (!migrationResult.success) {
   process.exit(1);
 }
 
-<<<<<<< Updated upstream
 console.log('✅ Migration step completed successfully');
 console.log('');
 
@@ -119,7 +118,7 @@ if (healthCheckResult.success) {
 // Step 5: Seed quarters (IMPORTANT but not blocking)
 const seedResult = runCommand(
   'node scripts/seed-quarters.js',
-  'Step 5: Seeding quarters (Q1-Q4 2025)',
+  'Step 5: Seeding current-year quarters',
   {
     optional: true,
     failureMessage: 'Quarters may already be seeded. File upload feature may not work if quarters are missing.'
@@ -131,22 +130,6 @@ console.log('══════════════════════�
 console.log('🚀 Step 6: Starting MGB MRFC Manager Server');
 console.log('═════════════════════════════════════════');
 console.log('');
-=======
-// Step 4: Provision current-year quarters (CRITICAL)
-const seedSuccess = runCommand(
-  'node scripts/seed-quarters.js',
-  'Step 4: Provisioning current-year quarters'
-);
-
-if (!seedSuccess) {
-  console.error('Quarter provisioning is required. Refusing to start the server.');
-  process.exit(1);
-}
-
-// Step 5: Start the server
-console.log('🚀 Step 5: Starting server...');
-console.log('============================================\n');
->>>>>>> Stashed changes
 
 try {
   require('../dist/server.js');
